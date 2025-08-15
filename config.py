@@ -4,6 +4,8 @@
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
 ATTACK_DURATION_SECONDS = 60       # How long the attack lasts
+PULSE_DURATION = 5
+
 
 # --- Configurações do Docker ---
 DOCKER_IMAGE_NAME = "edos_target_app:latest" # Matches the image you built

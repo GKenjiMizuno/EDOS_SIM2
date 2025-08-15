@@ -26,6 +26,7 @@ def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, decision, active_na
 
 # --- Função Principal da Simulação ---
 def main():
+
     print("[Orchestrator] Initializing simulation environment...")
     
     # --- CORREÇÃO AQUI: Instanciar a classe Autoscaler ---
@@ -91,6 +92,9 @@ def main():
         print(f"[Orchestrator] Traffic injection scheduled: Start at {config.ATTACK_START_TIME_SECONDS}s, Duration {config.ATTACK_DURATION_SECONDS}s.")
     else:
         print("[Orchestrator] No traffic injection scheduled (ATTACK_DURATION_SECONDS is 0 or less).")
+
+    attack_start_time = config.ATTACK_START_TIME_SECONDS
+    attack_end = attack_start_time + config.SCALE_COOLDOWN_SECONDS
 
     main_loop_iteration = 0
     while (time.time() - start_time) < simulation_duration:
@@ -185,12 +189,23 @@ def main():
         print(f"[DEBUG Orchestrator] URLs derived for injector (if active): {target_urls_for_injector}")
 
         if config.ATTACK_DURATION_SECONDS > 0:
-            should_attack_be_active_now = (config.ATTACK_START_TIME_SECONDS <= elapsed_time_seconds <
-                                           (config.ATTACK_START_TIME_SECONDS + config.ATTACK_DURATION_SECONDS))
+
+            if current_num_instances_actual < config.MAX_INSTANCES:
+                is_max_instance = False
+            
+            else:
+                is_max_instance = True
+
+
+            should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds < attack_end)
             print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now}")
+
+            print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
 
             needs_injector_start_or_restart = False
             if should_attack_be_active_now:
+                attack_start_time = attack_start_time + config.SCALE_COOLDOWN_SECONDS
+                attack_end = attack_end + config.SCALE_COOLDOWN_SECONDS
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
                     needs_injector_start_or_restart = True
                     print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
