@@ -44,90 +44,114 @@ def http_request_worker(target_url, rps_per_worker):
     print(f"  [Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 
 
-def start_http_flood(target_host_port_pairs, duration_seconds):
+# edos_docker_simulation/traffic_injector.py
+
+# ... (mantenha os imports e a definição de http_request_worker como está) ...
+
+# Variável global para controlar a execução dos threads de ataque
+attack_active = False
+# renomeando para 'attacker_threads' para clareza e consistência
+# Comente ou remova a linha 'threads = []' se ela existir e você não a estiver usando
+attacker_threads = [] 
+
+
+def start_http_flood(target_urls, rps_per_worker_override, num_attackers_override):
     """
-    Starts an HTTP flood attack against one or more target host:port pairs.
-    target_host_port_pairs: A list of (host, port) tuples or a list of full URLs.
-                            Example: [("localhost", 8080), ("localhost", 8081)]
-                            Or: ["http://localhost:8080", "http://localhost:8081"]
-    duration_seconds: How long the flood should last.
+    Starts an HTTP flood attack against specified target URLs.
+    This function starts worker threads and returns immediately (non-blocking).
+    The attack continues until stop_http_flood() is called.
+
+    Args:
+        target_urls (list): A list of full URLs to target (e.g., ["http://localhost:8080"]).
+        rps_per_worker_override (float): The Requests Per Second (RPS) each worker thread should aim for.
+        num_attackers_override (int): The total number of attacker threads to launch.
     """
-    global attack_active, threads
+    global attack_active, attacker_threads
     
-    if not target_host_port_pairs:
-        print("[Injector] No targets specified. Stopping flood.")
+    if not target_urls:
+        print("[Injector] No target URLs provided. Attack not started.")
+        return
+    if attack_active:
+        print("[Injector] Attack already in progress. Call stop_http_flood() first.")
         return
 
-    # Limpar threads de uma execução anterior, se houver
-    if threads:
-        print("[Injector] Warning: Previous threads found. Attempting to join them (should not happen if stop_http_flood was called).")
-        attack_active = False # Garantir que threads antigos parem
-        for t in threads:
-            if t.is_alive():
-                t.join(timeout=1.0) # Dar um pequeno timeout para threads antigos finalizarem
-        threads = []
-
-
     attack_active = True
-    threads = [] # Reiniciar a lista de threads
+    # Limpar threads antigas é importante se o orchestrator não garante que stop_http_flood completou totalmente
+    if attacker_threads:
+        print(f"[Injector] Clearing {len(attacker_threads)} existing attacker threads before starting new ones.")
+    attacker_threads.clear()
 
-    num_attackers_per_target = config.HTTP_ATTACK_NUM_ATTACKERS
-    rps_per_attacker = config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER
+    num_targets = len(target_urls)
     
-    total_rps_configured = 0
+    print(f"[Injector] Starting HTTP flood with {num_attackers_override} attackers, ~{rps_per_worker_override * num_attackers_override} RPS total, across {num_targets} targets: {', '.join(target_urls)}")
 
-    print(f"[Injector] Starting HTTP flood for {duration_seconds} seconds.")
-    print(f"[Injector] Configuration: Attackers per target = {num_attackers_per_target}, RPS per attacker = {rps_per_attacker}")
+    for i in range(num_attackers_override):
+        # Distribuição Round Robin dos workers pelas URLs de destino
+        if num_targets == 0:
+            print("[Injector] No targets available for worker assignment. Breaking loop.")
+            break
+        target_url_for_this_worker = target_urls[i % num_targets]
+        
+        thread = threading.Thread(
+            target=http_request_worker,
+            args=(target_url_for_this_worker, rps_per_worker_override), # Cada thread pode ter uma URL diferente
+            daemon=True,
+            name=f"InjectorWorker-{i+1}"
+        )
+        attacker_threads.append(thread)
+        thread.start()
+        
+    print(f"[Injector] All {len(attacker_threads)} attacker threads launched.")
 
-    for target_spec in target_host_port_pairs:
-        target_url = ""
-        if isinstance(target_spec, tuple) and len(target_spec) == 2:
-            host, port = target_spec
-            # Construir a URL baseada na configuração, assumindo HTTP por enquanto
-            target_url = f"{config.HTTP_ATTACK_TARGET_URL_BASE}:{port}"
-        elif isinstance(target_spec, str):
-            target_url = target_spec # Assume a URL completa foi passada
-        else:
-            print(f"[Injector] Invalid target specification: {target_spec}. Skipping.")
-            continue
-
-        print(f"[Injector] Targeting URL: {target_url}")
-        for i in range(num_attackers_per_target):
-            thread = threading.Thread(target=http_request_worker, args=(target_url, rps_per_attacker), daemon=True)
-            threads.append(thread)
-            thread.start()
-            total_rps_configured += rps_per_attacker
-            
-    print(f"[Injector] All {len(threads)} attacker threads started. Total configured RPS: {total_rps_configured:.2f}")
-
-    if duration_seconds > 0:
-        time.sleep(duration_seconds)
-        print(f"[Injector] Flood duration ({duration_seconds}s) elapsed.")
-        stop_http_flood()
-    # Se duration_seconds <= 0, o flood continuará até stop_http_flood() ser chamado externamente.
-
+# Esta é a versão revisada e mais robusta do stop_http_flood
 def stop_http_flood():
     """
     Stops all active HTTP flood worker threads.
+    Signals workers to stop and waits for them to terminate.
     """
-    global attack_active, threads
-    if not attack_active and not threads:
+    global attack_active, attacker_threads 
+
+    if not attack_active and not attacker_threads:
         print("[Injector] HTTP flood already stopped or not started.")
         return
 
-    print("[Injector] Stopping HTTP flood...")
-    attack_active = False
-    
-    # Aguardar os threads finalizarem
-    for t in threads:
-        if t.is_alive():
-            t.join(timeout=5.0) # Timeout para cada thread finalizar
-            if t.is_alive():
-                print(f"[Injector] Warning: Thread {t.ident} did not stop in time.")
-    
-    threads = [] # Limpar a lista de threads
-    print("[Injector] All HTTP flood threads stopped.")
+    print("[Injector] Signaling HTTP flood workers to stop...")
+    attack_active = False # Sinaliza aos workers para terminarem seus loops
 
+    # Fazer uma cópia da lista de threads para dar join.
+    threads_to_join = list(attacker_threads) 
+
+    if not threads_to_join:
+        print("[Injector] No threads were in the attacker_threads list to join.")
+        attacker_threads.clear() 
+        return
+
+    print(f"[Injector] Attempting to stop and join {len(threads_to_join)} HTTP flood worker(s)...")
+
+    # Limpar a lista global de threads ANTES de dar join.
+    attacker_threads.clear()
+    
+    # Aguardar cada thread finalizar (join)
+    for i, thread_obj in enumerate(threads_to_join):
+        thread_name = thread_obj.name if hasattr(thread_obj, 'name') else f"Thread-{thread_obj.ident}"
+
+        if thread_obj.is_alive():
+            # O timeout do join deve ser um pouco maior que o timeout da requisição HTTP,
+            # para dar tempo à thread de finalizar sua última requisição e o loop.
+            join_timeout = (config.HTTP_REQUEST_TIMEOUT_SECONDS if hasattr(config, 'HTTP_REQUEST_TIMEOUT_SECONDS') else 2) + 2.0 
+            thread_obj.join(timeout=join_timeout)
+
+            if thread_obj.is_alive():
+                print(f"[Injector] Warning: Worker thread {thread_name} did not terminate gracefully within {join_timeout}s timeout.")
+            else:
+                print(f"[Injector] Thread {thread_name} joined successfully.")
+        else:
+            print(f"[Injector] Thread {thread_name} was already not alive before join attempt.")
+
+    print("[Injector] All HTTP flood workers have been processed for stopping.")
+
+
+# ... (mantenha o bloco if __name__ == "__main__": inalterado, ele serve para teste do módulo) ...
 
 # --- Self-test section (optional, for direct testing of this module) ---
 if __name__ == "__main__":

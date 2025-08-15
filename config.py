@@ -42,3 +42,30 @@ METRICS_LOG_FILE = "simulation_metrics.csv"
 # ... outras configurações ...
 HTTP_REQUEST_TIMEOUT_SECONDS = 10.0 # Timeout para cada requisição HTTP individual (em segundos)
 APP_CONTAINER_PORT = 80
+
+
+# --- Configurações de Ataque EDoS (pulsado) ---
+# Duração de um único pulso de tráfego intenso.
+# Deve ser menor que MONITOR_INTERVAL_SECONDS para permitir que o CPU caia entre os pulsos.
+# Ex: se MONITOR_INTERVAL_SECONDS = 5s, um pulso de 1s ou 2s é bom.
+EDOS_PULSE_DURATION_SECONDS = 1.0
+
+# RPS (Requests Per Second) por atacante durante o período de pulso intenso.
+# Calibre este valor para levar o CPU acima de CPU_THRESHOLD_SCALE_UP durante o pulso.
+EDOS_PULSE_RPS_PER_ATTACKER = 10 # Valor inicial, ajuste conforme o teste
+
+# Número de atacantes durante o período de pulso intenso.
+EDOS_PULSE_NUM_ATTACKERS = 5 # Valor inicial, ajuste conforme o teste
+
+# RPS por atacante no período "idle" (entre os pulsos ou fora do ataque).
+# Este valor deve ser baixo (preferencialmente 0) para permitir que o CPU caia.
+EDOS_IDLE_RPS_PER_ATTACKER = 0.0
+
+# Número de atacantes no período "idle" (pode ser 0).
+EDOS_IDLE_NUM_ATTACKERS = 0 # Valor inicial, ajuste conforme o teste (0 é geralmente bom)
+
+# Controla a duração do ataque para a fase de saturação (para atingir MAX_INSTANCES).
+# Durante esta fase, o tráfego será constante (ou uma mistura dos pulsos e idle) para garantir o scale-up inicial.
+# Após este tempo, a estratégia de pulsos pode ser mais rígida para manter o custo.
+# Pode ser configurado como 0 se você quiser que os pulsos iniciem imediatamente.
+EDOS_SATURATION_PHASE_DURATION_SECONDS = 60

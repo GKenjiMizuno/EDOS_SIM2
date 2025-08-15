@@ -68,9 +68,19 @@ def main():
     
     instance_intervals_for_cost = [] # Para cálculo de custo
 
+    # --- Variáveis para controle do ataque EDoS ---
+    # tracked_attack_state: 'idle', 'saturating', 'pulsing', 'idle_between_pulses'
+    tracked_attack_state = 'idle' 
+    last_pulse_end_time = 0.0 # Hora que o último pulso terminou, para gerenciar o próximo
+
+    # --- Inicialização da flag de ataque do injetor ---
+    # Garante que o injetor comece limpo. (traffic_injector.py foi alterado para usar attacker_threads)
+    traffic_injector.attack_active = False 
+    traffic_injector.attacker_threads = [] 
+
     # --- Variáveis para a lógica de reinício do injetor ---
     previous_num_instances_for_injector_logic = len(active_containers) # Estado para lógica de reinício do injetor
-    attack_has_started = False  # Se o injetor foi iniciado pelo menos uma vez
+    #attack_has_started = False  # Se o injetor foi iniciado pelo menos uma vez
 
     # Configurar arquivo de log CSV no início
     try:

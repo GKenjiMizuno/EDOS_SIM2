@@ -73,6 +73,23 @@ class Autoscaler:
         self.current_instances = new_instance_count
         # self.last_scale_action_time = time.time() # Já definido em decide_scaling se houve ação
 
+        # --- NOVOS MÉTODOS PARA O EDOS ---
+    def is_in_cooldown(self):
+        """
+        Checks if the autoscaler is currently in a cooldown period.
+        """
+        current_time = time.time()
+        return (current_time - self.last_scale_action_time) < config.SCALE_COOLDOWN_SECONDS
+
+    def get_cooldown_remaining(self):
+        """
+        Returns the remaining cooldown time in seconds.
+        Returns 0 if not in cooldown or if cooldown has elapsed.
+        """
+        current_time = time.time()
+        time_since_last_scale = current_time - self.last_scale_action_time
+        remaining = config.SCALE_COOLDOWN_SECONDS - time_since_last_scale
+        return max(0, remaining) # Garante que não retorne valores negativos
 
 # --- Self-test section (optional, for direct testing of this module) ---
 if __name__ == "__main__":
