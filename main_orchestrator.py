@@ -203,7 +203,9 @@ def main():
             print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
 
             needs_injector_start_or_restart = False
-            if should_attack_be_active_now:
+
+            #Se não esta em instancias maximas
+            if should_attack_be_active_now and not is_max_instance:
                 attack_start_time = attack_start_time + config.SCALE_COOLDOWN_SECONDS
                 attack_end = attack_end + config.SCALE_COOLDOWN_SECONDS
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
@@ -214,6 +216,20 @@ def main():
                     needs_injector_start_or_restart = True
                     print(f"[DEBUG Orchestrator] Condition: Needs to RESTART attack (num instances changed from {previous_num_instances_for_injector_logic} to {num_instances_after_scaling} AND attack was active).")
             
+            #Se esta em instância máxima
+            if should_attack_be_active_now and is_max_instance:
+                attack_start_time = attack_start_time + config.MONITOR_INTERVAL_SECONDS
+                attack_end = attack_end + config.MONITOR_INTERVAL_SECONDS
+                if not attack_has_started: # Se o ataque deve começar e ainda não começou
+                    needs_injector_start_or_restart = True
+                    print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
+                # Se o ataque já começou E o número de instâncias mudou E temos alvos
+                elif attack_has_started and previous_num_instances_for_injector_logic != num_instances_after_scaling and target_urls_for_injector:
+                    needs_injector_start_or_restart = True
+                    print(f"[DEBUG Orchestrator] Condition: Needs to RESTART attack (num instances changed from {previous_num_instances_for_injector_logic} to {num_instances_after_scaling} AND attack was active).")
+            
+
+
             if needs_injector_start_or_restart:
                 if attack_has_started: # Se já estava rodando, pare primeiro
                     print("[Orchestrator] Attack active and restart needed. Stopping current traffic injector...")
