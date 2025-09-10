@@ -10,16 +10,18 @@ import traffic_injector
 import cost_calculator # Se você tem um módulo separado para isso
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
-def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, decision, active_names):
+def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage, decision, active_names, label):
     try:
         with open(config.METRICS_LOG_FILE, 'a', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'decision', 'active_containers_names'])
+            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage', 'decision', 'active_containers_names', 'label'])
             writer.writerow({
                 'elapsed_time_s': round(elapsed_time, 2),
                 'num_instances': num_instances,
                 'average_cpu_percent': round(avg_cpu, 2),
+                'mem_usage': round(mem_usage,2),
                 'decision': decision,
-                'active_containers_names': ','.join(active_names) if active_names else ''
+                'active_containers_names': ','.join(active_names) if active_names else '',
+                'label': label,
             })
     except Exception as e:
         print(f"[Orchestrator] Error logging metrics to CSV: {e}")
@@ -105,6 +107,7 @@ def main():
 
         # 1. Validar e Coletar Métricas das Instâncias Ativas
         cpu_percent_total = 0.0
+        mem_usage = 0.0
         current_active_container_names = []
         valid_active_containers = [] # Lista para manter apenas os contêineres que ainda existem
         print(f"[DEBUG Orchestrator] Validating {len(active_containers)} container objects from previous iteration.")
@@ -112,10 +115,34 @@ def main():
             try:
                 refreshed_container = docker_manager.client.containers.get(container_obj.id) # Refresh
                 stats = docker_manager.get_container_stats(refreshed_container)
+                stats_stream = refreshed_container.stats(stream = False)
                 if stats and stats["cpu_percent"] is not None : # Checar se cpu_percent não é None
                     cpu_percent_total += stats["cpu_percent"]
                     current_active_container_names.append(refreshed_container.name)
                     valid_active_containers.append(refreshed_container)
+                
+                if stats and stats["memory_usage_mb"] is not None:
+                    mem_usage += stats_stream["memory_stats"]['usage']
+
+                    cache_mem = 0
+
+                    if 'stats' in stats_stream['memory_stats'] and 'cache' in stats_stream['memory_stats']['stats']:
+                        cache_mem = stats_stream['memory_stats']['stats']['cache']
+                    
+                    app_mem_usage = mem_usage - cache_mem
+
+
+                    print(f"Uso de memória total (incluindo cache): {mem_usage / (1024 * 1024):.2f} MB")
+                    print(f"Memória de cache: {cache_mem / (1024 * 1024):.2f} MB")
+                    print(f"Uso de memória da aplicação (sem cache): {app_mem_usage / (1024 * 1024):.2f} MB")
+
+                    app_mem_usage = app_mem_usage / (1024*1024)                    
+                    
+                    if refreshed_container.name not in current_active_container_names and refreshed_container not in valid_active_containers:
+                        current_active_container_names.append(refreshed_container)
+                        valid_active_containers.append(refreshed_container)
+                
+
                 else:
                     print(f"[Orchestrator] Warning: Could not get valid stats (or None CPU) for {container_obj.name}. It might have issues or been removed.")
             except docker.errors.NotFound:
@@ -126,8 +153,10 @@ def main():
         active_containers = valid_active_containers # Atualizar a lista de contêineres ativos
         current_num_instances_actual = len(active_containers)
         average_cpu = 0.0
+        average_mem = 0.0
         if current_num_instances_actual > 0:
             average_cpu = cpu_percent_total / current_num_instances_actual
+            average_mem = mem_usage / current_num_instances_actual
         elif config.MIN_INSTANCES > 0 and elapsed_time_seconds > config.MONITOR_INTERVAL_SECONDS:
             print("[Orchestrator] CRITICAL WARNING: No active instances running, but MIN_INSTANCES > 0.")
 
@@ -189,7 +218,7 @@ def main():
         print(f"[DEBUG Orchestrator] URLs derived for injector (if active): {target_urls_for_injector}")
 
         if config.ATTACK_DURATION_SECONDS > 0:
-
+            label = 'normal'
             if current_num_instances_actual < config.MAX_INSTANCES:
                 is_max_instance = False
             
@@ -220,6 +249,7 @@ def main():
             if should_attack_be_active_now and is_max_instance:
                 attack_start_time = attack_start_time + config.MONITOR_INTERVAL_SECONDS
                 attack_end = attack_end + config.MONITOR_INTERVAL_SECONDS
+
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
                     needs_injector_start_or_restart = True
                     print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
@@ -264,7 +294,7 @@ def main():
         print(f"[DEBUG Orchestrator] End of Iteration. previous_num_instances_for_injector_logic updated to: {previous_num_instances_for_injector_logic}")
 
         # 5. Registrar métricas no CSV
-        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, average_cpu, scaling_decision, current_active_container_names)
+        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, average_cpu, app_mem_usage, scaling_decision, current_active_container_names,label)
         
         # 6. Acumular dados para cálculo de custo
         instance_intervals_for_cost.append((num_instances_after_scaling, config.MONITOR_INTERVAL_SECONDS))
