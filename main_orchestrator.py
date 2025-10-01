@@ -8,6 +8,7 @@ import docker_manager
 import autoscaler_logic
 import traffic_injector
 import cost_calculator # Se você tem um módulo separado para isso
+from stats_collector import StatsCollector
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
 def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage, decision, active_names, label):
@@ -28,6 +29,8 @@ def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage, decision
 
 # --- Função Principal da Simulação ---
 def main():
+
+    global stats_collector
 
     print("[Orchestrator] Initializing simulation environment...")
     
@@ -57,6 +60,13 @@ def main():
             print(f"[Orchestrator] CRITICAL: Failed to start initial instance {next_instance_numeric_id}. Aborting.")
             docker_manager.cleanup_all_simulation_instances() # Limpar o que foi iniciado
             return
+    
+    # ... após preencher active_containers ...
+    stats_collector = StatsCollector(client=docker_manager.client,
+                        poll_interval=getattr(config, "DOCKER_STATS_POLL_INTERVAL_SECONDS", 1.0))
+    stats_collector.start()
+    stats_collector.update_containers(active_containers)
+
             
     if not active_containers and config.MIN_INSTANCES > 0:
         print("[Orchestrator] CRITICAL: No initial instances were started. Aborting.")
@@ -78,7 +88,8 @@ def main():
     # Configurar arquivo de log CSV no início
     try:
         with open(config.METRICS_LOG_FILE, 'w', newline='') as csvfile:
-            fieldnames = ['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'decision', 'active_containers_names']
+            fieldnames = ['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage',
+                  'decision', 'active_containers_names', 'label']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
         print(f"[Orchestrator] Metrics will be logged to: {config.METRICS_LOG_FILE}")
@@ -103,68 +114,25 @@ def main():
         current_loop_start_time = time.time() # Para calcular o tempo de sleep
         elapsed_time_seconds = current_loop_start_time - start_time
         main_loop_iteration += 1
+        label = 'normal'
         print(f"\n--- Iteration {main_loop_iteration} | Time: {elapsed_time_seconds:.1f}s / {simulation_duration}s ---")
 
         # 1. Validar e Coletar Métricas das Instâncias Ativas
-        cpu_percent_total = 0.0
-        mem_usage = 0.0
-        current_active_container_names = []
-        valid_active_containers = [] # Lista para manter apenas os contêineres que ainda existem
-        print(f"[DEBUG Orchestrator] Validating {len(active_containers)} container objects from previous iteration.")
-        for container_obj in active_containers:
-            try:
-                refreshed_container = docker_manager.client.containers.get(container_obj.id) # Refresh
-                stats = docker_manager.get_container_stats(refreshed_container)
-                stats_stream = refreshed_container.stats(stream = False)
-                if stats and stats["cpu_percent"] is not None : # Checar se cpu_percent não é None
-                    cpu_percent_total += stats["cpu_percent"]
-                    current_active_container_names.append(refreshed_container.name)
-                    valid_active_containers.append(refreshed_container)
-                
-                if stats and stats["memory_usage_mb"] is not None:
-                    mem_usage += stats_stream["memory_stats"]['usage']
 
-                    cache_mem = 0
+        stats_collector.update_containers(active_containers)
 
-                    if 'stats' in stats_stream['memory_stats'] and 'cache' in stats_stream['memory_stats']['stats']:
-                        cache_mem = stats_stream['memory_stats']['stats']['cache']
-                    
-                    app_mem_usage = mem_usage - cache_mem
-
-
-                    print(f"Uso de memória total (incluindo cache): {mem_usage / (1024 * 1024):.2f} MB")
-                    print(f"Memória de cache: {cache_mem / (1024 * 1024):.2f} MB")
-                    print(f"Uso de memória da aplicação (sem cache): {app_mem_usage / (1024 * 1024):.2f} MB")
-
-                    app_mem_usage = app_mem_usage / (1024*1024)                    
-                    
-                    if refreshed_container.name not in current_active_container_names and refreshed_container not in valid_active_containers:
-                        current_active_container_names.append(refreshed_container)
-                        valid_active_containers.append(refreshed_container)
-                
-
-                else:
-                    print(f"[Orchestrator] Warning: Could not get valid stats (or None CPU) for {container_obj.name}. It might have issues or been removed.")
-            except docker.errors.NotFound:
-                print(f"[Orchestrator] Warning: Container {container_obj.name} (ID: {container_obj.id}) not found. Removing from active list.")
-            except Exception as e_stats:
-                print(f"[Orchestrator] Error getting stats for {container_obj.name}: {e_stats}")
-        
-        active_containers = valid_active_containers # Atualizar a lista de contêineres ativos
         current_num_instances_actual = len(active_containers)
-        average_cpu = 0.0
-        average_mem = 0.0
-        if current_num_instances_actual > 0:
-            average_cpu = cpu_percent_total / current_num_instances_actual
-            average_mem = mem_usage / current_num_instances_actual
-        elif config.MIN_INSTANCES > 0 and elapsed_time_seconds > config.MONITOR_INTERVAL_SECONDS:
-            print("[Orchestrator] CRITICAL WARNING: No active instances running, but MIN_INSTANCES > 0.")
+        avg_cpu, avg_mem_app_mb, current_active_container_names = stats_collector.get_averages()
 
-        print(f"[Orchestrator] Metrics: {current_num_instances_actual} active instance(s), Avg CPU: {average_cpu:.2f}%")
+        if current_num_instances_actual == 0 and config.MIN_INSTANCES > 0 and elapsed_time_seconds > config.MONITOR_INTERVAL_SECONDS:
+                print("[Orchestrator] CRITICAL WARNING: No active instances running, but MIN_INSTANCES > 0.")
+        print(f"[Orchestrator] Metrics: {current_num_instances_actual} active instance(s), "
+            f"Avg CPU: {avg_cpu:.2f}%, Avg App MEM: {avg_mem_app_mb:.2f} MB")
+
 
         # 2. Decidir sobre o escalonamento
         # --- CORREÇÃO AQUI: Chamar o método na instância 'autoscaler' ---
-        scaling_decision = autoscaler.decide_scaling(average_cpu, current_num_instances_actual)
+        scaling_decision = autoscaler.decide_scaling(avg_cpu, current_num_instances_actual)
 
         # 3. Executar ações de escalonamento (atualiza 'active_containers' e 'next_instance_numeric_id')
         if scaling_decision == "SCALE_UP":
@@ -173,6 +141,7 @@ def main():
                 new_container = docker_manager.start_instance(next_instance_numeric_id)
                 if new_container:
                     active_containers.append(new_container)
+                    stats_collector.update_containers(active_containers)
                     next_instance_numeric_id += 1
                     print(f"[Orchestrator] Successfully started {new_container.name}. Now {len(active_containers)} instance(s).")
                 else:
@@ -182,7 +151,8 @@ def main():
         elif scaling_decision == "SCALE_DOWN":
             if current_num_instances_actual > config.MIN_INSTANCES:
                 # Simples: para o último da lista. Poderia ser mais sofisticado.
-                container_to_stop = active_containers.pop() 
+                container_to_stop = active_containers.pop()
+                stats_collector.update_containers(active_containers)
                 print(f"[Orchestrator] Action: Scaling DOWN from {current_num_instances_actual} instance(s). Stopping {container_to_stop.name}.")
                 if docker_manager.stop_instance(container_to_stop.name): # stop_instance deve retornar True/False
                     print(f"[Orchestrator] Successfully stopped {container_to_stop.name}. Now {len(active_containers)} instance(s).")
@@ -275,6 +245,7 @@ def main():
                         config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
                         config.HTTP_ATTACK_NUM_ATTACKERS
                     )
+                    label = 'attack'
                     attack_has_started = True # Marcar que o ataque (re)começou
                     print(f"[DEBUG Orchestrator] attack_has_started flag set to TRUE.")
                 else:
@@ -294,7 +265,7 @@ def main():
         print(f"[DEBUG Orchestrator] End of Iteration. previous_num_instances_for_injector_logic updated to: {previous_num_instances_for_injector_logic}")
 
         # 5. Registrar métricas no CSV
-        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, average_cpu, app_mem_usage, scaling_decision, current_active_container_names,label)
+        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, avg_cpu, avg_mem_app_mb, scaling_decision, current_active_container_names,label)
         
         # 6. Acumular dados para cálculo de custo
         instance_intervals_for_cost.append((num_instances_after_scaling, config.MONITOR_INTERVAL_SECONDS))
@@ -319,6 +290,12 @@ def main():
     print("[Orchestrator] Cleaning up all simulation instances...")
     docker_manager.cleanup_all_simulation_instances()
 
+    try:
+        print("[Stats_Collector] Stopping stats collector thread...")
+        stats_collector.stop()
+    except Exception:
+        pass
+
     if hasattr(cost_calculator, 'calculate_total_cost_from_intervals'):
         total_simulation_cost = cost_calculator.calculate_total_cost_from_intervals(instance_intervals_for_cost)
         print(f"[Orchestrator] Simulation Complete. Total Fictional Cost: ${total_simulation_cost:.4f}")
@@ -328,6 +305,7 @@ def main():
 
 # --- Bloco de Execução Principal ---
 if __name__ == "__main__":
+    stats_collector = None
     try:
         main()
     except KeyboardInterrupt:
@@ -335,9 +313,18 @@ if __name__ == "__main__":
         if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
             print("[Orchestrator] Stopping traffic injector due to interruption...")
             traffic_injector.stop_http_flood()
+        # pare a thread de stats se existir
+        try:
+            if stats_collector is not None:
+                print("[Stats_Collector] Stopping stats collector thread...")
+                stats_collector.stop()
+        except Exception:
+            pass
+
         if hasattr(docker_manager, 'cleanup_all_simulation_instances'):
             print("[Orchestrator] Cleaning up Docker instances due to interruption...")
             docker_manager.cleanup_all_simulation_instances()
+
         print("[Orchestrator] Cleanup attempt complete due to interruption.")
     except Exception as e_global:
         print(f"[Orchestrator] An UNEXPECTED GLOBAL ERROR occurred: {e_global}")
@@ -347,6 +334,15 @@ if __name__ == "__main__":
         if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
             print("[Orchestrator] Stopping traffic injector due to error...")
             traffic_injector.stop_http_flood()
+        
+        # pare a thread de stats se existir
+        try:
+            if stats_collector is not None:
+                print("[Stats_Collector] Stopping stats collector thread...")
+                stats_collector.stop()
+        except Exception:
+            pass
+
         if hasattr(docker_manager, 'cleanup_all_simulation_instances'):
             print("[Orchestrator] Cleaning up Docker instances due to error...")
             docker_manager.cleanup_all_simulation_instances()
