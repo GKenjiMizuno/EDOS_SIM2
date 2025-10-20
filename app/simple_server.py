@@ -1,29 +1,35 @@
 # app/simple_server.py
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import time
 import os
 import math
 
 class SimpleAppHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # Simular algum trabalho
-        #processing_time = float(os.getenv("PROCESSING_TIME", "0.1")) # Inicaimos com Padrão 0.01s
-        #time.sleep(processing_time)
-        #print(f"Processing time: {processing_time}s")
-        for _ in range(int(1e6)):  # Adjust to increase/decrease workload  -- 1e6 foi um bom resultado que escalonou para 2 instancias. 
+        # Parametrização por env: WORK_UNITS (CPU) e PROCESSING_TIME (latência)
+        work_units = int(os.getenv("WORK_UNITS", "1000000"))      # 1e6 = pesado; use 0 para "sem loop"
+        processing_time = float(os.getenv("PROCESSING_TIME", "0"))  # em segundos; ex.: 0.05
+
+        t0 = time.perf_counter()
+
+        for _ in range(work_units):
             _ = math.sqrt(123.456) * math.sin(123.456)
+        if processing_time > 0:
+            time.sleep(processing_time)
+        t1 = time.perf_counter()
 
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        # Adicionar o nome do host (container ID) na resposta para fácil identificação
-        hostname = os.getenv("HOSTNAME", "unknown_container") # HOSTNAME é injetado pelo Docker
-        message = f"Hello from {hostname}! Processed in {processing_time:.4f}s"
-        self.wfile.write(message.encode())
+
+        hostname = os.getenv("HOSTNAME", "unknown_container")
+        self.wfile.write(
+            f"host={hostname} work={work_units} sleep={processing_time:.4f}s elapsed={t1-t0:.4f}s\n".encode()
+        )
 
 if __name__ == '__main__':
-    server_port = int(os.getenv("APP_PORT", "80")) # O container sempre escuta na porta 80 internamente
-    server_address = ('', server_port)
-    httpd = HTTPServer(server_address, SimpleAppHandler)
-    print(f"Simple app server running on port {server_port} inside the container...")
+    # Dentro do container, mantenha 80; no host você mapeia pra 8080
+    server_port = int(os.getenv("APP_PORT", "80"))
+    httpd = ThreadingHTTPServer(('', server_port), SimpleAppHandler)
+    print(f"Simple app server running on port {server_port} (threading on)")
     httpd.serve_forever()
