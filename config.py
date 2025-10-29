@@ -3,7 +3,7 @@
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
-ATTACK_DURATION_SECONDS = 60       # How long the attack lasts
+ATTACK_DURATION_SECONDS = 0       # How long the attack lasts
 PULSE_DURATION = 5
 
 
@@ -44,6 +44,11 @@ METRICS_LOG_FILE = "simulation_metrics.csv"
 # ... outras configurações ...
 HTTP_REQUEST_TIMEOUT_SECONDS = 10.0 # Timeout para cada requisição HTTP individual (em segundos)
 APP_CONTAINER_PORT = 80
+
+#Normal traffic metrics
+
+HTTP_NORMAL_RPS_PER_CLIENT = 2
+HTTP_NORMAL_NUM_CLIENTS = 5
 
 
 # --- Configurações de Ataque EDoS (pulsado) ---

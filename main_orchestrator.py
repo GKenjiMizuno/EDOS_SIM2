@@ -9,6 +9,7 @@ import autoscaler_logic
 import traffic_injector
 import cost_calculator # Se você tem um módulo separado para isso
 from stats_collector import StatsCollector
+import normal_traffic
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
 def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage, decision, active_names, label):
@@ -93,7 +94,8 @@ def main():
 
     # --- Variáveis para a lógica de reinício do injetor ---
     previous_num_instances_for_injector_logic = len(active_containers) # Estado para lógica de reinício do injetor
-    #attack_has_started = False  # Se o injetor foi iniciado pelo menos uma vez
+    attack_has_started = False  # Se o injetor foi iniciado pelo menos uma vez
+    normal_traffic_has_started = False
 
     # Configurar arquivo de log CSV no início
     try:
@@ -141,7 +143,7 @@ def main():
 
 
         # 2. Decidir sobre o escalonamento
-        # --- CORREÇÃO AQUI: Chamar o método na instância 'autoscaler' ---
+        # --- CORREÇÃO AQUI: ChamaFr o método na instância 'autoscaler' ---
         scaling_decision = autoscaler.decide_scaling(avg_cpu, current_num_instances_actual)
 
         # 3. Executar ações de escalonamento (atualiza 'active_containers' e 'next_instance_numeric_id')
@@ -194,8 +196,17 @@ def main():
                 except Exception as e_port:
                     print(f"[Orchestrator] Error reloading or getting port for container {c_obj.name} for traffic injection: {e_port}")
 
-        print(f"[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: {num_instances_after_scaling}, Prev Injector Logic Instances: {previous_num_instances_for_injector_logic}, Attack Started Flag: {attack_has_started}")
+        print(f"[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: {num_instances_after_scaling}, Prev Injector Logic Instances: {previous_num_instances_for_injector_logic}, Attack Started Flag: {attack_has_started}, Normal Traffic Started Flag: {normal_traffic_has_started}")
         print(f"[DEBUG Orchestrator] URLs derived for injector (if active): {target_urls_for_injector}")
+
+        if config.ATTACK_DURATION_SECONDS == 0:
+                print(f"[Orchestrator] Starting/Restarting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
+                normal_traffic.start_http_traffic(
+                        target_urls_for_injector,
+                        config.HTTP_NORMAL_RPS_PER_CLIENT,
+                        config.HTTP_NORMAL_NUM_CLIENTS
+                    )
+                normal_traffic_has_started = True
 
         if config.ATTACK_DURATION_SECONDS > 0:
             label = 'normal'
@@ -212,6 +223,26 @@ def main():
             print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
 
             needs_injector_start_or_restart = False
+
+            #------------------COMEÇAR AQUI A LOGICA DE TRAFEGO NORMAL --------------------------
+
+            if not should_attack_be_active_now:
+                print(f"[Orchestrator] Starting/Restarting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
+                normal_traffic.start_http_traffic(
+                        target_urls_for_injector,
+                        config.HTTP_NORMAL_RPS_PER_CLIENT,
+                        config.HTTP_NORMAL_NUM_CLIENTS
+                    )
+                normal_traffic_has_started = True
+
+            
+            if should_attack_be_active_now:
+                print(f"[Orchestrator] Stopping Normal traffic...")
+                normal_traffic.stop_http_traffic()
+                normal_traffic_has_started = False
+
+
+
 
             #Se não esta em instancias maximas
             if should_attack_be_active_now and not is_max_instance:
@@ -323,6 +354,8 @@ if __name__ == "__main__":
         if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
             print("[Orchestrator] Stopping traffic injector due to interruption...")
             traffic_injector.stop_http_flood()
+            normal_traffic.stop_http_traffic()
+
         # pare a thread de stats se existir
         try:
             if stats_collector is not None:
@@ -344,6 +377,7 @@ if __name__ == "__main__":
         if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
             print("[Orchestrator] Stopping traffic injector due to error...")
             traffic_injector.stop_http_flood()
+            normal_traffic.stop_http_traffic()
         
         # pare a thread de stats se existir
         try:
