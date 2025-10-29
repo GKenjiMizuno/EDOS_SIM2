@@ -196,7 +196,7 @@ def main():
                 is_max_instance = True
 
 
-            should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds < attack_end)
+            should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds + 0.01 < attack_end)
             print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now}")
 
             print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
