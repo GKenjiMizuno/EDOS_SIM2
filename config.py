@@ -3,7 +3,7 @@
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
-ATTACK_DURATION_SECONDS = 0       # How long the attack lasts
+ATTACK_DURATION_SECONDS = 60       # How long the attack lasts
 PULSE_DURATION = 5
 
 
@@ -76,3 +76,13 @@ EDOS_IDLE_NUM_ATTACKERS = 0 # Valor inicial, ajuste conforme o teste (0 é geral
 # Após este tempo, a estratégia de pulsos pode ser mais rígida para manter o custo.
 # Pode ser configurado como 0 se você quiser que os pulsos iniciem imediatamente.
 EDOS_SATURATION_PHASE_DURATION_SECONDS = 60
+
+#SIMPLE SERVER ATTACK PARAMETERS
+
+ATTACK_WORK_UNITS = 2000000
+ATTACK_SLEEP = 0.02
+
+#SIMPLE SERVER NORMAL TRAFFIC PARAMETERS
+
+NORMAL_WORK_UNITS = 10
+NORMAL_SLEEP =0.0

@@ -124,6 +124,7 @@ def main():
     main_loop_iteration = 0
     while (time.time() - start_time) < simulation_duration:
         current_loop_start_time = time.time() # Para calcular o tempo de sleep
+        time.sleep(0.01)
         elapsed_time_seconds = current_loop_start_time - start_time
         main_loop_iteration += 1
         label = 'normal'

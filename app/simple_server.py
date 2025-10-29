@@ -4,11 +4,20 @@ import time
 import os
 import math
 
+from urllib.parse import urlparse, parse_qs
+
+
 class SimpleAppHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         # Parametrização por env: WORK_UNITS (CPU) e PROCESSING_TIME (latência)
-        work_units = int(os.getenv("WORK_UNITS", "1000000"))      # 1e6 = pesado; use 0 para "sem loop"
-        processing_time = float(os.getenv("PROCESSING_TIME", "0"))  # em segundos; ex.: 0.05
+        #Valores defaults
+        default_work = int(os.getenv("WORK_UNITS", "1000000"))      # 1e6 = pesado; use 0 para "sem loop"
+        default_sleep = float(os.getenv("PROCESSING_TIME", "0"))  # em segundos; ex.: 0.05
+
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+        work_units = int(qs.get("work",[default_work])[0])
+        processing_time = float(qs.get("sleep",[default_sleep])[0])
 
         t0 = time.perf_counter()
 

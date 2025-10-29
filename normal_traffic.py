@@ -90,7 +90,7 @@ def start_http_traffic(target_urls, rps_per_worker_override, num_clients_overrid
         if num_targets == 0:
             print("[Normal_Injector] No targets available for worker assignment. Breaking loop.")
             break
-        target_url_for_this_worker = target_urls[i % num_targets]
+        target_url_for_this_worker = target_urls[i % num_targets] + f"?work={config.NORMAL_WORK_UNITS}&sleep={config.NORMAL_SLEEP}"
         
         thread = threading.Thread(
             target=normal_http_request_worker,

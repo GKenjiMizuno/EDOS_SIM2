@@ -90,7 +90,7 @@ def start_http_flood(target_urls, rps_per_worker_override, num_attackers_overrid
         if num_targets == 0:
             print("[Injector] No targets available for worker assignment. Breaking loop.")
             break
-        target_url_for_this_worker = target_urls[i % num_targets]
+        target_url_for_this_worker = target_urls[i % num_targets] + f"?work={config.ATTACK_WORK_UNITS}&sleep={config.ATTACK_SLEEP}"
         
         thread = threading.Thread(
             target=http_request_worker,
