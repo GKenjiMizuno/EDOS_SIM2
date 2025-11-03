@@ -7,20 +7,23 @@ import config
 import docker_manager
 import autoscaler_logic
 import traffic_injector
+import normal_traffic
 import cost_calculator # Se você tem um módulo separado para isso
 from stats_collector import StatsCollector
-import normal_traffic
+from normal_traffic import get_average_rtt_ms
+from traffic_injector import get_average_rtt_attack_ms
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
-def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage, decision, active_names, label):
+def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, decision, active_names, label):
     try:
         with open(config.METRICS_LOG_FILE, 'a', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage', 'decision', 'active_containers_names', 'label'])
+            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage', 'avg_rtt_ms', 'decision', 'active_containers_names', 'label'])
             writer.writerow({
                 'elapsed_time_s': round(elapsed_time, 2),
                 'num_instances': num_instances,
                 'average_cpu_percent': round(avg_cpu, 2),
                 'mem_usage': round(mem_usage,2),
+                'avg_rtt_ms': round(avg_rtt,2),
                 'decision': decision,
                 'active_containers_names': ','.join(active_names) if active_names else '',
                 'label': label,
@@ -136,6 +139,17 @@ def main():
 
         current_num_instances_actual = len(active_containers)
         avg_cpu, avg_mem_app_mb, current_active_container_names = stats_collector.get_averages()
+        if normal_traffic_has_started:
+            avg_rtt = get_average_rtt_ms()
+            print(f"[Orchestrator]RTT = {avg_rtt}")
+
+
+        
+        else :
+            avg_rtt = get_average_rtt_attack_ms()
+            print(f"[Orchestrator]RTT = {avg_rtt}")
+
+
 
         if current_num_instances_actual == 0 and config.MIN_INSTANCES > 0 and elapsed_time_seconds > config.MONITOR_INTERVAL_SECONDS:
                 print("[Orchestrator] CRITICAL WARNING: No active instances running, but MIN_INSTANCES > 0.")
@@ -302,12 +316,13 @@ def main():
                 attack_has_started = False
                 print("[DEBUG Orchestrator] attack_has_started flag set to FALSE (attack period ended).")
 
+
         # Atualizar o número de instâncias para a lógica do injetor na PRÓXIMA iteração
         previous_num_instances_for_injector_logic = num_instances_after_scaling
         print(f"[DEBUG Orchestrator] End of Iteration. previous_num_instances_for_injector_logic updated to: {previous_num_instances_for_injector_logic}")
 
         # 5. Registrar métricas no CSV
-        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, avg_cpu, avg_mem_app_mb, scaling_decision, current_active_container_names,label)
+        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, avg_cpu, avg_mem_app_mb,avg_rtt, scaling_decision, current_active_container_names,label)
         
         # 6. Acumular dados para cálculo de custo
         instance_intervals_for_cost.append((num_instances_after_scaling, config.MONITOR_INTERVAL_SECONDS))

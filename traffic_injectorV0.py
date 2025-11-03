@@ -3,10 +3,13 @@ import requests
 import time
 import threading
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
+import statistics
 
 # Variável global para controlar a execução dos threads de ataque
 attack_active = False
 threads = []
+rtt_measurements = []
+rtt_lock = threading.Lock()
 
 def http_request_worker(target_url, rps_per_worker):
     """
@@ -28,6 +31,12 @@ def http_request_worker(target_url, rps_per_worker):
             # Você pode verificar response.status_code se precisar
             # if response.status_code == 200:
             #     pass
+
+            end_time = time.monotonic()
+            rtt = (end_time - start_time) * 1000  # em milissegundos
+            with rtt_lock:
+                rtt_measurements.append(rtt)
+
             request_count +=1
         except requests.exceptions.RequestException as e:
             # print(f"  [Injector Worker {threading.get_ident()}] Request error: {e}")
@@ -53,6 +62,14 @@ attack_active = False
 # renomeando para 'attacker_threads' para clareza e consistência
 # Comente ou remova a linha 'threads = []' se ela existir e você não a estiver usando
 attacker_threads = [] 
+
+
+def get_average_rtt_attack_ms():
+    with rtt_lock:
+        if not rtt_measurements:
+            return 0.0
+        return statistics.mean(rtt_measurements)
+
 
 
 def start_http_flood(target_urls, rps_per_worker_override, num_attackers_override):

