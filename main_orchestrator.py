@@ -6,12 +6,12 @@ import docker # Certifique-se de que 'docker' SDK está instalado (pip install d
 import config
 import docker_manager
 import autoscaler_logic
-import traffic_injector
+import traffic_injectorV0
 import normal_traffic
 import cost_calculator # Se você tem um módulo separado para isso
 from stats_collector import StatsCollector
 from normal_traffic import get_average_rtt_ms
-from traffic_injector import get_average_rtt_attack_ms
+from traffic_injectorV0 import get_average_rtt_attack_ms
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
 def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, decision, active_names, label):
@@ -92,8 +92,8 @@ def main():
 
     # --- Inicialização da flag de ataque do injetor ---
     # Garante que o injetor comece limpo. (traffic_injector.py foi alterado para usar attacker_threads)
-    traffic_injector.attack_active = False 
-    traffic_injector.attacker_threads = [] 
+    traffic_injectorV0.attack_active = False 
+    traffic_injectorV0.attacker_threads = [] 
 
     # --- Variáveis para a lógica de reinício do injetor ---
     previous_num_instances_for_injector_logic = len(active_containers) # Estado para lógica de reinício do injetor
@@ -203,7 +203,7 @@ def main():
                     if port_mappings and isinstance(port_mappings, list) and len(port_mappings) > 0:
                         host_port = port_mappings[0].get('HostPort')
                         if host_port:
-                            target_urls_for_injector.append(f"http://localhost:{host_port}") # Ou config.TARGET_HOST
+                            target_urls_for_injector.append(f"http://localhost:{host_port}")
                         else:
                             print(f"[Orchestrator] Warning: HostPort not found for {c_obj.name} in '{config.APP_CONTAINER_PORT}/tcp' mapping: {port_mappings[0]}")
                     else:
@@ -289,14 +289,14 @@ def main():
             if needs_injector_start_or_restart:
                 if attack_has_started: # Se já estava rodando, pare primeiro
                     print("[Orchestrator] Attack active and restart needed. Stopping current traffic injector...")
-                    traffic_injector.stop_http_flood()
+                    traffic_injectorV0.stop_http_flood()
                     print("[DEBUG Orchestrator] Called stop_http_flood. Sleeping for 1s...")
                     time.sleep(1) # Pausa para as threads do injetor pararem
                     print("[DEBUG Orchestrator] Resuming after sleep.")
                 
                 if target_urls_for_injector: # Somente inicie/reinicie se houver alvos
                     print(f"[Orchestrator] Starting/Restarting HTTP flood. Target URLs for this call: {target_urls_for_injector}")
-                    traffic_injector.start_http_flood(
+                    traffic_injectorV0.start_http_flood(
                         target_urls_for_injector,
                         config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
                         config.HTTP_ATTACK_NUM_ATTACKERS
@@ -308,11 +308,11 @@ def main():
                     print("[Orchestrator] Attack start/restart requested, but no valid target URLs. Injector not started/restarted.")
                     if attack_has_started: # Se estava ativo mas agora não tem alvos
                         print("[DEBUG Orchestrator] Attack was active but now no targets. Signaling stop and setting flag to False.")
-                        traffic_injector.stop_http_flood() # Parar se estava ativo e agora não tem alvos
+                        traffic_injectorV0.stop_http_flood() # Parar se estava ativo e agora não tem alvos
                         attack_has_started = False
             elif not should_attack_be_active_now and attack_has_started: # Se o período de ataque terminou
                 print("[Orchestrator] Attack duration ended or outside schedule. Stopping HTTP flood.")
-                traffic_injector.stop_http_flood()
+                traffic_injectorV0.stop_http_flood()
                 attack_has_started = False
                 print("[DEBUG Orchestrator] attack_has_started flag set to FALSE (attack period ended).")
 
@@ -340,9 +340,9 @@ def main():
     # --- Fim do loop de simulação ---
     print("\n[Orchestrator] Simulation duration reached.")
 
-    if traffic_injector.attack_active: # Verifica o estado real no módulo traffic_injector
+    if traffic_injectorV0.attack_active: # Verifica o estado real no módulo traffic_injector
         print("[Orchestrator] Stopping any active traffic injection at end of simulation...")
-        traffic_injector.stop_http_flood()
+        traffic_injectorV0.stop_http_flood()
 
     print("[Orchestrator] Cleaning up all simulation instances...")
     docker_manager.cleanup_all_simulation_instances()
@@ -367,9 +367,9 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n[Orchestrator] Simulation interrupted by user (Ctrl+C). Attempting cleanup...")
-        if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
+        if hasattr(traffic_injectorV0, 'attack_active') and traffic_injectorV0.attack_active:
             print("[Orchestrator] Stopping traffic injector due to interruption...")
-            traffic_injector.stop_http_flood()
+            traffic_injectorV0.stop_http_flood()
             normal_traffic.stop_http_traffic()
 
         # pare a thread de stats se existir
@@ -390,9 +390,9 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         print("[Orchestrator] Attempting cleanup after unexpected global error...")
-        if hasattr(traffic_injector, 'attack_active') and traffic_injector.attack_active:
+        if hasattr(traffic_injectorV0, 'attack_active') and traffic_injectorV0.attack_active:
             print("[Orchestrator] Stopping traffic injector due to error...")
-            traffic_injector.stop_http_flood()
+            traffic_injectorV0.stop_http_flood()
             normal_traffic.stop_http_traffic()
         
         # pare a thread de stats se existir

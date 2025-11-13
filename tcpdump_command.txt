@@ -1,2 +1,3 @@
 sudo tcpdump -i lo tcp port 8080 -w /tmp/lo8080.pcap
 ls -lh /tmp/lo8080.pcap
+cp /tmp/lo8080.pcap /mnt/c/Users/bibie/OneDrive/Área\ de\ Trabalho/TCC/

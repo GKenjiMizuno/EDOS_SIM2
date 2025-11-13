@@ -23,6 +23,7 @@ class SimpleAppHandler(BaseHTTPRequestHandler):
 
         for _ in range(work_units):
             _ = math.sqrt(123.456) * math.sin(123.456)
+            print(_)
         if processing_time > 0:
             time.sleep(processing_time)
         t1 = time.perf_counter()
