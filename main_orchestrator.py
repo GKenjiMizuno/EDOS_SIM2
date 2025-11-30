@@ -122,7 +122,16 @@ def main():
         print("[Orchestrator] No traffic injection scheduled (ATTACK_DURATION_SECONDS is 0 or less).")
 
     attack_start_time = config.ATTACK_START_TIME_SECONDS
-    attack_end = attack_start_time + config.SCALE_COOLDOWN_SECONDS
+    pulse_duration = config.PULSE_DURATION
+
+    if pulse_duration > config.SCALE_COOLDOWN_SECONDS:
+        print("[Debug Orchestrador] Pulse duration longer than autoscaling cooldown: Setting pulse duration to cooldown seconds...")
+        pulse_duration = config.SCALE_COOLDOWN_SECONDS
+        attack_end = attack_start_time + pulse_duration
+
+    else:
+        attack_end = attack_start_time + pulse_duration
+
 
     main_loop_iteration = 0
     while (time.time() - start_time) < simulation_duration:
@@ -233,6 +242,11 @@ def main():
 
 
             should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds < attack_end)
+
+            if elapsed_time_seconds >= attack_end:
+                attack_start_time = attack_start_time + config.SCALE_COOLDOWN_SECONDS
+                attack_end = attack_start_time + config.PULSE_DURATION 
+
             print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now}")
 
             print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
@@ -257,12 +271,8 @@ def main():
                 normal_traffic_has_started = False
 
 
-
-
             #Se não esta em instancias maximas
             if should_attack_be_active_now and not is_max_instance:
-                attack_start_time = attack_start_time + config.SCALE_COOLDOWN_SECONDS
-                attack_end = attack_end + config.SCALE_COOLDOWN_SECONDS
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
                     needs_injector_start_or_restart = True
                     print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
