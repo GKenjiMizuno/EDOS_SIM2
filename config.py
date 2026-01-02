@@ -3,7 +3,8 @@
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
-PULSE_DURATION = 5
+PULSE_DURATION = 30
+ATTACK_DURATION_SECONDS = 60
 
 
 # --- Configurações do Docker ---
@@ -85,3 +86,7 @@ ATTACK_SLEEP = 0.00
 
 NORMAL_WORK_UNITS = 10
 NORMAL_SLEEP =0.0
+# --- TCPDUMP SNIFFER CONFIG ---
+TCPDUMP_INTERFACE = "br-4b3ba7f6ed06"
+TCPDUMP_OUTPUT_CSV = "traffic_capture.csv"
+

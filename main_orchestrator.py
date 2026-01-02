@@ -3,6 +3,7 @@ import csv
 import docker # Certifique-se de que 'docker' SDK está instalado (pip install docker)
 
 # Importar seus outros módulos (assumindo que estão no mesmo diretório ou no PYTHONPATH)
+from tcpdump_sniffer import TcpdumpSniffer
 import config
 import docker_manager
 import autoscaler_logic
@@ -34,9 +35,16 @@ def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, 
 # --- Função Principal da Simulação ---
 def main():
 
-    global stats_collector
+    global stats_collector,sniffer
 
     print("[Orchestrator] Initializing simulation environment...")
+
+    ##Packet Sniffer
+    simulation_start_time = time.time()
+    sniffer = TcpdumpSniffer(interface=config.TCPDUMP_INTERFACE, output_csv=config.TCPDUMP_OUTPUT_CSV,simulation_start_time= simulation_start_time)
+    sniffer.start()
+    sniffer.set_label("benign")
+
     
     # --- CORREÇÃO AQUI: Instanciar a classe Autoscaler ---
     autoscaler = autoscaler_logic.Autoscaler() # Cria uma instância da classe Autoscaler
@@ -140,6 +148,7 @@ def main():
         elapsed_time_seconds = current_loop_start_time - start_time
         main_loop_iteration += 1
         label = 'normal'
+        sniffer.set_label("benign")
         print(f"\n--- Iteration {main_loop_iteration} | Time: {elapsed_time_seconds:.1f}s / {simulation_duration}s ---")
 
         # 1. Validar e Coletar Métricas das Instâncias Ativas
@@ -234,6 +243,7 @@ def main():
 
         if config.ATTACK_DURATION_SECONDS > 0:
             label = 'normal'
+            sniffer.set_label("benign")
             if current_num_instances_actual < config.MAX_INSTANCES:
                 is_max_instance = False
             
@@ -312,6 +322,7 @@ def main():
                         config.HTTP_ATTACK_NUM_ATTACKERS
                     )
                     label = 'attack'
+                    sniffer.set_label("attack")
                     attack_has_started = True # Marcar que o ataque (re)começou
                     print(f"[DEBUG Orchestrator] attack_has_started flag set to TRUE.")
                 else:
@@ -350,6 +361,11 @@ def main():
     # --- Fim do loop de simulação ---
     print("\n[Orchestrator] Simulation duration reached.")
 
+    try:
+        sniffer.stop()
+    except Exception as e:
+        print(f"[Sniffer] Error stopping tcpdump: {e}")
+
     if traffic_injectorV0.attack_active: # Verifica o estado real no módulo traffic_injector
         print("[Orchestrator] Stopping any active traffic injection at end of simulation...")
         traffic_injectorV0.stop_http_flood()
@@ -382,6 +398,12 @@ if __name__ == "__main__":
             traffic_injectorV0.stop_http_flood()
             normal_traffic.stop_http_traffic()
 
+        try:
+            if 'sniffer' in globals():
+                sniffer.stop()
+        except Exception:
+            pass
+
         # pare a thread de stats se existir
         try:
             if stats_collector is not None:
@@ -404,6 +426,12 @@ if __name__ == "__main__":
             print("[Orchestrator] Stopping traffic injector due to error...")
             traffic_injectorV0.stop_http_flood()
             normal_traffic.stop_http_traffic()
+
+        try:
+            if 'sniffer' in globals():
+                sniffer.stop()
+        except Exception:
+            pass
         
         # pare a thread de stats se existir
         try:
