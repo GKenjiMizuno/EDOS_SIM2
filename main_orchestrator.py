@@ -88,7 +88,10 @@ def main():
     autoscaler.set_initial_instances(len(active_containers)) # Agora chama na instância
     print(f"[Orchestrator] {len(active_containers)} initial instance(s) running.")
 
-    start_time = time.time()
+    #Fazendo alterações no tempo para evitar drift
+    start_time = time.monotonic()
+    next_tick = start_time
+
     simulation_duration = config.SIMULATION_DURATION_SECONDS
     
     instance_intervals_for_cost = [] # Para cálculo de custo
@@ -111,7 +114,7 @@ def main():
     # Configurar arquivo de log CSV no início
     try:
         with open(config.METRICS_LOG_FILE, 'w', newline='') as csvfile:
-            fieldnames = ['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage',
+            fieldnames = ['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage','avg_rtt_ms',
                   'decision', 'active_containers_names', 'label']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -121,11 +124,12 @@ def main():
         docker_manager.cleanup_all_simulation_instances()
         return
 
+    #Inicializando simulação
     print(f"[Orchestrator] Starting simulation main loop for {simulation_duration} seconds.")
     print(f"[Orchestrator] Monitoring interval: {config.MONITOR_INTERVAL_SECONDS}s. Cooldown: {config.SCALE_COOLDOWN_SECONDS}s.")
     print(f"[Orchestrator] CPU Thresholds: Scale Up > {config.CPU_THRESHOLD_SCALE_UP}%, Scale Down < {config.CPU_THRESHOLD_SCALE_DOWN}%")
     if config.ATTACK_DURATION_SECONDS > 0:
-        print(f"[Orchestrator] Traffic injection scheduled: Start at {config.ATTACK_START_TIME_SECONDS}s, Duration {config.ATTACK_DURATION_SECONDS}s.")
+        print(f"[Orchestrator] Traffic injection scheduled: Start at {config.ATTACK_START_TIME_SECONDS}s, Duration {config.PULSE_DURATION}s.")
     else:
         print("[Orchestrator] No traffic injection scheduled (ATTACK_DURATION_SECONDS is 0 or less).")
 
@@ -141,11 +145,15 @@ def main():
         attack_end = attack_start_time + pulse_duration
 
 
+    #Começo da iteração
     main_loop_iteration = 0
-    while (time.time() - start_time) < simulation_duration:
-        current_loop_start_time = time.time() # Para calcular o tempo de sleep
-        time.sleep(0.01)
-        elapsed_time_seconds = current_loop_start_time - start_time
+    while True:
+        now = time.monotonic()
+        elapsed_time_seconds = now - start_time
+
+        if elapsed_time_seconds >= simulation_duration:
+            break
+
         main_loop_iteration += 1
         label = 'normal'
         sniffer.set_label("benign")
@@ -157,14 +165,14 @@ def main():
 
         current_num_instances_actual = len(active_containers)
         avg_cpu, avg_mem_app_mb, current_active_container_names = stats_collector.get_averages()
-        if normal_traffic_has_started:
-            avg_rtt = get_average_rtt_ms()
+
+        #Pegando os RTTs
+        if attack_has_started:
+            avg_rtt = get_average_rtt_attack_ms()
             print(f"[Orchestrator]RTT = {avg_rtt}")
 
-
-        
         else :
-            avg_rtt = get_average_rtt_attack_ms()
+            avg_rtt = get_average_rtt_ms()
             print(f"[Orchestrator]RTT = {avg_rtt}")
 
 
@@ -241,7 +249,7 @@ def main():
                     )
                 normal_traffic_has_started = True
 
-        if config.ATTACK_DURATION_SECONDS > 0:
+        elif config.ATTACK_DURATION_SECONDS > 0:
             label = 'normal'
             sniffer.set_label("benign")
             if current_num_instances_actual < config.MAX_INSTANCES:
@@ -265,7 +273,7 @@ def main():
 
             #------------------COMEÇAR AQUI A LOGICA DE TRAFEGO NORMAL --------------------------
 
-            if not should_attack_be_active_now:
+            if not should_attack_be_active_now and not normal_traffic_has_started:
                 print(f"[Orchestrator] Starting/Restarting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
                 normal_traffic.start_http_traffic(
                         target_urls_for_injector,
@@ -350,11 +358,13 @@ def main():
         
         # 7. Aguardar próximo ciclo
         # Calcular tempo real da iteração e dormir apenas o necessário
-        current_loop_duration = time.time() - current_loop_start_time
-        time_to_sleep = config.MONITOR_INTERVAL_SECONDS - current_loop_duration
-        if time_to_sleep > 0:
+        next_tick += config.MONITOR_INTERVAL_SECONDS
+        sleep_time = next_tick - time.monotonic()
+        print(f"[DEGUG Orchestrator Loop Duration] Loop Duration = {next_tick}")
+        
+        if sleep_time > 0:
             # print(f"[DEBUG Orchestrator] Sleeping for {time_to_sleep:.2f}s")
-            time.sleep(time_to_sleep)
+            time.sleep(sleep_time)
         else:
             print(f"[Orchestrator] Warning: Loop iteration ({current_loop_duration:.2f}s) took longer than MONITOR_INTERVAL_SECONDS ({config.MONITOR_INTERVAL_SECONDS}s). Not sleeping.")
 

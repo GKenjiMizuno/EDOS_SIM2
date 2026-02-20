@@ -3,7 +3,7 @@
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
-PULSE_DURATION = 30
+PULSE_DURATION = 5
 ATTACK_DURATION_SECONDS = 60
 
 
