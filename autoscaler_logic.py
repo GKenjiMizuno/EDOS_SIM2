@@ -5,7 +5,7 @@ import config
 class Autoscaler:
     def __init__(self):
         self.current_instances = 0 # O orquestrador irá definir o valor inicial
-        self.last_scale_action_time = 0
+        self.cooldown_until = 0.0
         print("[Autoscaler] Initialized.")
 
     def set_initial_instances(self, num_instances):
@@ -32,8 +32,8 @@ class Autoscaler:
 
         # Verificar o cooldown
         current_time = time.monotonic()
-        if (current_time - self.last_scale_action_time) < config.SCALE_COOLDOWN_SECONDS:
-            print(f"[Autoscaler] In cooldown period. No scaling action will be taken. Time remaining: {config.SCALE_COOLDOWN_SECONDS - (current_time - self.last_scale_action_time):.1f}s")
+        if current_time < self.cooldown_until:
+            remaining = self.cooldown_until - current_time
             return "NO_ACTION"
 
         action = "NO_ACTION"
@@ -59,7 +59,7 @@ class Autoscaler:
             print(f"[Autoscaler] Decision: NO_ACTION. Avg CPU: {average_cpu_percent:.2f}% is within thresholds ({config.CPU_THRESHOLD_SCALE_DOWN}% - {config.CPU_THRESHOLD_SCALE_UP}%).")
 
         if action != "NO_ACTION":
-            self.last_scale_action_time = current_time
+            self.cooldown_until = current_time + config.SCALE_COOLDOWN_SECONDS
             # O orquestrador atualizará self.current_instances após a ação ser realmente executada
             
         return action
@@ -78,18 +78,15 @@ class Autoscaler:
         """
         Checks if the autoscaler is currently in a cooldown period.
         """
-        current_time = time.time()
-        return (current_time - self.last_scale_action_time) < config.SCALE_COOLDOWN_SECONDS
+        return time.monotonic() < self.cooldown_until
 
     def get_cooldown_remaining(self):
         """
         Returns the remaining cooldown time in seconds.
         Returns 0 if not in cooldown or if cooldown has elapsed.
         """
-        current_time = time.time()
-        time_since_last_scale = current_time - self.last_scale_action_time
-        remaining = config.SCALE_COOLDOWN_SECONDS - time_since_last_scale
-        return max(0, remaining) # Garante que não retorne valores negativos
+        remaining = self.cooldown_until - time.monotonic()
+        return max(0.0, remaining) # Garante que não retorne valores negativos
 
 # --- Self-test section (optional, for direct testing of this module) ---
 if __name__ == "__main__":

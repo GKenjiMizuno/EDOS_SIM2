@@ -187,6 +187,8 @@ def main():
         # --- CORREÇÃO AQUI: ChamaFr o método na instância 'autoscaler' ---
         scaling_decision = autoscaler.decide_scaling(avg_cpu, current_num_instances_actual)
 
+
+        scaling_triggered = False
         # 3. Executar ações de escalonamento (atualiza 'active_containers' e 'next_instance_numeric_id')
         if scaling_decision == "SCALE_UP":
             if current_num_instances_actual < config.MAX_INSTANCES:
@@ -197,10 +199,15 @@ def main():
                     stats_collector.update_containers(active_containers)
                     next_instance_numeric_id += 1
                     print(f"[Orchestrator] Successfully started {new_container.name}. Now {len(active_containers)} instance(s).")
+                    scaling_triggered = True
+
                 else:
                     print(f"[Orchestrator] Failed to start new instance for SCALE_UP.")
             else:
                 print(f"[Orchestrator] SCALE_UP requested, but already at MAX_INSTANCES ({config.MAX_INSTANCES}). No action.")
+                scaling_triggered = True
+
+
         elif scaling_decision == "SCALE_DOWN":
             if current_num_instances_actual > config.MIN_INSTANCES:
                 # Simples: para o último da lista. Poderia ser mais sofisticado.
@@ -209,15 +216,19 @@ def main():
                 print(f"[Orchestrator] Action: Scaling DOWN from {current_num_instances_actual} instance(s). Stopping {container_to_stop.name}.")
                 if docker_manager.stop_instance(container_to_stop.name): # stop_instance deve retornar True/False
                     print(f"[Orchestrator] Successfully stopped {container_to_stop.name}. Now {len(active_containers)} instance(s).")
+                    scaling_triggered = True
+
                 else:
                     print(f"[Orchestrator] Failed to stop {container_to_stop.name}. Adding back to active list (caution).")
                     active_containers.append(container_to_stop) # Adicionar de volta se a parada falhou
             else:
-                 print(f"[Orchestrator] SCALE_DOWN requested, but already at MIN_INSTANCES ({config.MIN_INSTANCES}). No action.")
-        
-        # Número de instâncias após scaling para esta iteração
+                print(f"[Orchestrator] SCALE_DOWN requested, but already at MIN_INSTANCES ({config.MIN_INSTANCES}). No action.")
+                scaling_triggered = True
+
+        if scaling_triggered:
+            autoscaler.record_scale_action(len(active_containers))
+                
         num_instances_after_scaling = len(active_containers)
-        autoscaler.record_scale_action(num_instances_after_scaling) # Atualizar o autoscaler
 
         # 4. Gerenciar o injetor de tráfego (COM LÓGICA DE REINÍCIO E LOGS)
         target_urls_for_injector = []
@@ -236,6 +247,7 @@ def main():
                         print(f"[Orchestrator] Warning: No '{config.APP_CONTAINER_PORT}/tcp' mapping found or empty for {c_obj.name}. Ports: {c_obj.attrs.get('NetworkSettings', {}).get('Ports', {})}")
                 except Exception as e_port:
                     print(f"[Orchestrator] Error reloading or getting port for container {c_obj.name} for traffic injection: {e_port}")
+
 
         print(f"[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: {num_instances_after_scaling}, Prev Injector Logic Instances: {previous_num_instances_for_injector_logic}, Attack Started Flag: {attack_has_started}, Normal Traffic Started Flag: {normal_traffic_has_started}")
         print(f"[DEBUG Orchestrator] URLs derived for injector (if active): {target_urls_for_injector}")
