@@ -366,7 +366,8 @@ def main():
             # print(f"[DEBUG Orchestrator] Sleeping for {time_to_sleep:.2f}s")
             time.sleep(sleep_time)
         else:
-            print(f"[Orchestrator] Warning: Loop iteration ({current_loop_duration:.2f}s) took longer than MONITOR_INTERVAL_SECONDS ({config.MONITOR_INTERVAL_SECONDS}s). Not sleeping.")
+            
+            print(f"[Orchestrator] Warning: Loop iteration took longer than MONITOR_INTERVAL_SECONDS ({config.MONITOR_INTERVAL_SECONDS}s). Not sleeping.")
 
     # --- Fim do loop de simulação ---
     print("\n[Orchestrator] Simulation duration reached.")

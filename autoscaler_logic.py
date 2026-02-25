@@ -31,7 +31,7 @@ class Autoscaler:
         self.current_instances = current_num_instances # Sincronizar com a realidade
 
         # Verificar o cooldown
-        current_time = time.time()
+        current_time = time.monotonic()
         if (current_time - self.last_scale_action_time) < config.SCALE_COOLDOWN_SECONDS:
             print(f"[Autoscaler] In cooldown period. No scaling action will be taken. Time remaining: {config.SCALE_COOLDOWN_SECONDS - (current_time - self.last_scale_action_time):.1f}s")
             return "NO_ACTION"

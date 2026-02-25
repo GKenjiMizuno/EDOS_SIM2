@@ -17,7 +17,7 @@ STARTING_HOST_PORT = 8080 # Host port for the first container instance (8080 -> 
 
 # --- Configurações do Autoescalonamento ---
 MIN_INSTANCES = 1
-MAX_INSTANCES = 3  # Start small for local testing on your VM
+MAX_INSTANCES = 4  # Start small for local testing on your VM
 # For CPU % (real or simulated), use values between 0 and 100
 CPU_THRESHOLD_SCALE_UP = 60.0   # % CPU average to trigger scale up
 CPU_THRESHOLD_SCALE_DOWN = 25.0 # % CPU average to trigger scale down
