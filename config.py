@@ -4,6 +4,7 @@
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 30     # When the attack begins
 PULSE_DURATION = 5
+ATTACK_DURATION_SECONDS = 60
 
 
 # --- Configurações do Docker ---
@@ -16,7 +17,7 @@ STARTING_HOST_PORT = 8080 # Host port for the first container instance (8080 -> 
 
 # --- Configurações do Autoescalonamento ---
 MIN_INSTANCES = 1
-MAX_INSTANCES = 3  # Start small for local testing on your VM
+MAX_INSTANCES = 4  # Start small for local testing on your VM
 # For CPU % (real or simulated), use values between 0 and 100
 CPU_THRESHOLD_SCALE_UP = 60.0   # % CPU average to trigger scale up
 CPU_THRESHOLD_SCALE_DOWN = 25.0 # % CPU average to trigger scale down
@@ -85,3 +86,7 @@ ATTACK_SLEEP = 0.00
 
 NORMAL_WORK_UNITS = 10
 NORMAL_SLEEP =0.0
+# --- TCPDUMP SNIFFER CONFIG ---
+TCPDUMP_INTERFACE = "br-4b3ba7f6ed06"
+TCPDUMP_OUTPUT_CSV = "traffic_capture.csv"
+

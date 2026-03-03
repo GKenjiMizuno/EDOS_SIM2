@@ -123,50 +123,26 @@ def start_http_flood(target_urls, rps_per_worker_override, num_attackers_overrid
 # Esta é a versão revisada e mais robusta do stop_http_flood
 def stop_http_flood():
     """
-    Stops all active HTTP flood worker threads.
-    Signals workers to stop and waits for them to terminate.
+    Non-blocking stop of attack threads.
     """
     global attack_active, attacker_threads 
 
     if not attack_active and not attacker_threads:
-        print("[Injector] HTTP flood already stopped or not started.")
+        print("[Injector] HTTP flood already stopped.")
         return
 
     print("[Injector] Signaling HTTP flood workers to stop...")
-    attack_active = False # Sinaliza aos workers para terminarem seus loops
+    attack_active = False
 
-    # Fazer uma cópia da lista de threads para dar join.
-    threads_to_join = list(attacker_threads) 
-
-    if not threads_to_join:
-        print("[Injector] No threads were in the attacker_threads list to join.")
-        attacker_threads.clear() 
-        return
-
-    print(f"[Injector] Attempting to stop and join {len(threads_to_join)} HTTP flood worker(s)...")
-
-    # Limpar a lista global de threads ANTES de dar join.
+    threads_to_join = list(attacker_threads)
     attacker_threads.clear()
-    
-    # Aguardar cada thread finalizar (join)
-    for i, thread_obj in enumerate(threads_to_join):
-        thread_name = thread_obj.name if hasattr(thread_obj, 'name') else f"Thread-{thread_obj.ident}"
 
+    # JOIN CURTO para evitar travar o loop
+    for thread_obj in threads_to_join:
         if thread_obj.is_alive():
-            # O timeout do join deve ser um pouco maior que o timeout da requisição HTTP,
-            # para dar tempo à thread de finalizar sua última requisição e o loop.
-            join_timeout = (config.HTTP_REQUEST_TIMEOUT_SECONDS if hasattr(config, 'HTTP_REQUEST_TIMEOUT_SECONDS') else 2) + 2.0 
-            thread_obj.join(timeout=join_timeout)
+            thread_obj.join(timeout=0.1)  # máximo 100ms
 
-            if thread_obj.is_alive():
-                print(f"[Injector] Warning: Worker thread {thread_name} did not terminate gracefully within {join_timeout}s timeout.")
-            else:
-                print(f"[Injector] Thread {thread_name} joined successfully.")
-        else:
-            print(f"[Injector] Thread {thread_name} was already not alive before join attempt.")
-
-    print("[Injector] All HTTP flood workers have been processed for stopping.")
-
+    print("[Injector] Stop signal sent (non-blocking).")
 
 # ... (mantenha o bloco if __name__ == "__main__": inalterado, ele serve para teste do módulo) ...
 
