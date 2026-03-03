@@ -20,10 +20,10 @@ TCP_FLAG_MAP = {
 
 
 TCPDUMP_REGEX = re.compile(
-    r'(?P<time>\d+\.\d+)\s+'
-    r'IP\s+'
-    r'(?P<src_ip>[\d\.]+)\.(?P<src_port>\d+)\s+>\s+'
-    r'(?P<dst_ip>[\d\.]+)\.(?P<dst_port>\d+):.*length\s+(?P<length>\d+)'
+    r'(?P<time>\d+\.\d+).*?IP\s+'
+    r'(?P<src_ip>\d+\.\d+\.\d+\.\d+)\.(?P<src_port>\d+)\s+>\s+'
+    r'(?P<dst_ip>\d+\.\d+\.\d+\.\d+)\.(?P<dst_port>\d+):.*?'
+    r'(?:length|tcp)\s+(?P<length>\d+)'
 )
 
 
@@ -66,12 +66,13 @@ class TcpdumpSniffer:
 
         cmd = [
             "tcpdump",
-            "-i", self.interface,
-            "-l",          # line buffered
-            "-n",          # no DNS
-            "-tt",         # epoch timestamp
+            "-i", "any",
+            "-l",
+            "-n",
+            "-tt",
+            "-q",     # saída mais simples
             "tcp"
-        ]
+            ]
 
         self.process = subprocess.Popen(
             cmd,
@@ -96,7 +97,7 @@ class TcpdumpSniffer:
             if not line:
                 break
 
-
+            
             match = TCPDUMP_REGEX.search(line)
             if not match:
                 continue

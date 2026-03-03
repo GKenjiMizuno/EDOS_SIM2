@@ -34,7 +34,9 @@ class Autoscaler:
         current_time = time.monotonic()
         if current_time < self.cooldown_until:
             remaining = self.cooldown_until - current_time
+            print(f'[Autoscaler]In cooldown: {remaining}')
             return "NO_ACTION"
+
 
         action = "NO_ACTION"
 
@@ -78,6 +80,7 @@ class Autoscaler:
         """
         Checks if the autoscaler is currently in a cooldown period.
         """
+        print("[Autoscaler]In cooldown period...")
         return time.monotonic() < self.cooldown_until
 
     def get_cooldown_remaining(self):
@@ -86,6 +89,7 @@ class Autoscaler:
         Returns 0 if not in cooldown or if cooldown has elapsed.
         """
         remaining = self.cooldown_until - time.monotonic()
+        print(f"[Autoscaler]{remaining}")
         return max(0.0, remaining) # Garante que não retorne valores negativos
 
 # --- Self-test section (optional, for direct testing of this module) ---
