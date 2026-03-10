@@ -59,6 +59,7 @@ class Autoscaler:
         # Nenhuma ação se estiver entre os limiares
         else:
             print(f"[Autoscaler] Decision: NO_ACTION. Avg CPU: {average_cpu_percent:.2f}% is within thresholds ({config.CPU_THRESHOLD_SCALE_DOWN}% - {config.CPU_THRESHOLD_SCALE_UP}%).")
+            action = "NO_ACTION"
 
         if action != "NO_ACTION":
             self.cooldown_until = current_time + config.SCALE_COOLDOWN_SECONDS

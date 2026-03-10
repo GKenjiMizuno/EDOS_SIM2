@@ -10,11 +10,22 @@ import autoscaler_logic
 import traffic_injectorV0
 import normal_traffic
 import cost_calculator # Se você tem um módulo separado para isso
+import argparse
 from stats_collector import StatsCollector
 from normal_traffic import get_average_rtt_ms
 from traffic_injectorV0 import get_average_rtt_attack_ms
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--rps", type=float, default=None)
+    parser.add_argument("--attackers", type=int, default=None)
+    parser.add_argument("--duration", type=int, default=None)
+
+    return parser.parse_args()
+
 def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, decision, active_names, label):
     try:
         with open(config.METRICS_LOG_FILE, 'a', newline='') as csvfile:
@@ -412,7 +423,25 @@ def main():
 # --- Bloco de Execução Principal ---
 if __name__ == "__main__":
     stats_collector = None
+
     try:
+
+        args = parse_args()
+
+        if args.rps is not None:
+            config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = args.rps
+            print(f"Attacker RPS set to: {config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER}")
+
+
+        if args.attackers is not None:
+            config.HTTP_ATTACK_NUM_ATTACKERS = args.attackers
+            print(f"Number of attackers set to: {config.HTTP_ATTACK_NUM_ATTACKERS}")
+
+
+        if args.duration is not None:
+            config.SIMULATION_DURATION_SECONDS = args.duration
+            print(f"Simulation duration set to: {config.SIMULATION_DURATION_SECONDS}")
+            
         main()
     except KeyboardInterrupt:
         print("\n[Orchestrator] Simulation interrupted by user (Ctrl+C). Attempting cleanup...")
