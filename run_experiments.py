@@ -27,7 +27,7 @@ for rps, attackers in itertools.product(RPS_VALUES, ATTACKERS_VALUES):
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    new_filename = f"metrics_rps{rps}_att{attackers}_{timestamp}.csv"
+    new_filename = f"metrics_rps{rps}_att{attackers}.csv"
     shutil.move("simulation_metrics.csv",
                 os.path.join(RESULTS_DIR, new_filename))
 
