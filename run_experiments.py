@@ -20,7 +20,7 @@ for rps, attackers in itertools.product(RPS_VALUES, ATTACKERS_VALUES):
         "main_orchestrator.py",
         "--rps", str(rps),
         "--attackers", str(attackers),
-        "--duration", "120"
+        "--duration", "180"
     ]
 
     subprocess.run(cmd)

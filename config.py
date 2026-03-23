@@ -2,9 +2,9 @@
 
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
-ATTACK_START_TIME_SECONDS = 30     # When the attack begins
+ATTACK_START_TIME_SECONDS = 20     # When the attack begins
 PULSE_DURATION = 5
-ATTACK_DURATION_SECONDS = 60
+ATTACK_DURATION_SECONDS = 90
 
 
 # --- Configurações do Docker ---
@@ -31,7 +31,7 @@ TCPREPLAY_INTERFACE = "docker0" # Or the interface for your edos_network bridge 
 
 # HTTP Flood Attack Config
 HTTP_ATTACK_TARGET_URL_BASE = "http://localhost" # The orchestrator will add the host port
-HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = 4 # RPS per attacking thread --- 5 foi um valor incial com bom resultado
+HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = 16 # RPS per attacking thread --- 5 foi um valor incial com bom resultado
 HTTP_ATTACK_NUM_ATTACKERS = 4 # Number of concurrent attacking threads/processes  -- 2 foi um valor incial com bom resultado
 
 # --- Configurações de Custo (Fictício) ---
