@@ -12,7 +12,7 @@ import normal_traffic
 import cost_calculator # Se você tem um módulo separado para isso
 import argparse
 from stats_collector import StatsCollector
-from normal_traffic import get_average_rtt_ms
+from normal_traffic import get_average_rtt_ms, save_rtt_log
 from traffic_injectorV0 import get_average_rtt_attack_ms
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
@@ -42,6 +42,7 @@ def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, 
             })
     except Exception as e:
         print(f"[Orchestrator] Error logging metrics to CSV: {e}")
+
 
 # --- Função Principal da Simulação ---
 def main():
@@ -282,7 +283,9 @@ def main():
                 is_max_instance = True
 
 
+            
             should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds < attack_end)
+
             if config.ATTACK_DURATION_SECONDS < elapsed_time_seconds:
                 should_attack_be_active_now = False
                     
@@ -396,6 +399,8 @@ def main():
 
     # --- Fim do loop de simulação ---
     print("\n[Orchestrator] Simulation duration reached.")
+    print("[Orchestrator] Saving RTT log...")
+    save_rtt_log()
 
     try:
         sniffer.stop()
@@ -447,6 +452,8 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("\n[Orchestrator] Simulation interrupted by user (Ctrl+C). Attempting cleanup...")
+        print("[Orchestrator] Saving RTT log...")
+        save_rtt_log()
         if hasattr(traffic_injectorV0, 'attack_active') and traffic_injectorV0.attack_active:
             print("[Orchestrator] Stopping traffic injector due to interruption...")
             traffic_injectorV0.stop_http_flood()

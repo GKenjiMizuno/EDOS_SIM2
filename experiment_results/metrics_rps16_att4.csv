@@ -5,8 +5,8 @@ elapsed_time_s,num_instances,average_cpu_percent,mem_usage,avg_rtt_ms,decision,a
 15.0,1,1.66,13.07,3.53,NO_ACTION,target_instance_1,normal
 20.0,1,2.3,13.11,3.46,NO_ACTION,target_instance_1,attack
 25.0,2,97.69,13.23,933.01,SCALE_UP,target_instance_1,normal
-30.0,2,0.91,13.01,5.95,NO_ACTION,target_instance_1,normal
-35.0,2,0.98,11.97,5.44,NO_ACTION,"target_instance_1,target_instance_2",normal
+30.0,2,91,13.01,5.95,NO_ACTION,target_instance_1,normal
+35.0,2,0.90.8,11.97,5.44,NO_ACTION,"target_instance_1,target_instance_2",normal
 40.0,2,0.88,11.98,5.1,NO_ACTION,"target_instance_1,target_instance_2",attack
 45.0,3,97.32,12.01,694.47,SCALE_UP,"target_instance_1,target_instance_2",normal
 50.01,3,46.68,11.96,5.44,NO_ACTION,"target_instance_1,target_instance_2",normal

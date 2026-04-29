@@ -1,17 +1,31 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 # === CONFIG ===
 CSV_FILE = "experiment_results/metrics_rps16_att4.csv"
 OUTPUT_DIR = "graficos"
 
-import os
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def load_data():
     df = pd.read_csv(CSV_FILE)
-    df = df.sort_values(by="elapsed_time_s")
+
+    # ordenar corretamente
+    df = df.sort_values(by="elapsed_time_s").reset_index(drop=True)
+
+    # 🔥 garantir que CPU é numérico
+    df["average_cpu_percent"] = pd.to_numeric(
+        df["average_cpu_percent"], errors="coerce"
+    )
+
+    # remover valores inválidos
+    df = df.dropna(subset=["average_cpu_percent"])
+
+    # evitar problema com log (não pode ter zero)
+    df["average_cpu_percent"] = df["average_cpu_percent"].replace(0, 0.1)
+
     return df
 
 
@@ -66,22 +80,36 @@ def plot_cpu_vs_instances(df):
 def plot_with_attack_labels(df):
     plt.figure()
 
+    # linha contínua
+    plt.plot(df["elapsed_time_s"], df["average_cpu_percent"], label="CPU", zorder=1)
+
+    # destacar pontos de ataque
     attack = df[df["label"] == "attack"]
-    normal = df[df["label"] == "normal"]
 
-    plt.plot(normal["elapsed_time_s"], normal["average_cpu_percent"], label="Normal")
-    plt.plot(attack["elapsed_time_s"], attack["average_cpu_percent"], label="Attack")
+    plt.scatter(
+        attack["elapsed_time_s"],
+        attack["average_cpu_percent"],
+        label="Attack",
+        zorder=2
+    )
 
-    plt.title("CPU (Normal vs Ataque)")
+    # escala log base 2
+    plt.yscale("log", base=2)
+    ticks = [2, 4, 8, 16, 32, 64, 100]
+    plt.yticks(ticks, ticks)
+
+    plt.title("CPU com destaque de ataque")
     plt.xlabel("Tempo (s)")
     plt.ylabel("CPU (%)")
     plt.legend()
-    plt.grid()
-    save_plot("cpu_attack_vs_normal")
+    plt.grid(True, which="both", linestyle="--", linewidth=0.5)
 
-
+    save_plot("cpu_attack_highlight")
+    
 def main():
     df = load_data()
+
+    print("DEBUG dtype CPU:", df["average_cpu_percent"].dtype)
 
     plot_cpu(df)
     plot_instances(df)

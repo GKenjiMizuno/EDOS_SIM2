@@ -4,11 +4,14 @@ import time
 import threading
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
+import csv
+
 
 # Variável global para controlar a execução dos threads de ataque
 traffic_active = False
 threads = []
 rtt_measurements = []
+rtt_measurements_total = []
 rtt_lock = threading.Lock()
 
 
@@ -37,6 +40,10 @@ def normal_http_request_worker(target_url, rps_per_worker):
             rtt = (end_time - start_time) * 1000  # em milissegundos
             with rtt_lock:
                 rtt_measurements.append(rtt)
+                rtt_measurements_total.append({
+                    "timestamp": time.time(),
+                    "rtt": rtt
+                })
 
             request_count +=1
         except requests.exceptions.RequestException as e:
@@ -53,7 +60,13 @@ def normal_http_request_worker(target_url, rps_per_worker):
 
     print(f"  [Normal_Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 
+def save_rtt_log(filename="rtt_log.csv"):
+    with open(filename, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "rtt"])
 
+        for entry in rtt_measurements_total:
+            writer.writerow([entry["timestamp"], entry["rtt"]]) 
 # edos_docker_simulation/traffic_injector.py
 
 # ... (mantenha os imports e a definição de http_request_worker como está) ...
@@ -66,10 +79,13 @@ client_threads = []
 
 
 def get_average_rtt_ms():
+    global rtt_measurements
     with rtt_lock:
         if not rtt_measurements:
             return 0.0
-        return statistics.mean(rtt_measurements)
+        avg_rtt = statistics.mean(rtt_measurements)
+        rtt_measurements = []
+        return avg_rtt
 
 
 

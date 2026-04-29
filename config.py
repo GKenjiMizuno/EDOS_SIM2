@@ -90,3 +90,8 @@ NORMAL_SLEEP =0.0
 TCPDUMP_INTERFACE = "br-4b3ba7f6ed06"
 TCPDUMP_OUTPUT_CSV = "traffic_capture.csv"
 
+
+#---------ANALYZE TRAFFIC CONFIGURATIONS -----------
+INPUT_FILE = "traffic_capture.csv"
+WINDOW_SIZE = 5  # segundos
+BINS = 10
