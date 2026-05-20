@@ -4,6 +4,7 @@ import time
 import threading
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
+import attack_summary_logger
 from normal_traffic import rtt_measurements_total
 
 # Variável global para controlar a execução dos threads de ataque
@@ -57,6 +58,12 @@ def http_request_worker(target_url, rps_per_worker):
 
     print(f"  [Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 
+    attack_summary_logger.log_worker_stop(
+        request_count=request_count,
+        error_count=error_count,
+        rps_per_worker= config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
+        num_attackers= config.HTTP_ATTACK_NUM_ATTACKERS
+    )
 
 # edos_docker_simulation/traffic_injector.py
 
@@ -66,7 +73,8 @@ def http_request_worker(target_url, rps_per_worker):
 attack_active = False
 # renomeando para 'attacker_threads' para clareza e consistência
 # Comente ou remova a linha 'threads = []' se ela existir e você não a estiver usando
-attacker_threads = [] 
+attacker_threads = []
+
 
 
 def get_average_rtt_attack_ms():
@@ -109,6 +117,12 @@ def start_http_flood(target_urls, rps_per_worker_override, num_attackers_overrid
     num_targets = len(target_urls)
     
     print(f"[Injector] Starting HTTP flood with {num_attackers_override} attackers, ~{rps_per_worker_override * num_attackers_override} RPS total, across {num_targets} targets: {', '.join(target_urls)}")
+
+    attack_summary_logger.log_attack_start(
+        target_urls=target_urls,
+        rps_per_worker=rps_per_worker_override,
+        num_attackers=num_attackers_override
+    )
 
     for i in range(num_attackers_override):
         # Distribuição Round Robin dos workers pelas URLs de destino

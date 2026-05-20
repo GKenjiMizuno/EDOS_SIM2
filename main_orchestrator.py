@@ -2,6 +2,7 @@ import time
 import csv
 import docker # Certifique-se de que 'docker' SDK está instalado (pip install docker)
 
+import attack_summary_logger
 # Importar seus outros módulos (assumindo que estão no mesmo diretório ou no PYTHONPATH)
 from tcpdump_sniffer import TcpdumpSniffer
 import config
@@ -14,6 +15,7 @@ import argparse
 from stats_collector import StatsCollector
 from normal_traffic import get_average_rtt_ms, save_rtt_log
 from traffic_injectorV0 import get_average_rtt_attack_ms
+
 
 # --- Função de Logging para CSV (pode estar aqui ou em um módulo utilitário) ---
 
@@ -131,6 +133,11 @@ def main():
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
         print(f"[Orchestrator] Metrics will be logged to: {config.METRICS_LOG_FILE}")
+    
+        # NOVO: inicializa o CSV de resumo do ataque
+        attack_summary_logger.init_attack_summary_log()
+        print(f"[Orchestrator] Attack summary will be logged to: {config.ATTACK_SUMMARY_LOG_FILE}")
+
     except Exception as e_csv_init:
         print(f"[Orchestrator] CRITICAL: Failed to initialize metrics log file {config.METRICS_LOG_FILE}. Error: {e_csv_init}. Aborting.")
         docker_manager.cleanup_all_simulation_instances()

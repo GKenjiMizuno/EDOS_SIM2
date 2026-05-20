@@ -4,8 +4,8 @@ import os
 import shutil
 from datetime import datetime
 
-RPS_VALUES = [2, 4, 8, 16]
-ATTACKERS_VALUES = [1, 2, 4]
+RPS_VALUES = [16,32,64]
+ATTACKERS_VALUES = [8,16,32]
 
 RESULTS_DIR = "experiment_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)

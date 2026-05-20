@@ -66,7 +66,10 @@ def save_rtt_log(filename="rtt_log.csv"):
         writer.writerow(["timestamp", "rtt"])
 
         for entry in rtt_measurements_total:
-            writer.writerow([entry["timestamp"], entry["rtt"]]) 
+            writer.writerow([entry["timestamp"], entry["rtt"]])
+
+
+
 # edos_docker_simulation/traffic_injector.py
 
 # ... (mantenha os imports e a definição de http_request_worker como está) ...

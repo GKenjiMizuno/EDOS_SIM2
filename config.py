@@ -95,3 +95,10 @@ TCPDUMP_OUTPUT_CSV = "traffic_capture.csv"
 INPUT_FILE = "traffic_capture.csv"
 WINDOW_SIZE = 5  # segundos
 BINS = 10
+
+
+
+CPU_SAMPLING_INTERVAL_SECONDS = 1.0
+
+
+ATTACK_SUMMARY_LOG_FILE = "attack_summary_log.csv"
