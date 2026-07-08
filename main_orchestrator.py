@@ -318,10 +318,10 @@ def main():
                 normal_traffic_has_started = True
 
             
-            if should_attack_be_active_now:
-                print(f"[Orchestrator] Stopping Normal traffic...")
-                normal_traffic.stop_http_traffic()
-                normal_traffic_has_started = False
+            #if should_attack_be_active_now:
+                #print(f"[Orchestrator] Stopping Normal traffic...")
+                #normal_traffic.stop_http_traffic()
+                #normal_traffic_has_started = False
 
 
             #Se não esta em instancias maximas

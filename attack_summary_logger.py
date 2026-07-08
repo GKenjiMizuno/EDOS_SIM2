@@ -6,23 +6,17 @@ import os
 import config
 
 FIELDNAMES = [
-    "ts_iso",
-    "event",
-    "thread_id",
-    "thread_name",
     "num_attackers",
     "rps_per_worker",
     "planned_total_rps",
     "num_targets",
-    "target_urls",
     "total_requests",
+    "elapsed_time_s",
+    "real_rps",
     "errors"
 ]
 
 _lock = threading.Lock()
-
-attack_start = config.ATTACK_START_TIME_SECONDS
-attack_end = attack_start + config.PULSE_DURATION
 
 
 def init_attack_summary_log():
@@ -43,34 +37,50 @@ def log_attack_start(target_urls, rps_per_worker, num_attackers):
     planned_total_rps = rps_per_worker * num_attackers
 
     row = {
-        "event": "attack_start",
         "num_attackers": num_attackers,
         "rps_per_worker": rps_per_worker,
         "planned_total_rps": planned_total_rps,
         "num_targets": num_targets,
-        "target_urls": "|".join(target_urls),
         "total_requests": "",
+        "elapsed_time_s": "",
+        "real_rps": "",
         "errors": ""
-    }
-
+}
     _append_row(row)
 
 
-def log_worker_stop(request_count, error_count, rps_per_worker, num_attackers):
+def log_worker_stop(request_count, error_count, worker_start_time, rps_per_worker):
     """
     Registra o resumo final de uma thread atacante.
     Deve ser chamado dentro do worker, quando ele termina.
     """
+    worker_end_time = time.monotonic()
+    elapsed_time_s = worker_end_time - worker_start_time
+
+    actual_rps = (
+        request_count / elapsed_time_s
+        if elapsed_time_s > 0
+        else 0.0
+    )
+
+    current_thread = threading.current_thread()
+
+    real_rps = (
+    request_count / elapsed_time_s
+    if elapsed_time_s > 0
+    else 0.0
+)
+
     row = {
-        "event": "worker_stop",
         "num_attackers": "",
-        "rps_per_worker": "",
+        "rps_per_worker": rps_per_worker,
         "planned_total_rps": "",
         "num_targets": "",
-        "target_urls": "",
         "total_requests": request_count,
-        "errors": error_count + ((rps_per_worker * num_attackers) - request_count)
-    }
+        "elapsed_time_s": round(elapsed_time_s, 3),
+        "real_rps": round(real_rps, 3),
+        "errors": error_count
+}
 
     _append_row(row)
 

@@ -20,6 +20,7 @@ def http_request_worker(target_url, rps_per_worker):
     global attack_active
     session = requests.Session() # Use session for potential connection pooling
     sleep_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
+    worker_start_time = time.monotonic()
 
     print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Interval: {sleep_interval:.4f}s")
     
@@ -61,9 +62,9 @@ def http_request_worker(target_url, rps_per_worker):
     attack_summary_logger.log_worker_stop(
         request_count=request_count,
         error_count=error_count,
-        rps_per_worker= config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
-        num_attackers= config.HTTP_ATTACK_NUM_ATTACKERS
-    )
+        worker_start_time=worker_start_time,
+        rps_per_worker=rps_per_worker
+)
 
 # edos_docker_simulation/traffic_injector.py
 

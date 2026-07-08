@@ -1,0 +1,13 @@
+ts_iso,event,thread_id,thread_name,num_attackers,rps_per_worker,planned_total_rps,num_targets,target_urls,total_requests,errors
+,attack_start,,,2,5.0,10.0,1,http://localhost:8080,,
+,worker_stop,,,,,,,,25,-15.0
+,worker_stop,,,,,,,,25,-15.0
+,attack_start,,,2,5.0,10.0,1,http://localhost:8080,,
+,worker_stop,,,,,,,,25,-15.0
+,worker_stop,,,,,,,,25,-15.0
+,attack_start,,,2,5.0,10.0,1,http://localhost:8080,,
+,worker_stop,,,,,,,,25,-15.0
+,worker_stop,,,,,,,,25,-15.0
+,attack_start,,,2,5.0,10.0,1,http://localhost:8080,,
+,worker_stop,,,,,,,,25,-15.0
+,worker_stop,,,,,,,,25,-15.0
