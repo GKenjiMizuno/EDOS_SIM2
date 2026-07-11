@@ -31,7 +31,7 @@ TCPREPLAY_INTERFACE = "docker0" # Or the interface for your edos_network bridge 
 
 # HTTP Flood Attack Config
 HTTP_ATTACK_TARGET_URL_BASE = "http://localhost" # The orchestrator will add the host port
-HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = 16 # RPS per attacking thread --- 5 foi um valor incial com bom resultado
+HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = 10 # RPS per attacking thread --- 5 foi um valor incial com bom resultado
 HTTP_ATTACK_NUM_ATTACKERS = 4 # Number of concurrent attacking threads/processes  -- 2 foi um valor incial com bom resultado
 
 # --- Configurações de Custo (Fictício) ---
@@ -47,7 +47,7 @@ APP_CONTAINER_PORT = 80
 
 #Normal traffic metrics
 
-HTTP_NORMAL_RPS_PER_CLIENT = 100
+HTTP_NORMAL_RPS_PER_CLIENT = 10
 HTTP_NORMAL_NUM_CLIENTS = 4
 
 
@@ -79,7 +79,7 @@ EDOS_SATURATION_PHASE_DURATION_SECONDS = 60
 
 #SIMPLE SERVER ATTACK PARAMETERS
 
-ATTACK_WORK_UNITS = 500000
+ATTACK_WORK_UNITS = 5000
 ATTACK_SLEEP = 0.00
 
 #SIMPLE SERVER NORMAL TRAFFIC PARAMETERS
@@ -102,3 +102,15 @@ CPU_SAMPLING_INTERVAL_SECONDS = 1.0
 
 
 ATTACK_SUMMARY_LOG_FILE = "attack_summary_log.csv"
+
+# --- Configurações de Capacidade da Instância (A3) ---
+# Tamanho do pool de processos persistente (criado uma única vez no startup do
+# simple_server.py) usado para executar o trabalho de CPU de cada requisição.
+# Substitui o teto acidental do GIL por um valor explícito e reprodutível, sem
+# pagar o custo de criar um processo novo a cada requisição (fork-per-request).
+INSTANCE_MAX_CONCURRENT_REQUESTS = 2
+
+# --- Configurações do Injetor Open-Loop (B2) ---
+# Tamanho do pool de threads que efetivamente envia as requisições do ataque,
+# desacoplando o ritmo de envio do tempo de resposta do alvo.
+HTTP_ATTACK_MAX_CONCURRENT_SENDS = 64

@@ -1,0 +1,148 @@
+EDOS_SIM2 - Registro de Alterações (Change Log)
+================================================
+
+Branch: develop_calibrating_treshold
+Objetivo geral: remover o teto artificial de capacidade da instância alvo (GIL)
+e o auto-throttling do injetor de ataque, para permitir calibrar com precisão
+os limiares de CPU que disparam o autoscaling (base para o ataque Yo-Yo).
+
+--------------------------------------------------------------------------------
+1) config.py
+--------------------------------------------------------------------------------
+Adicionado:
+  INSTANCE_MAX_CONCURRENT_REQUESTS = 2
+  HTTP_ATTACK_MAX_CONCURRENT_SENDS = 64
+
+Por quê:
+  - INSTANCE_MAX_CONCURRENT_REQUESTS define explicitamente quantos processos
+    concorrentes uma instância pode usar para atender requisições (substitui
+    o teto acidental que vinha do GIL do Python quando o servidor usava threads).
+  - HTTP_ATTACK_MAX_CONCURRENT_SENDS limita quantas requisições de ataque podem
+    estar "em voo" ao mesmo tempo, evitando crescimento ilimitado de threads/tarefas
+    caso o alvo não consiga responder no ritmo configurado.
+
+--------------------------------------------------------------------------------
+2) app/simple_server.py
+--------------------------------------------------------------------------------
+Alterado:
+  - Import: "ThreadingHTTPServer" trocado por "HTTPServer" + "socketserver".
+  - Nova classe ForkingHTTPServer(socketserver.ForkingMixIn, HTTPServer), com
+    max_children lido da variável de ambiente INSTANCE_MAX_CONCURRENT_REQUESTS.
+  - O bloco __main__ agora instancia ForkingHTTPServer em vez de ThreadingHTTPServer.
+
+Por quê:
+  - O loop de trabalho de CPU (math.sqrt/math.sin) não libera o GIL, então com
+    ThreadingHTTPServer múltiplas requisições concorrentes eram, na prática,
+    processadas em série por um único núcleo, não importa quantas threads/CPUs
+    existissem. Isso criava um teto de capacidade "acidental" (~17 RPS observado),
+    que dependia do hardware/interpretador, não de uma escolha de projeto.
+  - Com ForkingMixIn, cada requisição roda em um processo do SO separado,
+    permitindo paralelismo real entre núcleos, com um teto explícito e
+    reprodutível (max_children).
+
+--------------------------------------------------------------------------------
+3) docker_manager.py
+--------------------------------------------------------------------------------
+Alterado:
+  - start_instance(): a chamada client.containers.run(...) agora passa
+    environment={"INSTANCE_MAX_CONCURRENT_REQUESTS": str(config.INSTANCE_MAX_CONCURRENT_REQUESTS)}
+
+Por quê:
+  - Antes nenhuma variável de ambiente era passada para os containers (estava
+    comentado no código). Sem isso, o simple_server.py não teria como saber
+    qual o valor de max_children configurado em config.py.
+
+--------------------------------------------------------------------------------
+4) traffic_injectorV0.py — envio open-loop
+--------------------------------------------------------------------------------
+Alterado:
+  - Import adicional: "from concurrent.futures import ThreadPoolExecutor".
+  - Novo pool global _send_pool = ThreadPoolExecutor(max_workers=config.HTTP_ATTACK_MAX_CONCURRENT_SENDS)
+  - Nova função _send_one(session, target_url, counters, counters_lock): executa de fato
+    a chamada bloqueante session.get(...), mede o RTT e atualiza os contadores
+    ok/err. Roda dentro de uma thread do _send_pool.
+  - http_request_worker(): antes fazia o request de forma bloqueante dentro do
+    próprio laço de ritmo (closed-loop): enviava, esperava a resposta, só então
+    decidia dormir ou não. Agora o laço só decide QUANDO agendar o próximo envio
+    (via _send_pool.submit(...)) e nunca espera a resposta antes de continuar
+    (open-loop). O tempo de resposta do alvo não afeta mais o ritmo de disparo.
+
+Por quê:
+  - Antes, cada worker só tinha 1 requisição "em voo" por vez. Se o alvo demorasse
+    mais que o intervalo alvo (1/RPS) para responder, o worker automaticamente
+    reduzia sua taxa real de envio — o RPS "planejado" (planned_total_rps) e o
+    "real" (real_rps) do CSV divergiam sem que isso representasse perda de pacotes
+    (nenhum erro/timeout era registrado), apenas o injetor se autolimitando.
+  - Isso tornava impossível calibrar com precisão "quanto tráfego preciso mandar
+    para estourar o limiar de CPU", porque o tráfego realmente entregue dependia
+    de fatores incidentais (contenção, nº de instâncias), não só da configuração.
+  - Com o envio desacoplado da espera pela resposta, o RPS configurado passa a
+    refletir a demanda real ofertada ao alvo, tornando os experimentos de
+    calibração de limiar (CPU_THRESHOLD_SCALE_UP/DOWN) reprodutíveis.
+
+--------------------------------------------------------------------------------
+5) traffic_injectorV0.py — correção de subcontagem no fim do pulso
+--------------------------------------------------------------------------------
+Problema encontrado:
+  Ao parar o ataque, o laço de ritmo saía e lia os contadores (ok/err)
+  imediatamente, mas requisições que ainda estavam em voo no _send_pool
+  (enviadas mas sem resposta ainda) só terminariam DEPOIS dessa leitura,
+  e nunca eram contabilizadas no log de resumo. Ou seja, total_requests/errors
+  no attack_summary_log.csv podiam ficar levemente subestimados no fim de cada pulso.
+
+Correção:
+  - http_request_worker() agora guarda as Futures de cada envio numa lista
+    (pending_futures), descartando periodicamente as que já terminaram (para não
+    acumular memória em ataques longos).
+  - Ao sair do laço (attack_active == False), o worker espera (com timeout de
+    segurança) todas as Futures pendentes terminarem antes de ler os contadores
+    finais e chamar attack_summary_logger.log_worker_stop(...).
+
+Por quê:
+  - Garante que total_requests/errors no CSV reflitam TODAS as requisições que
+    o worker efetivamente enviou durante o pulso, sem subcontagem na borda do
+    fim do ataque — importante porque esses números alimentam o dataset usado
+    para treinar o modelo de ML.
+
+--------------------------------------------------------------------------------
+6) app/simple_server.py — remoção do fork-per-request
+--------------------------------------------------------------------------------
+Problema encontrado (via teste manual):
+  Testando tráfego normal (benigno) com NORMAL_WORK_UNITS=10 (praticamente
+  gratuito) a 100 RPS x 4 clientes, o CPU médio da instância ficou em ~200%
+  (2 núcleos cheios) SEM nenhum ataque. Com RPS=10 x 4 clientes, ~30%.
+  Isso não podia vir do trabalho em si (quase zero); veio do ForkingHTTPServer
+  (mudança A3 anterior), que cria um PROCESSO NOVO do zero para cada requisição
+  HTTP recebida. Criar processo tem custo real de CPU (kernel, tabelas de
+  página, agendamento, waitpid) mesmo que o trabalho dentro dele seja irrisório.
+  Em alta taxa de requisições (400/s), esse custo por requisição, multiplicado
+  centenas de vezes por segundo, virou o principal consumidor de CPU — fazendo
+  com que o CPU% passasse a refletir a TAXA de requisições, não o WORK_UNITS
+  configurado. Isso comprometeria a separação entre tráfego benigno e ataque
+  no dataset (tráfego benigno "pesado em volume" passaria a parecer ataque).
+
+Correção:
+  - app/simple_server.py voltou a usar ThreadingHTTPServer (sem fork por
+    requisição) para aceitar/parsear conexões HTTP (barato).
+  - O laço de CPU (math.sqrt/math.sin) foi movido para uma função de nível de
+    módulo, _burn_cpu(work_units), executada dentro de um
+    concurrent.futures.ProcessPoolExecutor PERSISTENTE (_pool), criado uma
+    única vez no startup do servidor (bloco __main__), com
+    max_workers=INSTANCE_MAX_CONCURRENT_REQUESTS.
+  - do_GET agora faz _pool.submit(_burn_cpu, work_units).result() em vez do
+    laço direto ou de depender do ForkingHTTPServer.
+  - config.py: comentário de INSTANCE_MAX_CONCURRENT_REQUESTS atualizado para
+    refletir que agora é o tamanho do pool persistente, não mais "max_children"
+    de um servidor forking.
+
+Por quê:
+  - O pool de processos é criado UMA VEZ; os processos são reaproveitados para
+    todas as requisições subsequentes, então o custo de criar processos deixa
+    de ser pago a cada requisição.
+  - Cada processo do pool ainda roda em paralelo real (seu próprio GIL), então
+    o objetivo original da mudança A3 (paralelismo real entre núcleos) é
+    preservado — só o mecanismo de obter esse paralelismo mudou.
+  - Efeito colateral esperado: os números de capacidade medidos anteriormente
+    (~17 RPS de teto, tempos de 1x/2x/4x) ficam desatualizados, pois incluíam
+    o custo de fork-per-request. Precisarão ser remedidos antes da Fase 1 de
+    calibração.

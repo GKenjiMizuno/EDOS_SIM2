@@ -90,7 +90,9 @@ def start_instance(instance_numeric_id):
             ports={'80/tcp': host_port}, # Internal container port is 80
             network=config.DOCKER_NETWORK_NAME,
             restart_policy={"Name": "no"}, # Do not auto-restart for this simulation
-            # environment={"PROCESSING_TIME": "0.05"} # Example: Pass env vars if your app uses them
+            environment={
+                "INSTANCE_MAX_CONCURRENT_REQUESTS": str(config.INSTANCE_MAX_CONCURRENT_REQUESTS)
+            },
         )
         print(f"Container {container.short_id} ({container_name}) started. Accessible on host port {host_port}.")
         # Optional: wait a tiny bit for the app inside the container to start

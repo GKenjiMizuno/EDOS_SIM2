@@ -6,6 +6,7 @@ import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_AT
 import statistics
 import attack_summary_logger
 from normal_traffic import rtt_measurements_total
+from concurrent.futures import ThreadPoolExecutor
 
 # Variável global para controlar a execução dos threads de ataque
 attack_active = False
@@ -13,9 +14,38 @@ threads = []
 rtt_measurements = []
 rtt_lock = threading.Lock()
 
+# Pool compartilhado que efetivamente envia as requisições (open-loop):
+# o ritmo de disparo das threads de ataque não espera essa pool terminar.
+_send_pool = ThreadPoolExecutor(max_workers=config.HTTP_ATTACK_MAX_CONCURRENT_SENDS)
+
+
+def _send_one(session, target_url, counters, counters_lock):
+    """
+    Executa a requisição bloqueante de fato. Roda numa thread da _send_pool,
+    desacoplada do laço de ritmo em http_request_worker.
+    """
+    start_time = time.monotonic()
+    try:
+        session.get(target_url, timeout=2)  # Timeout de 2 segundos
+
+        rtt = (time.monotonic() - start_time) * 1000  # em milissegundos
+        with rtt_lock:
+            rtt_measurements.append(rtt)
+            rtt_measurements_total.append({
+                "timestamp": time.time(),
+                "rtt": rtt
+            })
+        with counters_lock:
+            counters["ok"] += 1
+    except requests.exceptions.RequestException:
+        with counters_lock:
+            counters["err"] += 1
+
+
 def http_request_worker(target_url, rps_per_worker):
     """
-    Worker thread function. Sends requests to target_url at a specified RPS.
+    Worker thread function. Dispara requisições para target_url no ritmo de rps_per_worker,
+    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop).
     """
     global attack_active
     session = requests.Session() # Use session for potential connection pooling
@@ -23,39 +53,37 @@ def http_request_worker(target_url, rps_per_worker):
     worker_start_time = time.monotonic()
 
     print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Interval: {sleep_interval:.4f}s")
-    
-    request_count = 0
-    error_count = 0
+
+    counters = {"ok": 0, "err": 0}
+    counters_lock = threading.Lock()
+    pending_futures = []
 
     while attack_active:
-        start_time = time.monotonic()
-        try:
-            response = session.get(target_url, timeout=2) # Timeout de 2 segundos
-            # Você pode verificar response.status_code se precisar
-            # if response.status_code == 200:
-            #     pass
+        tick_start = time.monotonic()
 
-            end_time = time.monotonic()
-            rtt = (end_time - start_time) * 1000  # em milissegundos
-            with rtt_lock:
-                rtt_measurements.append(rtt)
-                rtt_measurements_total.append({
-                    "timestamp": time.time(),
-                    "rtt": rtt
-                })
+        future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
+        pending_futures.append(future)
+        # Descartar futures já concluídas para não acumular memória em ataques longos.
+        pending_futures = [f for f in pending_futures if not f.done()]
 
-            request_count +=1
-        except requests.exceptions.RequestException as e:
-            # print(f"  [Injector Worker {threading.get_ident()}] Request error: {e}")
-            error_count += 1
-        
-        # Calcular o tempo gasto e ajustar o sono para manter o RPS
-        time_taken = time.monotonic() - start_time
+        # Calcular o tempo gasto agendando e ajustar o sono para manter o ritmo de disparo,
+        # independentemente de quanto tempo a requisição em si demorar para responder.
+        time_taken = time.monotonic() - tick_start
         sleep_duration = sleep_interval - time_taken
         if sleep_duration > 0:
             time.sleep(sleep_duration)
-        # Se time_taken > sleep_interval, o worker está atrasado (não consegue manter o RPS)
-        # Não há muito o que fazer aqui além de registrar ou ajustar o RPS se for um problema.
+        # Se time_taken > sleep_interval, o agendamento está atrasado (ex.: pool sobrecarregada).
+
+    # Esperar as requisições ainda em voo terminarem antes de contabilizar o resumo final,
+    # para não subestimar total_requests/errors no CSV.
+    for f in pending_futures:
+        try:
+            f.result(timeout=3)  # timeout da requisição (2s) + margem de segurança
+        except Exception:
+            pass
+
+    with counters_lock:
+        request_count, error_count = counters["ok"], counters["err"]
 
     print(f"  [Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 
