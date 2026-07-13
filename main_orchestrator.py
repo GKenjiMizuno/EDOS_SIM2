@@ -25,6 +25,10 @@ def parse_args():
     parser.add_argument("--rps", type=float, default=None)
     parser.add_argument("--attackers", type=int, default=None)
     parser.add_argument("--duration", type=int, default=None)
+    parser.add_argument("--work-units", type=int, default=None)
+    parser.add_argument("--attack-duration", type=int, default=None)
+    parser.add_argument("--normal-rps", type=float, default=None)
+    parser.add_argument("--normal-work-units", type=int, default=None)
 
     return parser.parse_args()
 
@@ -174,7 +178,6 @@ def main():
             break
 
         main_loop_iteration += 1
-        label = 'normal'
         sniffer.set_label("benign")
         print(f"\n--- Iteration {main_loop_iteration} | Time: {elapsed_time_seconds:.1f}s / {simulation_duration}s ---")
 
@@ -183,7 +186,16 @@ def main():
         stats_collector.update_containers(active_containers)
 
         current_num_instances_actual = len(active_containers)
-        avg_cpu, avg_mem_app_mb, current_active_container_names = stats_collector.get_averages()
+        avg_cpu, avg_mem_app_mb, current_active_container_names = stats_collector.get_averages(
+            window_seconds=config.MONITOR_INTERVAL_SECONDS
+        )
+
+        # O rótulo do CSV de métricas reflete se o ataque estava ativo durante a
+        # janela que avg_cpu ACABOU de medir (estado herdado da decisão da
+        # iteração ANTERIOR), não a decisão de start/stop tomada mais abaixo
+        # nesta mesma iteração — assim label e average_cpu_percent sempre
+        # descrevem a mesma janela de tempo.
+        label = 'attack' if attack_has_started else 'normal'
 
         #Pegando os RTTs
         if attack_has_started:
@@ -281,7 +293,6 @@ def main():
                 normal_traffic_has_started = True
 
         elif config.ATTACK_DURATION_SECONDS > 0:
-            label = 'normal'
             sniffer.set_label("benign")
             if current_num_instances_actual < config.MAX_INSTANCES:
                 is_max_instance = False
@@ -364,7 +375,6 @@ def main():
                         config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
                         config.HTTP_ATTACK_NUM_ATTACKERS
                     )
-                    label = 'attack'
                     sniffer.set_label("attack")
                     attack_has_started = True # Marcar que o ataque (re)começou
                     print(f"[DEBUG Orchestrator] attack_has_started flag set to TRUE.")
@@ -455,7 +465,23 @@ if __name__ == "__main__":
         if args.duration is not None:
             config.SIMULATION_DURATION_SECONDS = args.duration
             print(f"Simulation duration set to: {config.SIMULATION_DURATION_SECONDS}")
-            
+
+        if args.work_units is not None:
+            config.ATTACK_WORK_UNITS = args.work_units
+            print(f"Attack work units set to: {config.ATTACK_WORK_UNITS}")
+
+        if args.attack_duration is not None:
+            config.ATTACK_DURATION_SECONDS = args.attack_duration
+            print(f"Attack duration set to: {config.ATTACK_DURATION_SECONDS}")
+
+        if args.normal_rps is not None:
+            config.HTTP_NORMAL_RPS_PER_CLIENT = args.normal_rps
+            print(f"Normal traffic RPS per client set to: {config.HTTP_NORMAL_RPS_PER_CLIENT}")
+
+        if args.normal_work_units is not None:
+            config.NORMAL_WORK_UNITS = args.normal_work_units
+            print(f"Normal traffic work units set to: {config.NORMAL_WORK_UNITS}")
+
         main()
     except KeyboardInterrupt:
         print("\n[Orchestrator] Simulation interrupted by user (Ctrl+C). Attempting cleanup...")

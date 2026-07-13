@@ -3,18 +3,17 @@ import itertools
 import os
 import shutil
 from datetime import datetime
-import config
 
 RPS_VALUES = [1,5,10]
 ATTACKERS_VALUES = [4]
-work_units = config.ATTACK_WORK_UNITS
+WORK_UNITS_VALUES = [5000, 20000, 50000, 100000]
 
 RESULTS_DIR = "experiment_results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-for rps, attackers in itertools.product(RPS_VALUES, ATTACKERS_VALUES):
+for rps, attackers, work_units in itertools.product(RPS_VALUES, ATTACKERS_VALUES, WORK_UNITS_VALUES):
 
-    print(f"\n===== Running Experiment RPS={rps}, ATTACKERS={attackers} =====")
+    print(f"\n===== Running Experiment RPS={rps}, ATTACKERS={attackers}, WORK_UNITS={work_units} =====")
 
     cmd = [
         "sudo",
@@ -22,6 +21,7 @@ for rps, attackers in itertools.product(RPS_VALUES, ATTACKERS_VALUES):
         "main_orchestrator.py",
         "--rps", str(rps),
         "--attackers", str(attackers),
+        "--work-units", str(work_units),
         "--duration", "180"
     ]
 

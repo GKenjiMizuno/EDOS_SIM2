@@ -146,3 +146,150 @@ Por quê:
     (~17 RPS de teto, tempos de 1x/2x/4x) ficam desatualizados, pois incluíam
     o custo de fork-per-request. Precisarão ser remedidos antes da Fase 1 de
     calibração.
+
+--------------------------------------------------------------------------------
+7) stats_collector.py — average_cpu_percent passa a ser uma média real da janela
+--------------------------------------------------------------------------------
+Problema encontrado (via análise de simulation_metrics.csv de um teste real):
+  Quatro pulsos de ataque IDÊNTICOS (confirmado por attack_summary_log.csv:
+  mesmo real_rps, mesmo total_requests, mesma duração) produziam leituras de
+  CPU bem diferentes entre si (28/36/30/41%). Causa: get_averages() apenas
+  retornava a última amostra em cache (_cache[cid]), sobrescrita a cada
+  ~1s pela thread de polling — não uma média sobre a janela de 5s do
+  MONITOR_INTERVAL_SECONDS. Qual amostra de ~1s calhava de estar em cache no
+  momento exato da leitura dependia de jitter de agendamento entre duas
+  threads independentes, não da intensidade real do ataque.
+
+Correção:
+  - Novo _history: Dict[str, deque] guarda (timestamp, cpu_percent,
+    mem_app_mb, name) por container, podado para as últimas
+    history_seconds (padrão 30s).
+  - _run() agora grava cada amostra também no histórico, além do cache.
+  - get_averages(window_seconds=None): sem argumento, mantém o
+    comportamento antigo (última amostra, útil p/ inspeção pontual/self-test).
+    Com window_seconds, calcula a média de TODAS as amostras dos últimos
+    window_seconds segundos, com fallback para o cache mais recente se não
+    houver amostras na janela (ex.: container recém-adicionado).
+  - update_containers() agora também poda o histórico de containers que saíram.
+
+Por quê:
+  - Faz average_cpu_percent refletir genuinamente a janela de monitoramento
+    inteira (múltiplas amostras), não uma leitura pontual sujeita a sorte de
+    timing — elimina a variação espúria entre pulsos idênticos.
+  - Verificado com teste unitário isolado (histórico sintético) confirmando
+    que a média da janela bate com o cálculo manual, e com uma execução real
+    da simulação (ver item 8).
+
+--------------------------------------------------------------------------------
+8) main_orchestrator.py — label do CSV de métricas alinhado com average_cpu_percent
+--------------------------------------------------------------------------------
+Problema encontrado (mesma análise do item 7):
+  A cada pulso, a linha com label='attack' aparecia com CPU baixo (pré-ataque),
+  e o pico de CPU real aparecia na linha SEGUINTE, já rotulada 'normal'.
+  Causa: label só virava 'attack' dentro do bloco que DECIDE iniciar o
+  injetor nesta iteração — decisão tomada DEPOIS da leitura de avg_cpu, que
+  por sua vez refletia o estado ANTES dessa decisão ter efeito.
+
+Correção:
+  - stats_collector.get_averages() agora é chamado com
+    window_seconds=config.MONITOR_INTERVAL_SECONDS (ver item 7).
+  - label passa a ser calculado logo após a leitura de métricas, ANTES da
+    decisão de start/stop desta iteração: label = 'attack' if
+    attack_has_started else 'normal' — ou seja, reflete o estado herdado da
+    decisão da iteração ANTERIOR, que é o que avg_cpu acabou de medir.
+  - Removidas as duas atribuições antigas de label ('normal' redundante logo
+    após o bloco de ataque; 'attack' dentro do bloco de start/restart do
+    injetor), que sobrescreviam o valor correto calculado acima.
+  - sniffer.set_label(...) (usado por tcpdump_sniffer.py para rotular
+    traffic_capture.csv em tempo real) NÃO foi alterado — já estava correto
+    (confirmado inspecionando o CSV de captura: rótulo "attack" aparece
+    exatamente na janela real do pulso, não deslocado).
+
+Por quê:
+  - label e average_cpu_percent agora sempre descrevem a MESMA janela de
+    tempo, em vez de janelas deslocadas por um tick.
+  - Verificado com uma execução real de 50s (2 pulsos): CPU de pico (49.61%
+    e 37.4%) apareceu corretamente nas linhas rotuladas 'attack' (t=25 e
+    t=45), não mais nas linhas seguintes rotuladas 'normal'.
+
+--------------------------------------------------------------------------------
+9) Problemas encontrados mas NÃO corrigidos (fora do escopo desta rodada)
+--------------------------------------------------------------------------------
+  - normal_traffic.py: save_rtt_log() usa o nome de arquivo "rtt_log.csv"
+    fixo no código, ignorando qualquer configuração — inconsistente com os
+    outros logs (que usam config.METRICS_LOG_FILE etc). Isso quebrou o teste
+    de verificação desta rodada porque rtt_log.csv (de uma execução anterior
+    com sudo) pertence ao usuário root, e o processo atual não pode
+    sobrescrevê-lo. Mesmo problema de permissão provavelmente afeta
+    simulation_metrics.csv, traffic_capture.csv e attack_summary_log.csv se
+    main_orchestrator.py for rodado sem sudo depois de ter sido rodado com
+    sudo anteriormente. Não corrigido pois não foi pedido — mencionado aqui
+    para referência futura.
+
+--------------------------------------------------------------------------------
+10) main_orchestrator.py — novos overrides de CLI para varreduras automatizadas
+--------------------------------------------------------------------------------
+Adicionado:
+  --work-units (config.ATTACK_WORK_UNITS)
+  --attack-duration (config.ATTACK_DURATION_SECONDS)
+  --normal-rps (config.HTTP_NORMAL_RPS_PER_CLIENT)
+  --normal-work-units (config.NORMAL_WORK_UNITS)
+
+Por quê:
+  - Antes, apenas --rps/--attackers/--duration eram configuráveis via CLI;
+    WORK_UNITS e os parâmetros de tráfego normal só podiam ser alterados
+    editando config.py manualmente entre execuções do run_experiments.py.
+  - Permite automatizar varreduras de 3+ variáveis (RPS x ATTACKERS x
+    WORK_UNITS) e rodar cenários apenas com tráfego normal
+    (--attack-duration 0) sem editar config.py, viabilizando os scripts de
+    varredura descritos a seguir (itens 11 e 12).
+
+--------------------------------------------------------------------------------
+11) run_experiments.py — varredura automatizada também em WORK_UNITS
+--------------------------------------------------------------------------------
+Alterado:
+  - Adicionado WORK_UNITS_VALUES = [5000, 20000, 50000, 100000].
+  - O loop agora é itertools.product(RPS_VALUES, ATTACKERS_VALUES,
+    WORK_UNITS_VALUES) (antes: só RPS_VALUES x ATTACKERS_VALUES).
+  - Cada execução passa --work-units <valor> para main_orchestrator.py.
+  - Removida a leitura estática "work_units = config.ATTACK_WORK_UNITS" (e o
+    "import config", agora sem uso) — work_units passa a ser a variável do
+    loop, com o mesmo valor usado tanto no comando quanto no nome dos
+    arquivos de saída.
+
+Por quê:
+  - Antes, WORK_UNITS só mudava entre lotes de execução se alguém editasse
+    config.py manualmente entre chamadas do script — não fazia parte da
+    varredura automatizada. Isso impedia encontrar o ponto de cruzamento do
+    limiar de CPU sem intervenção manual repetida.
+  - Valores escolhidos com base em dados já coletados nesta sessão: WU=5000
+    a RPS=40 total (10 rps x 4 atacantes) chegou a ~35-49% de CPU, abaixo do
+    CPU_THRESHOLD_SCALE_UP (60%) — a varredura estende para valores maiores
+    (20000/50000/100000) para encontrar o ponto onde o scale-up realmente
+    dispara.
+
+--------------------------------------------------------------------------------
+12) run_experiments_normal.py (novo) — varredura de baseline, só tráfego normal
+--------------------------------------------------------------------------------
+Adicionado:
+  - Novo script, irmão de run_experiments.py, varrendo
+    itertools.product(NORMAL_RPS_VALUES=[10,25,50,100],
+    NORMAL_WORK_UNITS_VALUES=[10,100,1000,5000]) — 16 combinações.
+  - Cada execução chama main_orchestrator.py com --normal-rps,
+    --normal-work-units e --attack-duration 0 (força o modo sem ataque já
+    existente no orquestrador), --duration 180.
+  - Salva em experiment_results/metrics_normal_rps{X}_WU{Y}.csv.
+  - attack_summary_log.csv (sempre criado, mesmo vazio, por
+    attack_summary_logger.init_attack_summary_log()) é descartado a cada
+    execução em vez de salvo, já que não há dados de ataque neste modo.
+
+Por quê:
+  - Fornece o baseline de comparação para a varredura de ataque (item 11):
+    caracteriza CPU/RTT sob tráfego normal na MESMA faixa de intensidade,
+    para permitir avaliar depois se uma configuração de ataque que cruza o
+    limiar de scale-up é estatisticamente distinguível do que o tráfego
+    normal produziria no mesmo ponto (questão de "stealth").
+  - Testado com uma execução curta (20s, --normal-rps 25 --normal-work-units
+    100 --attack-duration 0): confirmado que os argumentos de CLI chegam
+    corretamente ao config, o modo sem ataque é ativado, e o CPU responde de
+    forma sensata (~40-44%) à intensidade configurada.

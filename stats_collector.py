@@ -1,5 +1,6 @@
 import time
 import threading
+from collections import deque
 from typing import Dict, List, Optional, Tuple
 import docker
 
@@ -14,12 +15,15 @@ class StatsCollector:
     Thread que coleta docker stats periodicamente e guarda num cache thread-safe.
     O loop principal lê somente desse cache (sem fazer chamadas ao Docker).
     """
-    def __init__(self, client: Optional[docker.DockerClient] = None, poll_interval: float = POLL_INTERVAL):
+    def __init__(self, client: Optional[docker.DockerClient] = None, poll_interval: float = POLL_INTERVAL,
+                 history_seconds: float = 30.0):
         self.client = client or docker.from_env()
         self.poll_interval = poll_interval
+        self.history_seconds = history_seconds  # quanto histórico de amostras manter por container
 
         self._container_ids: List[str] = []  # lista de IDs (ou names) a monitorar
-        self._cache: Dict[str, dict] = {}    # id -> métricas calculadas
+        self._cache: Dict[str, dict] = {}    # id -> métricas calculadas (leitura mais recente)
+        self._history: Dict[str, deque] = {}  # id -> deque de (timestamp, cpu_percent, mem_app_mb, name)
         self._lock = threading.Lock()
         self._stop_evt = threading.Event()
 
@@ -43,8 +47,9 @@ class StatsCollector:
             ids.append(c.id if hasattr(c, "id") else str(c))
         with self._lock:
             self._container_ids = ids
-            # remove do cache quem saiu
+            # remove do cache/histórico quem saiu
             self._cache = {cid: v for cid, v in self._cache.items() if cid in ids}
+            self._history = {cid: v for cid, v in self._history.items() if cid in ids}
 
     def get_snapshot(self) -> Dict[str, dict]:
         """
@@ -53,17 +58,54 @@ class StatsCollector:
         with self._lock:
             return {k: v.copy() for k, v in self._cache.items()}
 
-    def get_averages(self) -> Tuple[float, float, List[str]]:
+    def get_averages(self, window_seconds: Optional[float] = None) -> Tuple[float, float, List[str]]:
         """
-        Retorna (avg_cpu_percent, avg_mem_app_mb, container_names)
+        Retorna (avg_cpu_percent, avg_mem_app_mb, container_names).
+
+        Sem window_seconds: usa apenas a leitura mais recente de cada container
+        (comportamento original — uma única amostra, útil para inspeção pontual).
+
+        Com window_seconds: calcula a média de TODAS as amostras coletadas nos
+        últimos `window_seconds`, para representar corretamente um intervalo de
+        monitoramento inteiro (em vez de depender de qual amostra ~instantânea
+        calhou de estar em cache no momento da chamada).
         """
-        snap = self.get_snapshot()
-        if not snap:
+        if window_seconds is None:
+            snap = self.get_snapshot()
+            if not snap:
+                return 0.0, 0.0, []
+            cpu = [v.get("cpu_percent", 0.0) for v in snap.values()]
+            mem = [v.get("mem_app_mb", 0.0) for v in snap.values()]
+            names = [v.get("name", "") for v in snap.values()]
+            return (sum(cpu) / len(cpu), sum(mem) / len(mem), names)
+
+        now = time.monotonic()
+        cutoff = now - window_seconds
+        with self._lock:
+            container_ids = list(self._container_ids)
+            histories = {cid: list(self._history.get(cid, [])) for cid in container_ids}
+            cache_snapshot = {cid: self._cache.get(cid) for cid in container_ids}
+
+        cpu_samples: List[float] = []
+        mem_samples: List[float] = []
+        names = set()
+        for cid in container_ids:
+            recent = [h for h in histories.get(cid, []) if h[0] >= cutoff]
+            if not recent:
+                # Sem amostras dentro da janela (ex.: poll_interval > window_seconds,
+                # ou container recém-adicionado): cai para a última leitura conhecida.
+                snap = cache_snapshot.get(cid)
+                if snap:
+                    recent = [(now, snap.get("cpu_percent", 0.0), snap.get("mem_app_mb", 0.0), snap.get("name", ""))]
+            for _, cpu, mem, name in recent:
+                cpu_samples.append(cpu)
+                mem_samples.append(mem)
+                if name:
+                    names.add(name)
+
+        if not cpu_samples:
             return 0.0, 0.0, []
-        cpu = [v.get("cpu_percent", 0.0) for v in snap.values()]
-        mem = [v.get("mem_app_mb", 0.0) for v in snap.values()]
-        names = [v.get("name", "") for v in snap.values()]
-        return (sum(cpu) / len(cpu), sum(mem) / len(mem), names)
+        return (sum(cpu_samples) / len(cpu_samples), sum(mem_samples) / len(mem_samples), list(names))
 
     # --------- Loop interno ---------
     def _run(self):
@@ -75,11 +117,18 @@ class StatsCollector:
                     stats = c.stats(stream=False)
                     metrics = self._compute_metrics(c, stats)
                     if metrics:
+                        now = time.monotonic()
                         with self._lock:
                             self._cache[cid] = metrics
+                            hist = self._history.setdefault(cid, deque())
+                            hist.append((now, metrics["cpu_percent"], metrics["mem_app_mb"], metrics["name"]))
+                            cutoff = now - self.history_seconds
+                            while hist and hist[0][0] < cutoff:
+                                hist.popleft()
                 except docker.errors.NotFound:
                     with self._lock:
                         self._cache.pop(cid, None)
+                        self._history.pop(cid, None)
                 except Exception:
                     # Evita derrubar o coletor por erro pontual de um contêiner
                     pass
