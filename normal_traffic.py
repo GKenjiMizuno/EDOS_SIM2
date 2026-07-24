@@ -92,7 +92,9 @@ def normal_http_request_worker(target_url, rps_per_worker):
 
     print(f"  [Normal_Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 
-def save_rtt_log(filename="rtt_log.csv"):
+def save_rtt_log(filename=None):
+    if filename is None:
+        filename = config.RTT_LOG_FILE
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp", "rtt"])

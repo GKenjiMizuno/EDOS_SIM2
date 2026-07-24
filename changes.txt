@@ -213,18 +213,40 @@ Por quê:
     t=45), não mais nas linhas seguintes rotuladas 'normal'.
 
 --------------------------------------------------------------------------------
-9) Problemas encontrados mas NÃO corrigidos (fora do escopo desta rodada)
+9) Problemas encontrados — status atualizado
 --------------------------------------------------------------------------------
-  - normal_traffic.py: save_rtt_log() usa o nome de arquivo "rtt_log.csv"
-    fixo no código, ignorando qualquer configuração — inconsistente com os
-    outros logs (que usam config.METRICS_LOG_FILE etc). Isso quebrou o teste
-    de verificação desta rodada porque rtt_log.csv (de uma execução anterior
-    com sudo) pertence ao usuário root, e o processo atual não pode
-    sobrescrevê-lo. Mesmo problema de permissão provavelmente afeta
-    simulation_metrics.csv, traffic_capture.csv e attack_summary_log.csv se
-    main_orchestrator.py for rodado sem sudo depois de ter sido rodado com
-    sudo anteriormente. Não corrigido pois não foi pedido — mencionado aqui
-    para referência futura.
+  - [CORRIGIDO no item 18] normal_traffic.py: save_rtt_log() usava o nome de
+    arquivo "rtt_log.csv" fixo no código, ignorando qualquer configuração —
+    inconsistente com os outros logs (que usam config.METRICS_LOG_FILE etc).
+  - [AINDA NÃO CORRIGIDO] O problema de permissão em si (arquivos ficarem
+    donos de root após uma execução com sudo, bloqueando execuções futuras
+    sem sudo) continua existindo para simulation_metrics.csv,
+    traffic_capture.csv, attack_summary_log.csv e agora também rtt_log.csv
+    (mesmo lendo o nome do config, o arquivo em si ainda fica root-owned se
+    criado via sudo). Não é um bug de código — é uma questão de como as
+    execuções são feitas (sudo vs. não-sudo). Mencionado aqui para referência
+    futura, caso vire um problema recorrente.
+
+--------------------------------------------------------------------------------
+18) normal_traffic.py — save_rtt_log() lê o nome do arquivo de config.py
+--------------------------------------------------------------------------------
+Alterado:
+  - config.py: novo RTT_LOG_FILE = "rtt_log.csv".
+  - normal_traffic.py: save_rtt_log(filename=None) agora usa
+    config.RTT_LOG_FILE como padrão quando nenhum argumento é passado, em vez
+    de ter "rtt_log.csv" fixo na assinatura da função — mesmo padrão já usado
+    por METRICS_LOG_FILE, TCPDUMP_OUTPUT_CSV, ATTACK_SUMMARY_LOG_FILE.
+
+Por quê:
+  - Consistência com o resto do projeto (todo log configurável via
+    config.py) e para permitir redirecionar o caminho de saída em testes
+    (como os testes de verificação já feitos nesta sessão) sem precisar
+    tocar no arquivo real do repositório.
+
+Verificado:
+  - config.RTT_LOG_FILE sobrescrito para um caminho em /tmp antes de chamar
+    save_rtt_log() sem argumentos: arquivo escrito corretamente no caminho
+    configurado, com o conteúdo esperado.
 
 --------------------------------------------------------------------------------
 10) main_orchestrator.py — novos overrides de CLI para varreduras automatizadas

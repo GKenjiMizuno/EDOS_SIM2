@@ -49,6 +49,7 @@ COST_PER_INSTANCE_PER_HOUR = 0.02 # Example cost
 
 # --- Nomes de arquivos de Log ---
 METRICS_LOG_FILE = "simulation_metrics.csv"
+RTT_LOG_FILE = "rtt_log.csv"
 
 # ... outras configurações ...
 HTTP_REQUEST_TIMEOUT_SECONDS = 10.0 # Timeout para cada requisição HTTP individual (em segundos)
