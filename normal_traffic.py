@@ -2,9 +2,11 @@
 import requests
 import time
 import threading
+import random
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
 import csv
+from concurrent.futures import ThreadPoolExecutor
 
 
 # Variável global para controlar a execução dos threads de ataque
@@ -14,49 +16,75 @@ rtt_measurements = []
 rtt_measurements_total = []
 rtt_lock = threading.Lock()
 
+# Pool compartilhado que efetivamente envia as requisições (open-loop), no mesmo
+# padrão do injetor de ataque (traffic_injectorV0.py): o ritmo de disparo não
+# espera essa pool terminar, e os intervalos entre disparos são independentes
+# uns dos outros (necessário para que os sorteios de Poisson façam sentido).
+_send_pool = ThreadPoolExecutor(max_workers=config.HTTP_NORMAL_MAX_CONCURRENT_SENDS)
+
+
+def _send_one_normal(session, target_url, counters, counters_lock):
+    """
+    Executa a requisição bloqueante de fato. Roda numa thread da _send_pool,
+    desacoplada do laço de ritmo em normal_http_request_worker.
+    """
+    start_time = time.monotonic()
+    try:
+        session.get(target_url, timeout=2)  # Timeout de 2 segundos
+
+        rtt = (time.monotonic() - start_time) * 1000  # em milissegundos
+        with rtt_lock:
+            rtt_measurements.append(rtt)
+            rtt_measurements_total.append({
+                "timestamp": time.time(),
+                "rtt": rtt
+            })
+        with counters_lock:
+            counters["ok"] += 1
+    except requests.exceptions.RequestException:
+        with counters_lock:
+            counters["err"] += 1
+
 
 def normal_http_request_worker(target_url, rps_per_worker):
     """
-    Worker thread function. Sends requests to target_url at a specified RPS.
+    Worker thread function. Dispara requisições para target_url no ritmo de rps_per_worker,
+    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop), com
+    intervalos entre disparos sorteados de uma distribuição exponencial (processo de
+    Poisson de taxa rps_per_worker) em vez de um intervalo fixo — modela clientes
+    independentes, como assumido em Sotelo Monge et al.
     """
     global traffic_active
     session = requests.Session() # Use session for potential connection pooling
-    sleep_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
+    mean_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
 
-    print(f"  [Normal_Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Interval: {sleep_interval:.4f}s")
-    
-    request_count = 0
-    error_count = 0
+    print(f"  [Normal_Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
+
+    counters = {"ok": 0, "err": 0}
+    counters_lock = threading.Lock()
+    pending_futures = []
 
     while traffic_active:
-        start_time = time.monotonic()
+        future = _send_pool.submit(_send_one_normal, session, target_url, counters, counters_lock)
+        pending_futures.append(future)
+        # Descartar futures já concluídas para não acumular memória em execuções longas.
+        pending_futures = [f for f in pending_futures if not f.done()]
+
+        # Próximo intervalo sorteado independentemente (memoryless), não corrigido pelo
+        # tempo de despacho — o despacho na _send_pool é rápido o bastante para não
+        # distorcer a taxa alvo.
+        sleep_duration = random.expovariate(rps_per_worker) if rps_per_worker > 0 else 1.0
+        time.sleep(sleep_duration)
+
+    # Esperar as requisições ainda em voo terminarem antes de contabilizar o resumo final.
+    for f in pending_futures:
         try:
-            response = session.get(target_url, timeout=2) # Timeout de 2 segundos
-            # Você pode verificar response.status_code se precisar
-            # if response.status_code == 200:
-            #     pass
+            f.result(timeout=3)  # timeout da requisição (2s) + margem de segurança
+        except Exception:
+            pass
 
-            end_time = time.monotonic()
-            rtt = (end_time - start_time) * 1000  # em milissegundos
-            with rtt_lock:
-                rtt_measurements.append(rtt)
-                rtt_measurements_total.append({
-                    "timestamp": time.time(),
-                    "rtt": rtt
-                })
-
-            request_count +=1
-        except requests.exceptions.RequestException as e:
-            # print(f"  [Injector Worker {threading.get_ident()}] Request error: {e}")
-            error_count += 1
-        
-        # Calcular o tempo gasto e ajustar o sono para manter o RPS
-        time_taken = time.monotonic() - start_time
-        sleep_duration = sleep_interval - time_taken
-        if sleep_duration > 0:
-            time.sleep(sleep_duration)
-        # Se time_taken > sleep_interval, o worker está atrasado (não consegue manter o RPS)
-        # Não há muito o que fazer aqui além de registrar ou ajustar o RPS se for um problema.
+    with counters_lock:
+        request_count, error_count = counters["ok"], counters["err"]
 
     print(f"  [Normal_Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
 

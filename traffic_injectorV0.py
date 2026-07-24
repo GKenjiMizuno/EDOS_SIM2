@@ -2,6 +2,7 @@
 import requests
 import time
 import threading
+import random
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
 import attack_summary_logger
@@ -45,34 +46,32 @@ def _send_one(session, target_url, counters, counters_lock):
 def http_request_worker(target_url, rps_per_worker):
     """
     Worker thread function. Dispara requisições para target_url no ritmo de rps_per_worker,
-    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop).
+    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop), com
+    intervalos entre disparos sorteados de uma distribuição exponencial (processo de
+    Poisson de taxa rps_per_worker) em vez de um intervalo fixo.
     """
     global attack_active
     session = requests.Session() # Use session for potential connection pooling
-    sleep_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
+    mean_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
     worker_start_time = time.monotonic()
 
-    print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Interval: {sleep_interval:.4f}s")
+    print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
 
     counters = {"ok": 0, "err": 0}
     counters_lock = threading.Lock()
     pending_futures = []
 
     while attack_active:
-        tick_start = time.monotonic()
-
         future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
         pending_futures.append(future)
         # Descartar futures já concluídas para não acumular memória em ataques longos.
         pending_futures = [f for f in pending_futures if not f.done()]
 
-        # Calcular o tempo gasto agendando e ajustar o sono para manter o ritmo de disparo,
-        # independentemente de quanto tempo a requisição em si demorar para responder.
-        time_taken = time.monotonic() - tick_start
-        sleep_duration = sleep_interval - time_taken
-        if sleep_duration > 0:
-            time.sleep(sleep_duration)
-        # Se time_taken > sleep_interval, o agendamento está atrasado (ex.: pool sobrecarregada).
+        # Próximo intervalo sorteado independentemente (memoryless), não corrigido pelo
+        # tempo de despacho — o despacho na _send_pool é rápido o bastante para não
+        # distorcer a taxa alvo.
+        sleep_duration = random.expovariate(rps_per_worker) if rps_per_worker > 0 else 1.0
+        time.sleep(sleep_duration)
 
     # Esperar as requisições ainda em voo terminarem antes de contabilizar o resumo final,
     # para não subestimar total_requests/errors no CSV.

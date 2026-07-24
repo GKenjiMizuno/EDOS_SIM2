@@ -381,3 +381,85 @@ Verificado:
   - Execução real de 40s com --attack-start 10 --pulse-duration 20: janela
     corretamente deslocada para [10s, 30s], rótulos 'attack'/'normal' no CSV
     de métricas alinhados corretamente antes/durante/depois da janela.
+
+--------------------------------------------------------------------------------
+15) run_experiments_combined.py (novo) — varredura combinada (Tabela 5)
+--------------------------------------------------------------------------------
+Adicionado:
+  - Novo script, irmão de run_experiments.py/run_experiments_normal.py,
+    varrendo NORMAL_SCENARIOS (S1-S4: 50/60/70/80 req/s agregado, igual à
+    Tabela 4) x ATTACK_INTENSITIES_PCT ([1, 5, 10]) — 12 combinações.
+  - Para cada combinação, calcula o RPS agregado de ataque como
+    normal_aggregate_rps * pct / 100 (a duração se cancela na conversão de
+    "% do total de requisições normais" para RPS), distribui entre
+    NORMAL_NUM_CLIENTS=4 / ATTACK_NUM_ATTACKERS=4, e chama
+    main_orchestrator.py via --normal-rps/--rps/--attackers/--work-units/
+    --normal-work-units/--duration.
+  - ATTACK_WORK_UNITS fixado em 100000 (maior valor já calibrado nesta sessão
+    que cruza o limiar de scale-up em RPS moderado — ver item 11).
+  - Deliberadamente NÃO sobrescreve --attack-start/--pulse-duration: herda
+    os valores atuais de config.py (janela [20s, 160s] dentro de uma
+    simulação de 180s), mantendo o formato de warm-up/cool-down com tráfego
+    só-normal já estabelecido na Fase 1, em vez do desenho original da
+    Tabela 5 (ataque cobrindo a janela inteira).
+  - Salva em experiment_results/metrics_{cenário}_atk{pct}pct.csv e
+    attack_summary_log_{cenário}_atk{pct}pct.csv.
+
+Por quê:
+  - Reproduz a Tabela 5 de Sotelo Monge et al.: para cada cenário de tráfego
+    normal, sobrepõe ataque como uma fração do volume total de requisições
+    normais — o experimento central da estrutura W-EDoS escolhida.
+
+Verificado:
+  - Execução real de um cenário (S1 @ 5%, duração reduzida para 40s para
+    teste): tráfego normal roda desde t=0, sobreposição de ataque ativa
+    corretamente a partir da janela configurada, CPU sobe de ~15% (baseline)
+    para ~21-30% e RTT sobe de ~6-8ms para ~42-51ms durante o ataque — sinal
+    claramente detectável mesmo numa intensidade baixa (5%) que não chega a
+    disparar SCALE_UP, o que é o caso interessante para a análise estatística
+    da Fase 3.5.
+
+--------------------------------------------------------------------------------
+16) Chegadas de Poisson para tráfego normal e de ataque
+--------------------------------------------------------------------------------
+Contexto:
+  Sotelo Monge et al. geram tráfego normal seguindo um processo de Poisson
+  (intervalos entre requisições exponencialmente distribuídos, taxa λ) em vez
+  de intervalos fixos — modela clientes independentes de forma mais realista
+  e dá à análise de entropia (Fase 3.5) uma variabilidade genuína para
+  caracterizar, em vez de principalmente ruído de fila/rede.
+
+Alterado:
+  - config.py: novo HTTP_NORMAL_MAX_CONCURRENT_SENDS = 64 (mesmo padrão de
+    HTTP_ATTACK_MAX_CONCURRENT_SENDS).
+  - traffic_injectorV0.py (http_request_worker): o cálculo de sleep_duration
+    deixou de ser "intervalo fixo menos tempo de despacho" e passou a ser um
+    sorteio independente de random.expovariate(rps_per_worker) a cada
+    iteração — processo de Poisson de taxa rps_per_worker.
+  - normal_traffic.py: normal_http_request_worker foi reestruturado para
+    seguir exatamente o mesmo padrão open-loop de traffic_injectorV0.py (B2):
+    novo _send_pool (ThreadPoolExecutor) e _send_one_normal() executam a
+    chamada bloqueante de fato, desacoplados do laço de ritmo; o laço agora
+    só decide QUANDO agendar o próximo envio, com o intervalo sorteado de
+    random.expovariate(rps_per_worker); ao parar, drena as requisições em
+    voo (pending_futures) antes de logar o resumo final, evitando
+    subcontagem (mesmo fix do item 4).
+
+Por quê:
+  - Chegadas de Poisson exigem que os disparos sejam independentes uns dos
+    outros — um laço fechado (que espera a resposta antes de decidir o
+    próximo intervalo) distorceria os sorteios sob carga, o mesmo problema
+    de auto-limitação já corrigido no injetor de ataque (item 2). Por isso
+    normal_traffic.py precisou do mesmo tratamento open-loop, não só da
+    troca da fórmula de intervalo.
+  - Mantém tráfego normal e de ataque estruturalmente simétricos (mesmo
+    padrão open-loop + Poisson dos dois lados), evitando que uma
+    regularidade "robótica" de um dos dois vire um sinal de detecção
+    artificial não relacionado ao consumo de CPU real.
+
+Verificado:
+  - Teste real contra um container de teste (10 rps, 1 worker, 8s cada):
+    coeficiente de variação dos intervalos entre chegadas (std/média, que
+    deve ser ~1.0 para um processo de Poisson e ~0 para intervalo fixo).
+    normal_traffic.py: CV=0.944 (n=76). traffic_injectorV0.py: CV=1.101
+    (n=88). Ambos consistentes com chegadas de Poisson.

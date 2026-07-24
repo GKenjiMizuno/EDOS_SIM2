@@ -97,3 +97,6 @@ INSTANCE_MAX_CONCURRENT_REQUESTS = 2
 # Tamanho do pool de threads que efetivamente envia as requisições do ataque,
 # desacoplando o ritmo de envio do tempo de resposta do alvo.
 HTTP_ATTACK_MAX_CONCURRENT_SENDS = 64
+
+# Mesma ideia para o tráfego normal (ver normal_traffic.py).
+HTTP_NORMAL_MAX_CONCURRENT_SENDS = 64
