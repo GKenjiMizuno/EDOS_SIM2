@@ -29,6 +29,8 @@ def parse_args():
     parser.add_argument("--attack-duration", type=int, default=None)
     parser.add_argument("--normal-rps", type=float, default=None)
     parser.add_argument("--normal-work-units", type=int, default=None)
+    parser.add_argument("--attack-start", type=int, default=None)
+    parser.add_argument("--pulse-duration", type=int, default=None)
 
     return parser.parse_args()
 
@@ -442,6 +444,14 @@ if __name__ == "__main__":
         if args.normal_work_units is not None:
             config.NORMAL_WORK_UNITS = args.normal_work_units
             print(f"Normal traffic work units set to: {config.NORMAL_WORK_UNITS}")
+
+        if args.attack_start is not None:
+            config.ATTACK_START_TIME_SECONDS = args.attack_start
+            print(f"Attack start time set to: {config.ATTACK_START_TIME_SECONDS}")
+
+        if args.pulse_duration is not None:
+            config.PULSE_DURATION = args.pulse_duration
+            print(f"Attack window duration set to: {config.PULSE_DURATION}")
 
         main()
     except KeyboardInterrupt:

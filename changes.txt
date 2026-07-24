@@ -359,3 +359,25 @@ Verificação:
     lógica antiga teria disparado por volta do t=40 (20+SCALE_COOLDOWN_
     SECONDS=20). Tráfego normal (~11-17% CPU) roda sem interrupção durante
     toda a simulação, incluindo antes, durante e depois da janela de ataque.
+
+--------------------------------------------------------------------------------
+14) main_orchestrator.py — CLI overrides para a janela de ataque
+--------------------------------------------------------------------------------
+Adicionado:
+  --attack-start (config.ATTACK_START_TIME_SECONDS)
+  --pulse-duration (config.PULSE_DURATION)
+
+Por quê:
+  - Permite que o sweep runner combinado (Fase 2, cenários estilo Tabela 5)
+    controle a janela de ataque por execução via CLI, no mesmo padrão dos
+    overrides existentes, em vez de depender de valores fixos em config.py.
+  - Atenção ao nome: --attack-duration (já existente) continua controlando
+    apenas o liga/desliga (ATTACK_DURATION_SECONDS); --pulse-duration é quem
+    de fato controla a duração da janela única de ataque (PULSE_DURATION,
+    redefinido na Fase 1). São dois flags parecidos no nome com papéis bem
+    diferentes — documentado aqui para não confundir no futuro.
+
+Verificado:
+  - Execução real de 40s com --attack-start 10 --pulse-duration 20: janela
+    corretamente deslocada para [10s, 30s], rótulos 'attack'/'normal' no CSV
+    de métricas alinhados corretamente antes/durante/depois da janela.
