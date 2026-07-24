@@ -62,7 +62,11 @@ def http_request_worker(target_url, rps_per_worker):
     pending_futures = []
 
     while attack_active:
-        future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
+        try:
+            future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
+        except RuntimeError:
+            # _send_pool já foi finalizada (ex.: encerramento do interpretador) — encerra o worker.
+            break
         pending_futures.append(future)
         # Descartar futures já concluídas para não acumular memória em ataques longos.
         pending_futures = [f for f in pending_futures if not f.done()]

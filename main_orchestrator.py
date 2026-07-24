@@ -391,6 +391,13 @@ def main():
         print("[Orchestrator] Stopping any active traffic injection at end of simulation...")
         traffic_injectorV0.stop_http_flood()
 
+    # O tráfego normal roda a simulação inteira por design e nunca é parado
+    # dentro do loop — precisa ser parado explicitamente aqui, senão os
+    # workers (daemon threads) continuam vivos até o interpretador encerrar,
+    # o que corre risco de tentar agendar em _send_pool já finalizada.
+    print("[Orchestrator] Stopping normal traffic...")
+    normal_traffic.stop_http_traffic()
+
     print("[Orchestrator] Cleaning up all simulation instances...")
     docker_manager.cleanup_all_simulation_instances()
 

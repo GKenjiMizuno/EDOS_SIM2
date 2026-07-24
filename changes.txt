@@ -463,3 +463,53 @@ Verificado:
     deve ser ~1.0 para um processo de Poisson e ~0 para intervalo fixo).
     normal_traffic.py: CV=0.944 (n=76). traffic_injectorV0.py: CV=1.101
     (n=88). Ambos consistentes com chegadas de Poisson.
+
+--------------------------------------------------------------------------------
+17) Bug real encontrado em execução do usuário: RuntimeError no shutdown
+--------------------------------------------------------------------------------
+Problema encontrado (via execução real do usuário com configuração padrão):
+  Ao final de uma simulação bem-sucedida, threads de tráfego normal
+  (InjectorWorker-N, normal_traffic.py) lançavam
+  "RuntimeError: cannot schedule new futures after shutdown" ao tentar
+  _send_pool.submit(...). Causa raiz: normal_traffic.stop_http_traffic()
+  nunca era chamado no caminho de encerramento bem-sucedido de main() em
+  main_orchestrator.py — só existia nos handlers de KeyboardInterrupt/erro.
+  Como o tráfego normal roda a simulação inteira por design (nunca parado
+  dentro do loop), os workers (daemon threads) continuavam vivos até o
+  interpretador Python encerrar. O hook de shutdown automático do
+  concurrent.futures (registrado via atexit na primeira vez que o módulo é
+  importado, cobre TODAS as ThreadPoolExecutor do processo) finaliza
+  _send_pool antes desses workers notarem — daí o erro ao tentar agendar
+  mais uma requisição. Isso só passou a se manifestar depois da mudança de
+  open-loop/Poisson (item 16): antes não existia _send_pool para o hook de
+  shutdown derrubar.
+
+Correção:
+  - main_orchestrator.py: adicionada chamada a normal_traffic.stop_http_traffic()
+    no caminho de encerramento bem-sucedido de main() (mesmo padrão já usado
+    para traffic_injectorV0.stop_http_flood()).
+  - normal_traffic.py e traffic_injectorV0.py: a chamada a _send_pool.submit()
+    dentro do laço de cada worker agora está protegida por
+    try/except RuntimeError, tratando "pool já finalizada" como sinal para
+    encerrar o laço graciosamente (break) em vez de propagar uma exceção não
+    tratada — cobre a corrida residual que ainda existiria mesmo com o fix
+    acima (o join em stop_http_traffic()/stop_http_flood() é curto e não
+    bloqueante, então um worker no meio de um sleep sorteado mais longo pode
+    ainda não ter notado o sinal de parada).
+
+Verificado:
+  - Reproduzido o erro original com uma execução real de 30s (--duration 30
+    via script), confirmando o traceback antes da correção.
+  - Após a correção, mesma execução: código de saída 0, "Stopping normal
+    traffic..." aparece antes da limpeza dos containers, todos os workers
+    reportam suas contagens finais e param graciosamente, zero exceções/
+    tracebacks no log completo.
+
+Nota:
+  - Durante o diagnóstico, ao tentar reproduzir o erro localmente sem sudo,
+    um rtt_log.csv de dono root (da execução real do usuário) bloqueou a
+    escrita e foi removido para desbloquear o teste — sem querer, isso
+    apagou o resultado real da execução de diagnóstico do usuário (que já
+    tinha sido apenas um teste, sem dados necessários preservados,
+    confirmado com o usuário). Verificações seguintes passaram a usar
+    caminhos de saída em /tmp, como já era o padrão estabelecido antes.
