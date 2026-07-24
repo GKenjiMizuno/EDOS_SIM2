@@ -293,3 +293,69 @@ Por quê:
     100 --attack-duration 0): confirmado que os argumentos de CLI chegam
     corretamente ao config, o modo sem ataque é ativado, e o CPU responde de
     forma sensata (~40-44%) à intensidade configurada.
+
+--------------------------------------------------------------------------------
+13) Fase 1 do roadmap W-EDoS: aposentar a lógica de pulso repetido (Yo-Yo)
+--------------------------------------------------------------------------------
+Contexto:
+  Decisão do usuário de seguir apenas a estrutura workload-based (W-EDoS) do
+  artigo de Sotelo Monge et al., abandonando a síntese com o ataque Yo-Yo
+  (Bremler-Barr et al.) discutida anteriormente. O ataque deixa de pulsar
+  repetidamente e passa a ser uma janela ÚNICA: a simulação começa só com
+  tráfego normal, o ataque liga uma vez, roda por uma duração configurável,
+  desliga, e o tráfego normal continua sozinho até o fim.
+
+Alterado:
+  - config.py:
+      * PULSE_DURATION agora representa a duração TOTAL e única do ataque
+        (não mais a duração de um pulso individual dentro de um trem de
+        pulsos repetidos).
+      * ATTACK_DURATION_SECONDS mantém seu papel de liga/desliga (0 = sem
+        ataque agendado, usado por --attack-duration 0), mas seu valor
+        numérico deixou de ter qualquer efeito sobre a duração do ataque —
+        isso agora é controlado inteiramente por PULSE_DURATION. Comentários
+        atualizados para deixar isso explícito.
+      * Removido o bloco inteiro de configurações EDOS_PULSE_*/EDOS_IDLE_*/
+        EDOS_SATURATION_PHASE_DURATION_SECONDS — nunca chegaram a ser
+        conectadas à lógica do orquestrador e eram específicas do desenho
+        Yo-Yo agora abandonado.
+  - main_orchestrator.py:
+      * Removidas as variáveis mortas tracked_attack_state e
+        last_pulse_end_time (declaradas, nunca usadas — resquício do desenho
+        Yo-Yo).
+      * Removido o clamp que limitava PULSE_DURATION a no máximo
+        SCALE_COOLDOWN_SECONDS antes do loop principal — não faz mais
+        sentido, já que PULSE_DURATION agora pode ter qualquer duração (é a
+        duração inteira do ataque, não mais um pulso que precisa caber dentro
+        de um ciclo de cooldown).
+      * attack_start_time/attack_end agora são calculados UMA VEZ antes do
+        loop e nunca recalculados — removido o bloco que reagendava o
+        próximo pulso (attack_start_time += SCALE_COOLDOWN_SECONDS) a cada
+        vez que a janela terminava.
+      * Removida a checagem de "limite externo" baseada na magnitude de
+        ATTACK_DURATION_SECONDS (if config.ATTACK_DURATION_SECONDS <
+        elapsed_time_seconds), redundante agora que a janela única já define
+        completamente quando o ataque está ativo.
+      * Removida a lógica de is_max_instance que empurrava a janela de
+        ataque para frente quando o cluster já estava no tamanho máximo
+        (mecanismo específico para evitar pulsar inutilmente durante
+        oscilação Yo-Yo). As duas ramificações (com/sem is_max_instance)
+        foram unificadas em uma única checagem de start/restart do injetor.
+
+Por quê:
+  - Implementa exatamente o modelo W-EDoS sustentado (não pulsado) do artigo
+    de referência: uma única janela de ataque, sem ciclos repetidos.
+  - Simplifica o código removendo mecanismos (reagendamento, clamp de
+    cooldown, desvio por instância máxima) que só faziam sentido para pulsos
+    repetidos.
+
+Verificação:
+  - Execução real de 60s (--duration 60, config padrão: ATTACK_START_TIME_
+    SECONDS=20, PULSE_DURATION=5): confirmado que a janela [20s, 25s] nunca
+    muda ao longo de toda a execução, o ataque liga e desliga exatamente uma
+    vez (CPU sobe para 40.55% na linha rotulada 'attack' em t=25, alinhado
+    corretamente com o fix de label do item 8), e "Should attack be active
+    now?" permanece False do t=30 até o t=55 — sem o segundo pulso que a
+    lógica antiga teria disparado por volta do t=40 (20+SCALE_COOLDOWN_
+    SECONDS=20). Tráfego normal (~11-17% CPU) roda sem interrupção durante
+    toda a simulação, incluindo antes, durante e depois da janela de ataque.

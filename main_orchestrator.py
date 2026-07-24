@@ -114,11 +114,6 @@ def main():
     
     instance_intervals_for_cost = [] # Para cálculo de custo
 
-    # --- Variáveis para controle do ataque EDoS ---
-    # tracked_attack_state: 'idle', 'saturating', 'pulsing', 'idle_between_pulses'
-    tracked_attack_state = 'idle' 
-    last_pulse_end_time = 0.0 # Hora que o último pulso terminou, para gerenciar o próximo
-
     # --- Inicialização da flag de ataque do injetor ---
     # Garante que o injetor comece limpo. (traffic_injector.py foi alterado para usar attacker_threads)
     traffic_injectorV0.attack_active = False 
@@ -156,16 +151,10 @@ def main():
     else:
         print("[Orchestrator] No traffic injection scheduled (ATTACK_DURATION_SECONDS is 0 or less).")
 
+    # Janela única de ataque: começa em ATTACK_START_TIME_SECONDS, dura
+    # PULSE_DURATION segundos, e não se repete (sem pulsos/cooldown).
     attack_start_time = config.ATTACK_START_TIME_SECONDS
-    pulse_duration = config.PULSE_DURATION
-
-    if pulse_duration > config.SCALE_COOLDOWN_SECONDS:
-        print("[Debug Orchestrador] Pulse duration longer than autoscaling cooldown: Setting pulse duration to cooldown seconds...")
-        pulse_duration = config.SCALE_COOLDOWN_SECONDS
-        attack_end = attack_start_time + pulse_duration
-
-    else:
-        attack_end = attack_start_time + pulse_duration
+    attack_end = attack_start_time + config.PULSE_DURATION
 
 
     #Começo da iteração
@@ -294,26 +283,12 @@ def main():
 
         elif config.ATTACK_DURATION_SECONDS > 0:
             sniffer.set_label("benign")
-            if current_num_instances_actual < config.MAX_INSTANCES:
-                is_max_instance = False
-            
-            else:
-                is_max_instance = True
 
-
-            
+            # Janela única e fixa: attack_start_time/attack_end nunca mudam
+            # depois de calculados antes do loop (ver acima) — sem reagendamento.
             should_attack_be_active_now = (attack_start_time <= elapsed_time_seconds < attack_end)
 
-            if config.ATTACK_DURATION_SECONDS < elapsed_time_seconds:
-                should_attack_be_active_now = False
-                    
-            if elapsed_time_seconds >= attack_end:
-                attack_start_time = attack_start_time + config.SCALE_COOLDOWN_SECONDS
-                attack_end = attack_start_time + config.PULSE_DURATION 
-
-            print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now}")
-
-            print(f"[DEBUG Orchestrator] {attack_start_time} {attack_end}")
+            print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now} (window: {attack_start_time}s-{attack_end}s)")
 
             needs_injector_start_or_restart = False
 
@@ -335,8 +310,7 @@ def main():
                 #normal_traffic_has_started = False
 
 
-            #Se não esta em instancias maximas
-            if should_attack_be_active_now and not is_max_instance:
+            if should_attack_be_active_now:
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
                     needs_injector_start_or_restart = True
                     print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
@@ -344,20 +318,7 @@ def main():
                 elif attack_has_started and previous_num_instances_for_injector_logic != num_instances_after_scaling and target_urls_for_injector:
                     needs_injector_start_or_restart = True
                     print(f"[DEBUG Orchestrator] Condition: Needs to RESTART attack (num instances changed from {previous_num_instances_for_injector_logic} to {num_instances_after_scaling} AND attack was active).")
-            
-            #Se esta em instância máxima
-            if should_attack_be_active_now and is_max_instance:
-                attack_start_time = attack_start_time + config.MONITOR_INTERVAL_SECONDS
-                attack_end = attack_end + config.MONITOR_INTERVAL_SECONDS
 
-                if not attack_has_started: # Se o ataque deve começar e ainda não começou
-                    needs_injector_start_or_restart = True
-                    print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
-                # Se o ataque já começou E o número de instâncias mudou E temos alvos
-                elif attack_has_started and previous_num_instances_for_injector_logic != num_instances_after_scaling and target_urls_for_injector:
-                    needs_injector_start_or_restart = True
-                    print(f"[DEBUG Orchestrator] Condition: Needs to RESTART attack (num instances changed from {previous_num_instances_for_injector_logic} to {num_instances_after_scaling} AND attack was active).")
-            
 
 
             if needs_injector_start_or_restart:

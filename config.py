@@ -3,7 +3,16 @@
 # --- Configurações da Simulação ---
 SIMULATION_DURATION_SECONDS = 180  # Total duration of the simulation
 ATTACK_START_TIME_SECONDS = 20     # When the attack begins
-PULSE_DURATION = 5
+
+# Duração TOTAL do ataque: uma única janela, sem repetição/pulsos.
+# O ataque roda de ATTACK_START_TIME_SECONDS até ATTACK_START_TIME_SECONDS + PULSE_DURATION,
+# uma vez só, e depois disso a simulação continua só com tráfego normal.
+PULSE_DURATION = 140
+
+# Liga/desliga o agendamento do ataque nesta simulação: 0 = nenhum ataque
+# (tráfego normal o tempo todo, usado por --attack-duration 0). Qualquer valor
+# > 0 habilita o ataque; o valor numérico em si não tem mais efeito sobre a
+# duração do ataque (isso agora é controlado só por PULSE_DURATION acima).
 ATTACK_DURATION_SECONDS = 90
 
 
@@ -50,32 +59,6 @@ APP_CONTAINER_PORT = 80
 HTTP_NORMAL_RPS_PER_CLIENT = 10
 HTTP_NORMAL_NUM_CLIENTS = 4
 
-
-# --- Configurações de Ataque EDoS (pulsado) ---
-# Duração de um único pulso de tráfego intenso.
-# Deve ser menor que MONITOR_INTERVAL_SECONDS para permitir que o CPU caia entre os pulsos.
-# Ex: se MONITOR_INTERVAL_SECONDS = 5s, um pulso de 1s ou 2s é bom.
-EDOS_PULSE_DURATION_SECONDS = 1.0
-
-# RPS (Requests Per Second) por atacante durante o período de pulso intenso.
-# Calibre este valor para levar o CPU acima de CPU_THRESHOLD_SCALE_UP durante o pulso.
-EDOS_PULSE_RPS_PER_ATTACKER = 10 # Valor inicial, ajuste conforme o teste
-
-# Número de atacantes durante o período de pulso intenso.
-EDOS_PULSE_NUM_ATTACKERS = 5 # Valor inicial, ajuste conforme o teste
-
-# RPS por atacante no período "idle" (entre os pulsos ou fora do ataque).
-# Este valor deve ser baixo (preferencialmente 0) para permitir que o CPU caia.
-EDOS_IDLE_RPS_PER_ATTACKER = 0.0
-
-# Número de atacantes no período "idle" (pode ser 0).
-EDOS_IDLE_NUM_ATTACKERS = 0 # Valor inicial, ajuste conforme o teste (0 é geralmente bom)
-
-# Controla a duração do ataque para a fase de saturação (para atingir MAX_INSTANCES).
-# Durante esta fase, o tráfego será constante (ou uma mistura dos pulsos e idle) para garantir o scale-up inicial.
-# Após este tempo, a estratégia de pulsos pode ser mais rígida para manter o custo.
-# Pode ser configurado como 0 se você quiser que os pulsos iniciem imediatamente.
-EDOS_SATURATION_PHASE_DURATION_SECONDS = 60
 
 #SIMPLE SERVER ATTACK PARAMETERS
 
