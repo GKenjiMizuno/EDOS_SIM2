@@ -1,0 +1,132 @@
+Estou continuando um projeto de TCC (EDOS_SIM2) em outra máquina. Preciso que você
+leia o CLAUDE.md e o changes.txt na raiz do repositório para entender a arquitetura
+e o histórico detalhado de alteracoes -- este prompt e um resumo narrativo do que
+fizemos e para onde vamos, nao substitui esses dois arquivos.
+
+O QUE E O PROJETO
+
+Simulador de autoscaling + ataque EDoS (Economic Denial of Sustainability) em
+containers Docker, cujo objetivo final e gerar um dataset rotulado (trafego
+benigno vs. ataque) para treinar um modelo de ML que detecte ataques EDoS. Nao
+existe dataset publico para isso -- os dados sao inteiramente sinteticos, gerados
+por este simulador. Esta no branch develop_calibrating_treshold.
+
+COMO TRABALHAR COMIGO NESTE PROJETO (regras ja combinadas)
+
+1. Explique QUALQUER mudanca de codigo em detalhe (causa raiz, raciocinio, o que
+   o fix faz) e peca aprovacao explicita ANTES de editar arquivos. Nunca aplique
+   fixes silenciosamente, mesmo pequenos.
+2. Toda mudanca aplicada (nao apenas discutida) deve ser registrada em
+   changes.txt na raiz -- o que, em qual arquivo, e por que -- no mesmo estilo das
+   entradas ja existentes la.
+3. Verifique de verdade (rodar codigo real, nao so ler) antes de declarar que algo
+   funciona -- este projeto tem historico de bugs sutis que so apareceram testando
+   de verdade (ver secao de bugs abaixo).
+
+O QUE JA FOI FEITO NESTA SESSAO (detalhes completos em changes.txt, itens 1-12)
+
+Ponto de partida: o simulador funcionava mas produzia resultados inesperados em
+testes. Diagnosticamos e corrigimos, em ordem:
+
+1. Teto de capacidade acidental do GIL: app/simple_server.py usava
+   ThreadingHTTPServer com um loop de CPU que nao libera o GIL, serializando
+   todo trabalho concorrente em um unico nucleo. Tentamos um servidor com fork
+   por requisicao (corrigiu o paralelismo mas criou um problema novo: overhead
+   de fork sozinho levava trafego benigno barato a ~200% de CPU). Solucao final:
+   ThreadingHTTPServer + um ProcessPoolExecutor PERSISTENTE (criado uma vez,
+   reaproveitado), dando paralelismo real sem pagar custo de processo por
+   requisicao.
+
+2. Injetor de ataque auto-limitado (closed-loop): traffic_injectorV0.py
+   esperava a resposta de uma requisicao antes de agendar a proxima, entao um
+   alvo lento reduzia automaticamente a taxa real enviada -- impossivel calibrar
+   "quanto trafego preciso mandar" de forma confiavel. Corrigido para open-loop
+   (envio desacoplado da espera pela resposta, via ThreadPoolExecutor
+   compartilhado), com drenagem das requisicoes em voo antes de logar o resumo
+   final (evita subcontagem).
+
+3. Metricas de CPU nao eram uma media real: stats_collector.get_averages()
+   retornava a ultima amostra em cache (~1s), nao uma media sobre os 5s do
+   MONITOR_INTERVAL_SECONDS -- pulsos de ataque IDENTICOS produziam leituras de
+   CPU bem diferentes por pura sorte de timing entre duas threads
+   independentes. Corrigido: historico por container + media real sobre a
+   janela.
+
+4. Label do CSV de metricas desalinhado com a CPU: a linha rotulada 'attack'
+   mostrava CPU baixa (pre-ataque), e o pico de CPU real aparecia na linha
+   SEGUINTE, ja rotulada 'normal'. Corrigido: label agora reflete o estado
+   herdado da iteracao ANTERIOR (mesma janela que a CPU acabou de medir), nao
+   a decisao tomada nesta iteracao. traffic_capture.csv (rotulos do tcpdump em
+   tempo real) ja estava correto -- o bug era so no CSV de metricas agregadas.
+
+5. Automacao de varreduras: adicionados overrides de CLI em
+   main_orchestrator.py (--work-units, --attack-duration, --normal-rps,
+   --normal-work-units). run_experiments.py agora varre WORK_UNITS_VALUES como
+   terceira dimensao (alem de RPS x ATTACKERS). Novo script irmao
+   run_experiments_normal.py varre os mesmos parametros so com trafego normal
+   (sem ataque), como baseline de comparacao.
+
+DESCOBERTA IMPORTANTE (ja em experiment_results/, commitada)
+
+A varredura recem-rodada (RPS=[1,5,10] x ATTACKERS=[4] x WU=[5000,20000,50000,
+100000]) JA encontrou configuracoes que cruzam o limiar de scale-up (60% CPU):
+- rps=5, attackers=4, WU=100000 -> CPU ~85% no pulso, SCALE_UP disparado
+- rps=10, attackers=4, WU=20000 -> CPU ~66% no pulso, SCALE_UP disparado
+- rps=10, attackers=4, WU=50000 e WU=100000 tambem disparam SCALE_UP
+
+Essas linhas ja mostram label='attack', CPU alto e decision=SCALE_UP todos na
+MESMA linha -- confirmacao real de que os fixes 3 e 4 acima funcionam
+corretamente em dados de verdade, nao so em teste isolado.
+
+PROBLEMAS ENCONTRADOS MAS NAO CORRIGIDOS (ver changes.txt item 9)
+
+- normal_traffic.py: save_rtt_log() usa "rtt_log.csv" fixo no codigo, ignorando
+  config.py -- inconsistente com os outros logs.
+- Varios arquivos de saida (rtt_log.csv, traffic_capture.csv,
+  attack_summary_log.csv, simulation_metrics.csv) ficam donos de root depois
+  de rodar com sudo, o que quebra execucoes futuras sem sudo.
+
+TRABALHO ADIADO A PEDIDO DO USUARIO
+
+Generalizar analyze_traffic.py para aceitar qualquer CSV/coluna como entrada
+(nao so rtt_log.csv) e adicionar um detector CUSUM (cumulative sum) ao lado da
+entropia de Shannon ja existente -- para poder aplicar essas duas tecnicas
+estatisticas a CPU%, volume de pacotes, etc., nao so RTT.
+
+ROADMAP GERAL DE CALIBRACAO (discutido ao longo da sessao)
+
+Pre-requisito (capacidade da instancia + injetor open-loop): DONE.
+
+Fase 1 (curva de capacidade / achar o cruzamento do limiar): em andamento --
+ja temos pontos que cruzam o limiar, mas ainda vale rodar
+run_experiments_normal.py para ter o baseline de trafego normal na MESMA
+faixa, e comparar as duas superficies de resposta (isso e o que valida se uma
+configuracao de ataque e "stealth" ou nao -- nao basta cruzar o limiar,
+precisa ser estatisticamente parecida com o que trafego normal produziria no
+mesmo ponto).
+
+Fases posteriores (nao iniciadas): escolher os dois niveis de intensidade
+(pulso acima do limiar de scale-up, idle abaixo do de scale-down) e construir
+a maquina de estados do ataque Yo-Yo pulsado/idle (EDOS_PULSE_*/EDOS_IDLE_* ja
+existem em config.py mas nao estao conectados na logica do orquestrador
+ainda).
+
+Separadamente, tambem em aberto (so discutido, nao implementado): replicar
+uma metodologia de um paper de referencia (Tabelas 3/4/5: custo por endpoint,
+cenarios de trafego normal S1-S4, cenarios combinados com % de ataque) como
+um experimento estatico adicional, distinto do trabalho de calibracao do
+Yo-Yo.
+
+POSSIVEIS CAMINHOS A SEGUIR (para voce decidir com o usuario)
+
+1. Rodar run_experiments_normal.py e comparar com os resultados de ataque ja
+   coletados (validacao de stealth).
+2. A partir dos pontos de cruzamento ja encontrados, escolher valores
+   concretos de pulso/idle e implementar a maquina de estados Yo-Yo.
+3. Retomar o trabalho adiado: generalizar analyze_traffic.py + CUSUM.
+4. Implementar o experimento estatico de replicacao do paper (Tabelas 3/4/5).
+5. Investigar/corrigir os dois problemas conhecidos nao corrigidos
+   (rtt_log.csv hardcoded; arquivos donos de root).
+
+Pergunte ao usuario qual desses (ou outra prioridade) ele quer seguir antes de
+comecar a editar qualquer coisa.
