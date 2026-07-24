@@ -535,3 +535,56 @@ Nota:
     tinha sido apenas um teste, sem dados necessários preservados,
     confirmado com o usuário). Verificações seguintes passaram a usar
     caminhos de saída em /tmp, como já era o padrão estabelecido antes.
+
+--------------------------------------------------------------------------------
+19) app/simple_server.py — keep-alive (HTTP/1.1) para evitar esgotamento de conexões
+--------------------------------------------------------------------------------
+Problema encontrado (via análise de experiment_results/metrics_normal_*.csv):
+  8 de 16 execuções de run_experiments_normal.py mostravam um colapso súbito
+  e permanente para avg_rtt_ms=0.0 (zero requisições bem-sucedidas por
+  janela) que nunca se recuperava — incluindo rps50 (um valor real da
+  Tabela 4 de Sotelo Monge et al., não só valores exploratórios extras).
+  Quanto maior o RPS agregado, mais cedo e mais severo o colapso.
+
+  Causa raiz: SimpleAppHandler nunca usava HTTP keep-alive (sem
+  protocol_version="HTTP/1.1", cai no padrão HTTP/1.0, que sempre fecha a
+  conexão após cada resposta, independente do que o cliente pedir). A ~100
+  req/s sem nenhum reaproveitamento de conexão, isso significa ~100 conexões
+  TCP novas por segundo, cada uma ficando em TIME_WAIT por 60s
+  (tcp_fin_timeout) depois de fechada.
+
+  Reproduzido diretamente contra um container de teste (rps=100, WU=5000,
+  30s): TIME_WAIT subiu de 2 para 2694 em 30s, e o CPU do container caiu de
+  ~56% para 3.3% no mesmo intervalo de amostragem — reprodução direta do
+  colapso visto nos dados reais. nf_conntrack_max (65536) e a faixa de
+  portas efêmeras (28232) foram descartados como causa direta (não chegaram
+  perto do limite), mas o mecanismo — esgotamento por alto churn de conexões
+  — ficou claro e diretamente correlacionado.
+
+Correção:
+  - SimpleAppHandler ganhou protocol_version = "HTTP/1.1", habilitando o
+    keep-alive nativo do BaseHTTPRequestHandler da stdlib.
+  - Necessário também: a resposta passou a incluir o header Content-Length
+    (calculado a partir do corpo já montado em bytes, antes de enviar os
+    headers). Sem isso, keep-alive quebraria a comunicação — o cliente não
+    teria como saber onde uma resposta termina numa conexão que continua
+    aberta para a próxima requisição (antes, o fechamento da conexão é que
+    sinalizava o fim da resposta; com keep-alive isso deixa de existir).
+
+Verificado:
+  - Reproduzida a mesma cena (rps=100, WU=5000, 30s) contra um container
+    reconstruído com a correção: TIME_WAIT ficou estável em ~4 durante toda
+    a execução (em vez de subir a 2694), conexões estabelecidas
+    estabilizaram em ~42 (reaproveitadas, consistente com ~10 conexões por
+    sessão x 4 workers), CPU ficou estável entre 15-48% o tempo todo, e os
+    4 workers reportaram 0 erros ao final.
+
+Nota:
+  - Como cada worker usa uma única requests.Session() compartilhada entre
+    todos os envios da _send_pool, o keep-alive também limita implicitamente
+    a ~10 conexões concorrentes por worker (pool_maxsize padrão do
+    urllib3/requests) — um efeito colateral razoável (limita uso de
+    recursos), mas vale ter em mente.
+  - As execuções de run_experiments_normal.py já coletadas (que mostraram o
+    colapso) precisam ser refeitas com esta correção antes de serem usadas
+    como dataset final.

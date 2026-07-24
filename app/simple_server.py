@@ -25,6 +25,12 @@ _pool = None
 
 
 class SimpleAppHandler(BaseHTTPRequestHandler):
+    # Habilita keep-alive (reaproveitamento de conexão TCP entre requisições).
+    # Sem isso, cada requisição abre e fecha uma conexão nova, o que sob alta
+    # taxa de requisições esgota as portas efêmeras/tabela de conexões do
+    # ambiente (sockets em TIME_WAIT se acumulam mais rápido do que expiram).
+    protocol_version = "HTTP/1.1"
+
     def do_GET(self):
         # Parametrização por env: WORK_UNITS (CPU) e PROCESSING_TIME (latência)
         #Valores defaults
@@ -43,14 +49,17 @@ class SimpleAppHandler(BaseHTTPRequestHandler):
             time.sleep(processing_time)
         t1 = time.perf_counter()
 
+        hostname = os.getenv("HOSTNAME", "unknown_container")
+        body = f"host={hostname} work={work_units} sleep={processing_time:.4f}s elapsed={t1-t0:.4f}s\n".encode()
+
+        # Content-Length é obrigatório com keep-alive (HTTP/1.1): sem ele o
+        # cliente não tem como saber onde a resposta termina numa conexão
+        # que continua aberta para a próxima requisição.
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
+        self.send_header('Content-Length', str(len(body)))
         self.end_headers()
-
-        hostname = os.getenv("HOSTNAME", "unknown_container")
-        self.wfile.write(
-            f"host={hostname} work={work_units} sleep={processing_time:.4f}s elapsed={t1-t0:.4f}s\n".encode()
-        )
+        self.wfile.write(body)
 
 if __name__ == '__main__':
     # Dentro do container, mantenha 80; no host você mapeia pra 8080
