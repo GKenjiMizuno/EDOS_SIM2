@@ -588,3 +588,341 @@ Nota:
   - As execuções de run_experiments_normal.py já coletadas (que mostraram o
     colapso) precisam ser refeitas com esta correção antes de serem usadas
     como dataset final.
+
+--------------------------------------------------------------------------------
+20) experiment_results/ — limpeza de resultados obsoletos
+--------------------------------------------------------------------------------
+Removido (git rm, 42 arquivos):
+  - metrics_rps{1,5,10}_att4_WU{5000,20000,50000}.csv e os
+    attack_summary_log_{1,5,10}_4_WU{5000,20000,50000}.csv correspondentes
+    (18 arquivos): pontos de uma faixa de calibração de WORK_UNITS já
+    abandonada — run_experiments.py hoje varre apenas
+    WORK_UNITS_VALUES = [100000, 200000, 500000].
+  - metrics_S1..S4_atk{1,5,10}pct.csv e os attack_summary_log_S{1-4}_atk*pct
+    correspondentes (24 arquivos): saída de run_experiments_combined.py de
+    quando o script ainda usava um único ATTACK_WORK_UNITS=100000 fixo. A
+    investigação de WU (ver seção 21) mostrou que esse valor não força
+    scale-up e não representa um ataque W-EDoS bem-sucedido, então esses
+    resultados foram descartados em vez de mantidos como baseline.
+
+Mantido:
+  - metrics_normal_rps*_WU*.csv (16 arquivos, baseline de tráfego normal,
+    eixo independente da decisão de WU do ataque).
+  - metrics_rps{1,5,10}_att4_WU{100000,200000,500000}.csv e respectivos
+    attack_summary_log (18 arquivos, batem com o run_experiments.py atual).
+
+Por quê:
+  - O diretório estava confuso, misturando resultados de configurações já
+    abandonadas com os atuais, dificultando saber quais dados realmente
+    valem para o dataset final da tese.
+
+--------------------------------------------------------------------------------
+21) run_experiments.py — salvar rtt_log.csv por execução da varredura
+--------------------------------------------------------------------------------
+Problema encontrado:
+  normal_traffic.save_rtt_log() sobrescreve rtt_log.csv (modo "w") ao final
+  de cada execução do main_orchestrator.py, mas run_experiments.py nunca
+  movia esse arquivo para experiment_results/ como já fazia com
+  simulation_metrics.csv e attack_summary_log.csv. Resultado: só o rtt_log
+  da última iteração da varredura sobrevivia, o de todas as anteriores era
+  perdido silenciosamente.
+
+Alterado:
+  - Após cada iteração (mesmo bloco que já move os outros dois logs),
+    rtt_log.csv passou a ser movido para
+    experiment_results/rtt_log_rps{rps}_att{attackers}_WU{work_units}.csv,
+    seguindo a mesma convenção de nome já usada para o metrics_*.csv
+    correspondente.
+
+Por quê:
+  - rtt_log.csv contém as amostras de RTT (tráfego normal + ataque) que o
+    EntCusumZV3.py usa para detectar bursts — sem preservar um arquivo por
+    combinação de RPS/attackers/WORK_UNITS, não dava para rodar a detecção
+    de bursts em cada cenário da varredura, só no último.
+
+--------------------------------------------------------------------------------
+22) EntCusumZV3.py + run_burst_analysis.py (novo) — detecção de bursts em lote
+--------------------------------------------------------------------------------
+Alterado (EntCusumZV3.py):
+  - analisar_bursts_tunavel() ganhou os parâmetros input_file (antes fixo em
+    'rtt_log.csv'), output_prefix e show_plot. Os nomes de saída
+    (rtt_bursts_*.xlsx / rtt_todos_bursts_*.png) agora são derivados do nome
+    do arquivo de entrada e escritos no mesmo diretório dele.
+  - Quando chamado sem argumentos (uso manual, python EntCusumZV3.py), o
+    comportamento é idêntico ao de antes: lê rtt_log.csv e grava
+    rtt_bursts_tunaveis.xlsx / rtt_todos_bursts.png no diretório atual —
+    isso é tratado como caso especial, não só "sem sufixo", para não mudar
+    o uso interativo já conhecido.
+  - plt.show() agora é condicional a show_plot (True por padrão, False no
+    uso em lote) e a figura é fechada com plt.close(fig) depois de salva,
+    para não acumular janelas/figuras abertas ao processar vários arquivos
+    em sequência.
+
+Criado (run_burst_analysis.py):
+  - Script novo que varre experiment_results/rtt_log_*.csv (produzidos pela
+    mudança da seção 21) e chama analisar_bursts_tunavel() uma vez para
+    cada um, com show_plot=False.
+
+Por quê:
+  - O pedido era rodar a detecção de bursts em cada rtt_log.csv salvo por
+    execução da varredura, não só no último rtt_log.csv solto na raiz do
+    projeto. Parametrizar a função em vez de duplicar a lógica de detecção
+    evita ter duas implementações do mesmo cálculo (uma para uso manual,
+    outra para lote) que poderiam divergir com o tempo.
+
+Verificado:
+  - python3 -m py_compile em run_experiments.py, EntCusumZV3.py e
+    run_burst_analysis.py, sem erros de sintaxe. Não executado de ponta a
+    ponta ainda (precisa dos containers Docker e de sudo para
+    main_orchestrator.py); a varredura real fica para quando o usuário
+    rodar run_experiments.py em seguida.
+
+--------------------------------------------------------------------------------
+23) run_experiments_combined.py — reenquadrar a varredura em WU=300000/500000
+--------------------------------------------------------------------------------
+Contexto:
+  A varredura de calibração de WORK_UNITS (run_experiments.py, ver seção 20)
+  mostrou que só WU=300000 (scale-up limítrofe) e WU=500000 (scale-up claro,
+  repetido) de fato forçam SCALE_UP mantendo o RPS baixo/stealth — ou seja,
+  são os únicos que constituem um ataque W-EDoS bem-sucedido pela definição
+  do artigo (custo forçado sem volume que pareça DDoS). WU=100000, usado
+  fixo aqui antes, não força scale-up: é estatisticamente detectável via RTT
+  em alguns casos, mas não atinge o objetivo econômico do ataque.
+
+Alterado:
+  - ATTACK_WORK_UNITS (valor único, 100000) virou
+    ATTACK_WORK_UNITS_LIST = [300000, 500000].
+  - Novo laço interno sobre ATTACK_WORK_UNITS_LIST (cenário x intensidade x
+    WU), então o total de execuções passa de 12 para 24 (4 cenários x 3
+    intensidades x 2 valores de WU), ~72+ min de execução real além do
+    overhead do Docker.
+  - Nomes de saída passaram a incluir o WU, para não sobrescrever entre os
+    dois valores: metrics_{cenário}_atk{pct}pct_wu{work_units}.csv e
+    attack_summary_log_{cenário}_atk{pct}pct_wu{work_units}.csv (antes não
+    tinham WU no nome, porque só existia um valor fixo).
+  - Linha de progresso no console passou a mostrar o WU também.
+
+Por quê:
+  - Os resultados anteriores desta varredura (S1-S4 x 1/5/10%, todos com
+    WU=100000 fixo) foram removidos na limpeza da seção 20 justamente por
+    representarem um ataque que não força scale-up — ou seja, não é o "bom"
+    exemplo de W-EDoS bem-sucedido que este experimento deveria caracterizar.
+    Esta mudança troca o valor fixo pelos dois valores que de fato produzem
+    esse resultado.
+
+Verificado:
+  - python3 -m py_compile run_experiments_combined.py, sem erros de sintaxe.
+    Não executado de ponta a ponta ainda (precisa de Docker + sudo); fica
+    para quando o usuário rodar a varredura de verdade.
+
+--------------------------------------------------------------------------------
+24) run_experiments_combined.py — salvar rtt_log.csv por execução também aqui
+--------------------------------------------------------------------------------
+Alterado:
+  - Mesmo tratamento da seção 21 (run_experiments.py), aplicado aqui: após
+    cada iteração (cenário x intensidade x WU), rtt_log.csv passa a ser
+    movido para
+    experiment_results/rtt_log_{cenário}_atk{pct}pct_wu{work_units}.csv,
+    seguindo a mesma convenção de nome já usada para o metrics_*.csv
+    correspondente.
+
+Por quê:
+  - Fechava a lacuna apontada na nota da seção 23: sem isso, run_burst_
+    analysis.py só enxergava os rtt_log_*.csv da varredura de calibração
+    (run_experiments.py), não os dos cenários combinados S1-S4 x WU=
+    300000/500000 — que são justamente os cenários mais próximos do
+    experimento final (Tabela 5) a caracterizar estatisticamente.
+
+Verificado:
+  - python3 -m py_compile run_experiments_combined.py, sem erros de sintaxe.
+    Não executado de ponta a ponta ainda; fica para a regeneração completa
+    da varredura que o usuário vai rodar em seguida.
+
+--------------------------------------------------------------------------------
+25) experiment_results/ — limpeza completa para regeneração do zero
+--------------------------------------------------------------------------------
+Removido (sudo rm -rf experiment_results/* pelo usuário, 64 arquivos):
+  - Todo o conteúdo restante do diretório, incluindo os conjuntos até então
+    mantidos na limpeza da seção 20 (baseline de tráfego normal e a
+    varredura de calibração WU=100000/200000/500000).
+
+Por quê:
+  - Com o fix de keep-alive (seção 19), o reenquadramento de WU (seção 23)
+    e o salvamento de rtt_log.csv por execução (seções 21 e 24) todos já
+    aplicados, os resultados antigos ficaram desatualizados em relação ao
+    código atual de qualquer forma — o usuário optou por regenerar tudo do
+    zero em vez de manter dados parcialmente obsoletos misturados com os
+    novos.
+  - O diretório estava root:root (de execuções antigas com sudo), o que já
+    tinha bloqueado tentativas anteriores de limpeza automática; o comando
+    também corrigiu o dono para bibie:bibie, evitando o mesmo bloqueio nas
+    próximas varreduras.
+
+Verificado:
+  - experiment_results/ confirmado vazio (0 arquivos) e com dono bibie:
+    bibie após o comando. As 64 remoções aparecem staged no git (git status
+    --short mostra "D" para cada arquivo), recuperáveis via histórico do
+    git se necessário.
+
+Próximo passo (ainda não executado): rodar, em ordem, run_experiments_
+normal.py, run_experiments.py, run_experiments_combined.py e run_burst_
+analysis.py para regenerar experiment_results/ do zero com o código atual.
+
+--------------------------------------------------------------------------------
+26) EntCusumZV3.py — piso de burst adaptativo por execução (em vez de fixo)
+--------------------------------------------------------------------------------
+Problema encontrado:
+  min_rtt_burst=50 (piso fixo em ms, igual para todo cenário) fazia o
+  detector ignorar ataques de baixa intensidade mas reais: rps1/WU500000
+  (0 bursts detectados) força scale-up sustentado e RTT bem acima do seu
+  próprio baseline (15ms -> 30-44ms), mas nunca cruza 50ms em termos
+  absolutos. O RTT "normal" varia com RPS/WU (15-64ms observado entre
+  cenários da varredura de baseline), então nenhum valor fixo separa bem
+  ataque de tráfego normal em todos os cenários ao mesmo tempo.
+
+  Tentativa descartada antes de implementar: usar média + k*desvio-padrão
+  do baseline (as amostras antes do ataque começar). Testado com dados
+  reais: o desvio-padrão por amostra bruta é alto (~19ms) mesmo em
+  repouso (jitter de rede/agendamento), e só há ~20s de dado limpo antes
+  do ataque (ATTACK_START_TIME_SECONDS=20) — uma única janela, amostra
+  pequena demais pra estimar desvio-padrão de janela com confiança.
+  média+3*desvio chegou a ~72-76ms, PIOR que o piso fixo de 50ms antigo.
+
+Alterado:
+  - Parâmetro min_rtt_burst (fixo, 50) substituído por baseline_ratio
+    (tunável, padrão 1.8). O piso de burst passa a ser
+    baseline_mean * baseline_ratio, onde baseline_mean é a média do RTT
+    de CADA execução, calculada só com as amostras de antes do ataque
+    começar (df['tempo_rel'] < config.ATTACK_START_TIME_SECONDS). Usa
+    razão sobre a média (não média+desvio) porque só precisa de uma
+    média estável, que já é confiável com ~750-900 amostras brutas em
+    20s, ao contrário do desvio-padrão de janela.
+  - Fallback: se houver menos de 10 amostras antes do ataque (config
+    atípica), usa o arquivo inteiro como baseline e imprime aviso.
+  - CUSUM (kappa, h, e a referência usada em cada incremento) passou a
+    usar essa mesma baseline pré-ataque em vez de global_mean/global_std
+    calculados sobre o arquivo INTEIRO. Corrige de quebra uma
+    inconsistência já documentada no CLAUDE.md: antes, o período de
+    ataque contaminava a própria referência de "normal" que o CUSUM usava
+    pra se comparar.
+  - Baseline/piso calculados são impressos no início de cada análise
+    (média, desvio, nº de amostras, piso resultante), e o piso também
+    aparece como linha horizontal tracejada no gráfico e no título.
+
+Por quê:
+  - Faz o detector reagir ao que É normal PARA AQUELA execução específica,
+    em vez de assumir que RTT "normal" é sempre parecido entre cenários
+    com RPS/WU bem diferentes — o que os próprios dados de baseline já
+    tinham desmentido.
+
+Verificado:
+  - Reexecutado run_burst_analysis.py sobre os 9 rtt_log_*.csv reais da
+    varredura de calibração (não só um protótipo isolado). Resultado
+    bursts detectados, piso fixo (50ms) -> piso novo (1.8x baseline):
+      rps1/WU100000:  0 -> 0   (CPU nunca subiu de verdade — sem falso positivo)
+      rps1/WU200000:  0 -> 0   (idem)
+      rps1/WU500000:  0 -> 14  (caso "limpo" que antes passava batido)
+      rps5/WU100000:  0 -> 0   (idem, sem falso positivo)
+      rps5/WU200000:  2 -> 14  (estava sub-detectado)
+      rps5/WU500000: 16 -> 16  (já óbvio antes, sem mudança)
+      rps10/WU100000: 0 -> 13  (outro caso que passava batido)
+      rps10/WU200000:15 -> 15  (já óbvio antes, sem mudança)
+      rps10/WU500000: 6 -> 6   (já óbvio antes, sem mudança)
+    Os três cenários onde a CPU nunca chegou a subir de verdade continuam
+    em 0 bursts com o piso novo — a mudança pega os casos reais que
+    faltavam sem introduzir falso positivo nos casos claramente sem
+    ataque efetivo, pelo menos nesta bateria de 9 arquivos.
+  - python3 -m py_compile EntCusumZV3.py, sem erros.
+
+--------------------------------------------------------------------------------
+27) run_experiments_combined.py + EntCusumZV3.py — sweep real e achado de diluição
+--------------------------------------------------------------------------------
+Contexto:
+  Rodado o sweep combinado real (S1-S4 x 1/5/10% x WU=300000/500000, 24
+  execuções) e run_burst_analysis.py sobre os 24 rtt_log_* resultantes.
+  Tendência geral do sweep ficou como esperado: detecção mais forte conforme
+  cenário (S1->S4), intensidade (1%->10%) e WU aumentam. Todas as execuções
+  em 1% de intensidade não escalaram e não geraram burst; nenhum erro de
+  requisição apareceu em nenhum attack_summary_log deste sweep (volumes de
+  ataque bem menores que os do sweep de calibração da seção 20/23).
+
+Achado (não é bug, não requer mudança de código):
+  S1_atk5pct_wu500000 é a única exceção real à tendência: 2 SCALE_UP de
+  verdade ocorreram (CPU pico 81%, RTT médio de ATAQUE 92-208ms nas linhas
+  rotuladas 'attack' do metrics_*.csv), mas run_burst_analysis.py reportou
+  0 bursts nesse arquivo, mesmo com Z-score e CUSUM disparando quase toda
+  janela ('Sim' na maioria das linhas). Investigado: a média de RTT POR
+  JANELA nunca passou de ~34ms (o piso adaptativo da seção 26 é 34.1ms
+  aqui) — não por o ataque ser fraco, mas porque rtt_log.csv mistura TODAS
+  as requisições completadas (normais + ataque) sem rótulo. Em 5% de
+  intensidade sobre S1 (50 req/s normal), o ataque agrega só ~2.5 req/s —
+  proporção ~20:1 normal:ataque em cada janela de 20s. Uma janela ~95%
+  normal (~18ms) + ~5% ataque (~150ms) calcula pra
+  0.95*18 + 0.05*150 ≈ 24.6ms, perto do que foi observado — a média da
+  janela dilui o sinal do ataque para dentro do ruído da maioria normal,
+  independente de onde o piso (RTT ou desvio) esteja ajustado.
+
+Por quê isso importa (sem ser um problema a corrigir):
+  - É exatamente o comportamento que a definição de W-EDoS "furtivo"
+    (Sotelo Monge et al.) prevê: um ataque que mantém baixo volume
+    relativo ao tráfego normal é, por construção, difícil de enxergar com
+    estatística agregada simples — não é uma falha do detector, é a
+    própria dificuldade que motiva usar ML (o objetivo final do projeto,
+    ver project_edos_purpose) em vez de uma regra de limiar fixo. Vale
+    citar como limitação da linha de base estatística simples (entropia/
+    Z/CUSUM sobre média de RTT) na discussão/limitações da monografia,
+    não como algo a "consertar" — não dá pra separar ataque de normal
+    dentro de rtt_log.csv sem usar informação que um detector real
+    também não teria (rótulo por requisição).
+
+Verificado:
+  - Conferido manualmente: reexecutado analisar_bursts_tunavel() sobre
+    experiment_results/rtt_log_S1_atk5pct_wu500000.csv isoladamente,
+    tabela janela-a-janela confirma média de RTT sempre <= 34.0ms mesmo
+    com Z e CUSUM alarmando na maioria das janelas.
+  - Comparado numericamente com metrics_S1_atk5pct_wu500000.csv (RTT só
+    de ataque, calculado pelo orquestrador): 92-208ms durante o ataque,
+    bem acima da média diluída vista em rtt_log.csv — confirma que o
+    ataque em si não é fraco, é a mistura normal+ataque no arquivo que
+    mascara o sinal.
+
+--------------------------------------------------------------------------------
+28) experiment_results/ — organizado em subpastas por varredura
+--------------------------------------------------------------------------------
+Contexto:
+  experiment_results/ tinha os arquivos das três varreduras (baseline
+  normal, calibração de WU, sweep combinado S1-S4) todos soltos juntos no
+  mesmo diretório, misturados — difícil de navegar e de separar o que é
+  relevante pra apresentar.
+
+Alterado:
+  - Criadas três subpastas e movidos os arquivos existentes pra elas:
+      experiment_results/normal_baseline/  (16 arquivos, de run_experiments_normal.py)
+      experiment_results/wu_calibration/   (45 arquivos, de run_experiments.py + run_burst_analysis.py)
+      experiment_results/combined_sweep/   (120 arquivos, de run_experiments_combined.py + run_burst_analysis.py)
+  - run_experiments_normal.py, run_experiments.py, run_experiments_
+    combined.py: RESULTS_DIR de cada um agora aponta direto pra sua
+    subpasta correspondente, então as próximas execuções já salvam
+    organizado, sem precisar mover nada manualmente depois.
+  - run_burst_analysis.py: glob de rtt_log_*.csv passou a ser recursivo
+    (glob.glob(..., "**", "rtt_log_*.csv"), recursive=True) pra continuar
+    encontrando os arquivos dentro das subpastas. Saída (.xlsx/.png) de
+    cada análise continua indo pro mesmo diretório do rtt_log_*.csv de
+    entrada (lógica já existente, não mudou) — como as subpastas agora
+    separam por varredura, isso já mantém cada subpasta autocontida
+    (dado bruto + análise de burst juntos).
+
+Por quê:
+  - Pedido do usuário: organizar os dados coletados por varredura antes de
+    selecionar o que é relevante pra uma apresentação ao orientador.
+
+Verificado:
+  - Nenhum arquivo perdido: contagem em cada subpasta bate com o total
+    esperado (16 / 45 / 120), e "find experiment_results -maxdepth 1
+    -type f" não retornou nada solto na raiz.
+  - python3 -m py_compile nos quatro scripts alterados, sem erros.
+  - Reexecutado run_burst_analysis.py de ponta a ponta após a
+    reorganização: encontrou os 33 rtt_log_*.csv dentro das subpastas via
+    glob recursivo, salvou as saídas no lugar certo, e os 33 números de
+    bursts detectados bateram exatamente com os valores de antes da
+    reorganização (nenhuma mudança de comportamento, só de local).

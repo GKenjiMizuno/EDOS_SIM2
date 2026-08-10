@@ -6,9 +6,9 @@ from datetime import datetime
 
 RPS_VALUES = [1,5,10]
 ATTACKERS_VALUES = [4]
-WORK_UNITS_VALUES = [5000, 20000, 50000, 100000]
+WORK_UNITS_VALUES = [100000,200000,500000]
 
-RESULTS_DIR = "experiment_results"
+RESULTS_DIR = "experiment_results/wu_calibration"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 for rps, attackers, work_units in itertools.product(RPS_VALUES, ATTACKERS_VALUES, WORK_UNITS_VALUES):
@@ -52,5 +52,20 @@ for rps, attackers, work_units in itertools.product(RPS_VALUES, ATTACKERS_VALUES
         shutil.move(attack_summary_src, attack_summary_dst)
     else:
         print(f"[WARNING] {attack_summary_src} não encontrado.")
+
+    # =========================
+    # RTT log
+    # =========================
+    # rtt_log.csv é sobrescrito a cada execução do orchestrator (ver
+    # normal_traffic.save_rtt_log), então precisa ser movido aqui como os
+    # outros logs, ou cada iteração da varredura apaga o RTT da anterior.
+    rtt_log_src = "rtt_log.csv"
+    rtt_log_filename = f"rtt_log_rps{rps}_att{attackers}_WU{work_units}.csv"
+    rtt_log_dst = os.path.join(RESULTS_DIR, rtt_log_filename)
+
+    if os.path.exists(rtt_log_src):
+        shutil.move(rtt_log_src, rtt_log_dst)
+    else:
+        print(f"[WARNING] {rtt_log_src} não encontrado.")
 
 print("\nAll experiments completed.")

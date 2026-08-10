@@ -5,24 +5,64 @@ import os
 import matplotlib.pyplot as plt
 import config
 
-def analisar_bursts_tunavel(window_seconds=20, overlap_percent=50, z_threshold=3.5, min_rtt_burst=50):
+def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
+                             window_seconds=20, overlap_percent=50,
+                             z_threshold=3.5, baseline_ratio=1.8, show_plot=True):
+    output_dir = os.path.dirname(input_file)
+    base = os.path.splitext(os.path.basename(input_file))[0]
+    if output_prefix is None and base == 'rtt_log':
+        # Chamado sem argumentos (uso padrão/manual): preserva os nomes de
+        # saída originais exatamente como antes.
+        xlsx_path = os.path.join(output_dir, 'rtt_bursts_tunaveis.xlsx')
+        png_path = os.path.join(output_dir, 'rtt_todos_bursts.png')
+    else:
+        # Uso em lote (ver run_burst_analysis.py): deriva um sufixo do nome
+        # do arquivo de entrada para não sobrescrever a saída de outros runs.
+        if output_prefix is None:
+            output_prefix = base[len('rtt_log_'):] if base.startswith('rtt_log_') else base
+        xlsx_path = os.path.join(output_dir, f'rtt_bursts_{output_prefix}.xlsx')
+        png_path = os.path.join(output_dir, f'rtt_todos_bursts_{output_prefix}.png')
     try:
-        df = pd.read_csv('rtt_log.csv')
+        df = pd.read_csv(input_file)
         df = df.sort_values('timestamp').reset_index(drop=True)
         ts_inicial = df['timestamp'].min()
         df['tempo_rel'] = df['timestamp'] - ts_inicial
         
         stride_seconds = window_seconds * (1 - overlap_percent / 100)
         delta_entropia_threshold = 1.5
-        
+
         resultados = []
         stats_anterior = None
         cusum_atual = 0.0
         entropia_anterior = None
-        
-        global_mean, global_std = df['rtt'].mean(), df['rtt'].std()
+
+        # Baseline = amostras antes do ataque começar (config.ATTACK_START_TIME_
+        # SECONDS), em vez de estatísticas do arquivo INTEIRO (que misturava
+        # período de ataque no próprio "normal" de referência, subestimando o
+        # quão anômalo o ataque realmente é). Serve tanto de referência para o
+        # CUSUM (substitui o global_mean/global_std antigo) quanto para o piso
+        # de RTT do burst logo abaixo.
+        baseline = df.loc[df['tempo_rel'] < config.ATTACK_START_TIME_SECONDS, 'rtt']
+        if len(baseline) >= 10:
+            global_mean, global_std = baseline.mean(), baseline.std()
+        else:
+            print(f"[WARNING] Poucas amostras antes do ataque (t<{config.ATTACK_START_TIME_SECONDS}s): "
+                  f"{len(baseline)}. Usando o arquivo inteiro como baseline (menos preciso).")
+            global_mean, global_std = df['rtt'].mean(), df['rtt'].std()
         kappa, h = 0.5 * global_std, 5 * global_std
-        
+
+        # Piso de RTT do burst relativo ao baseline desta execução, em vez de um
+        # valor fixo em ms igual para todo cenário (RPS/WU diferentes têm RTT
+        # "normal" bem diferente entre si — um piso fixo não separa bem os dois).
+        # Não usamos média+k*desvio aqui porque só há ~20s de dado limpo antes
+        # do ataque (1 janela), amostra pequena demais para estimar desvio-padrão
+        # de janela com confiança — a razão sobre a média (mais estável) funciona
+        # melhor com essa quantidade de dado.
+        rtt_threshold = global_mean * baseline_ratio
+        print(f"[INFO] Baseline pré-ataque: média={global_mean:.1f}ms, desvio={global_std:.1f}ms "
+              f"({len(baseline)} amostras) -> piso de burst = {rtt_threshold:.1f}ms "
+              f"({baseline_ratio}x a média)")
+
         t_start = 0.0
         while t_start < df['tempo_rel'].max():
             t_end = t_start + window_seconds
@@ -61,7 +101,7 @@ def analisar_bursts_tunavel(window_seconds=20, overlap_percent=50, z_threshold=3
             alarme_cusum = 'Sim' if cusum_atual > h else 'Não'
             
             # Status Burst (tunável)
-            status = 'DDoS Burst' if media_rtt > min_rtt_burst and (alarme_z == 'Sim' or alarme_cusum == 'Sim') else 'Normal/Residual'
+            status = 'DDoS Burst' if media_rtt > rtt_threshold and (alarme_z == 'Sim' or alarme_cusum == 'Sim') else 'Normal/Residual'
             
             resultados.append({
                 'Janela (MM:SS.s)': tempo_formatado,
@@ -81,7 +121,7 @@ def analisar_bursts_tunavel(window_seconds=20, overlap_percent=50, z_threshold=3
         
         df_res = pd.DataFrame(resultados)
         print(df_res.to_string(index=False))
-        df_res.to_excel('rtt_bursts_tunaveis.xlsx', index=False)
+        df_res.to_excel(xlsx_path, index=False)
         
         # Gráfico com bursts destacados
         fig, ax = plt.subplots(figsize=(14,6))
@@ -89,6 +129,8 @@ def analisar_bursts_tunavel(window_seconds=20, overlap_percent=50, z_threshold=3
         ax.plot(tempos_seg, df_res['Média RTT'].astype(float), 'b-', label='Média RTT', marker='o')
         bursts = df_res[df_res['Status Burst'] == 'DDoS Burst']
         ax.scatter([tempos_seg[i] for i in bursts.index], bursts['Média RTT'].astype(float), c='r', s=150, marker='X', label='DDoS Bursts Detectados', zorder=5)
+        ax.axhline(rtt_threshold, color='gray', linestyle='--', alpha=0.6,
+                   label=f'Piso de burst ({rtt_threshold:.0f}ms)')
         # Janela de ataque lida de config.py em vez de fixa no código, para não
         # ficar desatualizada se ATTACK_START_TIME_SECONDS/PULSE_DURATION mudarem
         # (o ataque agora é uma janela única — ver Fase 1 do roadmap).
@@ -100,15 +142,17 @@ def analisar_bursts_tunavel(window_seconds=20, overlap_percent=50, z_threshold=3
         ax.set_ylabel('Média RTT (ms)')
         ax.legend()
         ax.grid(True, alpha=0.3)
-        plt.title('Todos os Bursts DDoS (Tunável: Z>3.5, RTT>50ms)')
+        plt.title(f'Todos os Bursts DDoS (Tunável: Z>{z_threshold}, RTT>{baseline_ratio}x baseline)')
         plt.tight_layout()
-        plt.savefig('rtt_todos_bursts.png', dpi=300)
-        plt.show()
-        
-        print(f"\n✅ Bursts detectados: {len(bursts)} | Excel: rtt_bursts_tunaveis.xlsx | Gráfico: rtt_todos_bursts.png")
+        plt.savefig(png_path, dpi=300)
+        if show_plot:
+            plt.show()
+        plt.close(fig)
+
+        print(f"\n✅ Bursts detectados: {len(bursts)} | Excel: {xlsx_path} | Gráfico: {png_path}")
     
     except Exception as e:
         print(f"Erro: {e}")
 
 if __name__ == "__main__":
-    analisar_bursts_tunavel(z_threshold=3.5, min_rtt_burst=50)  # Tune aqui!
+    analisar_bursts_tunavel(z_threshold=3.5, baseline_ratio=1.8)  # Tune aqui!

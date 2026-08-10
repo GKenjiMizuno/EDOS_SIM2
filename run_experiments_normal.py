@@ -9,7 +9,7 @@ import shutil
 NORMAL_RPS_VALUES = [10, 25, 50, 100]
 NORMAL_WORK_UNITS_VALUES = [10, 100, 1000, 5000]
 
-RESULTS_DIR = "experiment_results"
+RESULTS_DIR = "experiment_results/normal_baseline"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 for rps, work_units in itertools.product(NORMAL_RPS_VALUES, NORMAL_WORK_UNITS_VALUES):

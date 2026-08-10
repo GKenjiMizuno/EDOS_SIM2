@@ -1,0 +1,184 @@
+APRESENTAÇÃO AO ORIENTADOR — SIMULADOR EDOS_SIM2
+==================================================
+Data: agosto de 2026
+
+
+1. O QUE É O PROJETO
+---------------------
+
+O EDOS_SIM2 é um simulador que gera tráfego (normal e de ataque) contra uma
+aplicação web rodando em containers Docker com autoscaling (aumenta/diminui
+o número de instâncias sozinho, baseado no uso de CPU). O objetivo final é
+usar os dados gerados por esse simulador para treinar um modelo de Machine
+Learning capaz de detectar ataques do tipo EDoS (Economic Denial of
+Sustainability).
+
+Não existe um dataset público pronto para esse tipo de ataque — por isso os
+dados precisam ser gerados sinteticamente, com o próprio simulador.
+
+O que é um ataque EDoS: diferente de um DDoS comum (que tenta derrubar o
+serviço com volume alto de requisições), o EDoS tenta ser discreto — manda
+poucas requisições, parecidas em quantidade com o tráfego normal, mas cada
+uma delas é propositalmente "cara" de processar. O prejuízo não é o serviço
+cair, é o dono do serviço pagar mais caro (mais instâncias/containers
+ligados) sem perceber que está sendo atacado.
+
+
+2. DECISÃO DE MODELAGEM DO ATAQUE
+-----------------------------------
+
+No início do projeto foi cogitado um ataque híbrido (Yo-Yo + EDoS baseado em
+custo). Essa ideia foi abandonada em favor de seguir só a estrutura
+"workload-based EDoS" (W-EDoS) do artigo de Sotelo Monge et al. (2019), por
+dois motivos: (1) ficar mais fiel a um ataque EDoS "puro", sem misturar com
+efeitos de DDoS; e (2) ter um sinal mais limpo para rotular o dataset de
+treino do modelo de ML.
+
+Isso significou reescrever a lógica de ataque: em vez de pulsar
+repetidamente (ligando e desligando em ciclos), o ataque agora é UMA janela
+única — liga, roda por um tempo configurável, desliga — mantendo o mesmo
+padrão de volume/quantidade de requisições do tráfego normal, mudando
+apenas o custo de processamento de cada requisição.
+
+
+3. PRINCIPAIS CORREÇÕES NO SIMULADOR
+
+Antes de gerar dados confiáveis, várias limitações internas do simulador
+precisaram ser corrigidas. Resumo dos problemas mais importantes:
+
+  a) Paralelismo real: o servidor alvo não conseguia usar mais de um núcleo
+     de CPU por causa de uma limitação do Python (GIL). Corrigido com um
+     pool de processos, permitindo medir CPU corretamente.
+
+  b) Medição de CPU e RTT (tempo de resposta) não confiável: as métricas
+     registradas não eram uma média real da janela de tempo, e o rótulo
+     "normal"/"ataque" de cada linha do log não batia com o momento real
+     em que o ataque estava ativo. Ambos corrigidos.
+
+  c) Injetor de ataque "capado" sozinho: o gerador de tráfego de ataque
+     esperava cada resposta antes de mandar a próxima requisição, o que
+     limitava a taxa de envio sem querer. Corrigido para enviar no ritmo
+     configurado, independente da resposta.
+
+  d) Queda de conexões sob carga: o servidor não usava "keep-alive" HTTP,
+     então em testes com volume mais alto (ex: 100 requisições/segundo) as
+     conexões esgotavam e o tempo de resposta caía para zero
+     permanentemente. Corrigido — resolveu 8 de 16 execuções de teste que
+     antes "travavam" nesse bug.
+
+  e) Automação das varreduras de experimento: criados três scripts que
+     rodam o simulador várias vezes sozinhos, testando diferentes
+     combinações de parâmetros e salvando os resultados em CSV.
+
+Detalhe técnico completo de cada mudança está registrado em changes.txt, no
+mesmo diretório do projeto (28 itens, cada um com o que mudou e por quê).
+
+
+4. OS TRÊS EXPERIMENTOS RODADOS
+
+4.1) Baseline de tráfego normal (run_experiments_normal.py)
+  Simulação rodando SÓ com tráfego normal (sem ataque), em várias
+  combinações de volume de requisições e custo de processamento, para
+  caracterizar como o sistema se comporta sozinho, sem nenhum ataque.
+  16 execuções.
+
+  Resultado: confirmou que a correção do keep-alive (item d acima)
+  funcionou — nenhuma das 16 execuções mais trava. Também mostrou que, a
+  partir de um certo volume de tráfego normal (bem alto, testado em ~400
+  requisições/segundo), o sistema já escala sozinho mesmo sem nenhum
+  ataque — informação importante para não confundir "escalou" com
+  "foi atacado" nos próximos testes.
+
+4.2) Calibração do custo do ataque (run_experiments.py)
+  Testado o ataque sozinho (sem variar o cenário de tráfego normal),
+  variando o volume de requisições de ataque e o quanto cada requisição de
+  ataque "custa" para o servidor processar. 9 execuções.
+
+  Resultado principal: nem todo valor de custo força o sistema a escalar.
+  Um custo baixo (100 mil unidades) não força escala real. Custos mais
+  altos (300 mil e 500 mil) forçam escala de verdade, sendo esses os
+  valores usados no experimento principal (item 4.3). Também foi observado
+  que custo muito alto combinado com volume de requisições mais alto
+  (não mais o volume baixo/discreto do EDoS) pode causar falhas reais de
+  requisição — nesse ponto o ataque deixa de ser "discreto" e passa a
+  parecer mais com um DDoS comum, o que não é o objetivo do experimento.
+
+4.3) Experimento principal — sweep combinado (run_experiments_combined.py)
+  Este é o experimento equivalente à Tabela 5 do artigo de referência
+  (Sotelo Monge et al.): para cada um de 4 cenários de tráfego normal
+  (S1 a S4, volumes crescentes) soma-se um ataque cujo volume é uma
+  pequena porcentagem (1%, 5% ou 10%) do tráfego normal daquele cenário,
+  nos dois custos validados no item 4.2 (300 mil e 500 mil).
+  24 execuções no total (4 cenários x 3 intensidades x 2 custos).
+
+  Resultado: tendência esperada e consistente — quanto maior o cenário
+  (S1 a S4), a intensidade do ataque (1% a 10%) e o custo (300 mil ou 500
+  mil), mais forte o efeito sobre o sistema (mais escalonamento real,
+  mais tempo de resposta). Em nenhuma das 24 execuções houve falha de
+  requisição — ou seja, o ataque se manteve "discreto" o tempo todo, como
+  o modelo pede.
+
+
+5. FERRAMENTA DE DETECÇÃO ESTATÍSTICA (EntCusumZV3.py)
+
+Além de gerar os dados, foi construída/ajustada uma ferramenta que tenta
+detectar automaticamente os períodos de ataque a partir do tempo de
+resposta (RTT), usando três técnicas estatísticas combinadas: entropia,
+Z-score e CUSUM (soma acumulada de desvios). Ela serve como um primeiro
+"detector simples", para comparar depois com o modelo de Machine Learning.
+
+Achado 1 — limiar fixo não funciona bem: a primeira versão usava um valor
+fixo (50ms) para decidir "isso é um pico anormal". Testando com dados
+reais, esse valor fixo deixava passar ataques discretos de verdade (que
+forçavam escala real, mas nunca passavam de 50ms) e ao mesmo tempo corria o
+risco de confundir tráfego normal de cenários mais carregados com ataque.
+Corrigido: cada execução agora calcula seu próprio "normal" (a partir do
+período antes do ataque começar) e compara contra 1,8x essa própria média,
+em vez de um número fixo igual para todo cenário. Validado comparando
+antes/depois em 9 arquivos reais: casos de ataque real que antes davam
+"0 detecções" passaram a ser corretamente identificados, sem criar falsos
+positivos nos casos onde realmente não havia efeito de ataque.
+
+Achado 2 — "diluição" em ataques de baixa intensidade: em pelo menos um
+cenário do experimento principal (S1, intensidade 5%, custo 500 mil), o
+ataque causou escalonamento real e tempo de resposta bem mais alto (medido
+separadamente pelo simulador), mas o detector não conseguiu identificar
+nada. A causa: o arquivo de log de tempo de resposta mistura TODAS as
+requisições (normais e de ataque) sem identificar qual é qual. Como nesse
+cenário o ataque é só ~5% do volume total, a média de cada janela de tempo
+fica "diluída" pelas ~95% de requisições normais, escondendo o efeito do
+ataque dentro da média geral.
+
+Isso não é um bug a ser corrigido — é, na prática, a prova de que o ataque
+está cumprindo seu papel de ser discreto. E é exatamente por isso que faz
+sentido treinar um modelo de Machine Learning (capaz de aprender padrões
+mais sutis do que uma média simples) em vez de depender só de uma regra
+estatística fixa.
+
+
+6. ORGANIZAÇÃO DOS DADOS
+
+Todos os resultados ficam na pasta experiment_results/, agora organizada em
+três subpastas, uma por experimento:
+
+  experiment_results/normal_baseline/   -> item 4.1 (16 execuções)
+  experiment_results/wu_calibration/    -> item 4.2 (9 execuções)
+  experiment_results/combined_sweep/    -> item 4.3 (24 execuções, o
+                                            experimento principal)
+
+Cada subpasta tem, para cada execução: o CSV de métricas (CPU, instâncias,
+tempo de resposta ao longo do tempo), o log de resumo do ataque (volume
+enviado, erros), o log bruto de tempo de resposta, e (quando aplicável) a
+tabela e o gráfico da detecção de burst.
+
+
+7. PRÓXIMOS PASSOS
+
+  - Gerar o dataset final de treino: repetir os cenários já calibrados
+    várias vezes (para ter volume estatístico suficiente), agora que os
+    parâmetros corretos (custo, intensidade, cenários) já foram validados.
+  - Definir quais características (features) o modelo de Machine Learning
+    vai usar — provavelmente algo mais rico que a média simples de RTT,
+    dado o achado da "diluição" (item 5, Achado 2).
+  - Treinar e avaliar o modelo de ML com o dataset gerado, comparando o
+    resultado com o detector estatístico simples já construído.
