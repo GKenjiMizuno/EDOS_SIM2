@@ -4,13 +4,27 @@ import os
 import shutil
 
 # Varredura combinada (Tabela 5, Sotelo Monge et al.): para cada cenário de
-# tráfego normal (Tabela 4), sobrepõe tráfego de ataque como uma porcentagem
-# do volume total de requisições normais daquele cenário.
+# tráfego normal, sobrepõe tráfego de ataque como uma porcentagem do volume
+# total de requisições normais daquele cenário.
+#
+# Os valores de RPS agregado (40/100/200/300) NÃO são os da Tabela 4 do
+# artigo (50/60/70/80) — o testbed do artigo é maior/mais complexo, então
+# aqueles números não significam a mesma coisa aqui. Recalibrados a partir
+# do baseline real deste simulador (run_experiments_normal.py, WU=10, mesmo
+# custo usado para tráfego normal abaixo): 40/100/200 já estavam medidos
+# (0 SCALE_UP em qualquer um), e 300 foi medido especificamente para este
+# ajuste (pico de CPU 53.6%, ainda abaixo do limiar de 60%, mas bem mais
+# perto dele que os pontos anteriores — ver changes.txt). 400 já era
+# instável (escalona sozinho) e por isso foi descartado como cenário
+# "normal". O objetivo é manter o espírito da Tabela 4 (progressão de carga
+# leve até perto do limiar, sem NUNCA escalar sozinho) usando pontos
+# realmente medidos neste simulador, em vez de números emprestados de um
+# testbed com uma curva de capacidade diferente.
 NORMAL_SCENARIOS = {
-    "S1": 50,
-    "S2": 60,
-    "S3": 70,
-    "S4": 80,
+    "S1": 40,
+    "S2": 100,
+    "S3": 200,
+    "S4": 300,
 }
 ATTACK_INTENSITIES_PCT = [1, 5, 10]
 
@@ -89,5 +103,17 @@ for scenario_name, normal_aggregate_rps in NORMAL_SCENARIOS.items():
                 shutil.move(rtt_log_src, rtt_log_dst)
             else:
                 print(f"[WARNING] {rtt_log_src} não encontrado.")
+
+            # =========================
+            # Traffic capture (tcpdump)
+            # =========================
+            traffic_capture_src = "traffic_capture.csv"
+            traffic_capture_filename = f"traffic_capture_{scenario_name}_atk{pct}pct_wu{work_units}.csv"
+            traffic_capture_dst = os.path.join(RESULTS_DIR, traffic_capture_filename)
+
+            if os.path.exists(traffic_capture_src):
+                shutil.move(traffic_capture_src, traffic_capture_dst)
+            else:
+                print(f"[WARNING] {traffic_capture_src} não encontrado.")
 
 print("\nAll combined experiments completed.")

@@ -68,4 +68,19 @@ for rps, attackers, work_units in itertools.product(RPS_VALUES, ATTACKERS_VALUES
     else:
         print(f"[WARNING] {rtt_log_src} não encontrado.")
 
+    # =========================
+    # Traffic capture (tcpdump)
+    # =========================
+    # Mesmo problema do rtt_log.csv: traffic_capture.csv é sobrescrito a
+    # cada execução (ver tcpdump_sniffer.TcpdumpSniffer._init_csv), então
+    # sem mover aqui só a última execução da varredura fica preservada.
+    traffic_capture_src = "traffic_capture.csv"
+    traffic_capture_filename = f"traffic_capture_rps{rps}_att{attackers}_WU{work_units}.csv"
+    traffic_capture_dst = os.path.join(RESULTS_DIR, traffic_capture_filename)
+
+    if os.path.exists(traffic_capture_src):
+        shutil.move(traffic_capture_src, traffic_capture_dst)
+    else:
+        print(f"[WARNING] {traffic_capture_src} não encontrado.")
+
 print("\nAll experiments completed.")

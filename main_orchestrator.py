@@ -61,7 +61,10 @@ def main():
 
     ##Packet Sniffer
     simulation_start_time = time.time()
-    sniffer = TcpdumpSniffer(interface=config.TCPDUMP_INTERFACE, output_csv=config.TCPDUMP_OUTPUT_CSV,simulation_start_time= simulation_start_time)
+    sniffer_port_range = (config.STARTING_HOST_PORT, config.STARTING_HOST_PORT + config.MAX_INSTANCES - 1)
+    sniffer = TcpdumpSniffer(interface="any", output_csv=config.TCPDUMP_OUTPUT_CSV,
+                              simulation_start_time=simulation_start_time,
+                              port_range=sniffer_port_range)
     sniffer.start()
     sniffer.set_label("benign")
 
@@ -189,12 +192,20 @@ def main():
         label = 'attack' if attack_has_started else 'normal'
 
         #Pegando os RTTs
+        # get_average_rtt_ms() é chamado TODA iteração, mesmo durante o
+        # ataque, para drenar normal_traffic.rtt_measurements continuamente.
+        # Tráfego normal nunca para durante o ataque, então sem isso essa
+        # lista fica acumulando sem ser lida pela janela de ataque inteira
+        # (até ~140s) — a primeira chamada depois que o ataque termina então
+        # despeja uma média sobre esse período todo numa única linha, em vez
+        # do snapshot de 5s que as outras linhas do CSV representam.
+        normal_avg_rtt = get_average_rtt_ms()
         if attack_has_started:
             avg_rtt = get_average_rtt_attack_ms()
             print(f"[Orchestrator]RTT = {avg_rtt}")
 
         else :
-            avg_rtt = get_average_rtt_ms()
+            avg_rtt = normal_avg_rtt
             print(f"[Orchestrator]RTT = {avg_rtt}")
 
 

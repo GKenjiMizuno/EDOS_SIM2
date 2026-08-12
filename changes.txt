@@ -926,3 +926,327 @@ Verificado:
     glob recursivo, salvou as saídas no lugar certo, e os 33 números de
     bursts detectados bateram exatamente com os valores de antes da
     reorganização (nenhuma mudança de comportamento, só de local).
+
+--------------------------------------------------------------------------------
+29) generate_presentation_graphs.py (novo) — gráficos para a apresentação
+--------------------------------------------------------------------------------
+Adicionado:
+  Script novo que lê os dados já salvos em experiment_results/combined_sweep/
+  (varredura combinada) e nas saídas já calculadas por EntCusumZV3.py, e
+  gera 3 PNGs em graficos_apresentacao/:
+    01_tabela5_heatmap.png — heatmap 4 (cenário) x 3 (intensidade), um
+      painel por custo de ataque (WU 300000/500000), célula = nº de
+      janelas classificadas como burst.
+    02_deteccao_S2_atk10pct_wu500000.png — painel com 6 gráficos
+      empilhados (mesmo eixo do tempo) para uma execução real: RTT médio
+      por janela, CPU média, instâncias ativas, entropia de Shannon,
+      Z-score e CUSUM, com a janela de ataque sombreada e as janelas
+      sinalizadas como burst marcadas em vermelho nos 4 gráficos
+      estatísticos.
+    03_resumo_bursts_por_cenario.png — gráfico de barras resumindo bursts
+      detectados por cenário/intensidade/WU.
+  Não roda nenhuma simulação nem reimplementa a lógica de detecção — só
+  lê os CSVs/XLSX já gerados.
+
+Por quê:
+  - Pedido do usuário: gerar gráficos (equivalente à Tabela 5, entropia de
+    Shannon, Z-score, CUSUM) para apresentar ao orientador que o
+    detector está funcionando.
+  - CPU (%) e nº de instâncias ativas foram deixados em dois gráficos
+    separados (não sobrepostos com dois eixos Y) porque são grandezas de
+    escalas diferentes — um gráfico com dois eixos Y é enganoso (não dá
+    pra comparar as curvas de verdade) e foi evitado de propósito.
+
+Verificado:
+  - python3 -m py_compile generate_presentation_graphs.py, sem erros.
+  - Rodado de ponta a ponta (python3 generate_presentation_graphs.py),
+    gerou os 3 PNGs sem erro.
+  - Inspecionados visualmente os 3 PNGs gerados: heatmap com números e
+    escala de cor legíveis, sem sobreposição de texto/título; gráfico de
+    barras sem sobreposição; painel de 6 gráficos com a janela de ataque
+    (20-160s) e as janelas de burst corretamente alinhadas visualmente
+    entre RTT/CPU/instâncias/entropia/Z-score/CUSUM.
+
+--------------------------------------------------------------------------------
+30) run_experiments_combined.py — recalibrar NORMAL_SCENARIOS (S1-S4) para este simulador
+--------------------------------------------------------------------------------
+Contexto:
+  NORMAL_SCENARIOS usava os valores de RPS agregado da Tabela 4 de Sotelo
+  Monge et al. (50/60/70/80) direto, sem ajuste. O testbed do artigo é
+  maior/mais complexo que este simulador, então esses números não
+  representam a mesma coisa aqui — o que importa da Tabela 4 é a ideia de
+  uma progressão de carga (leve até perto do limiar de scale-up), não os
+  valores absolutos em si. Conferindo contra o baseline já medido deste
+  simulador (run_experiments_normal.py, WU=10), os quatro valores antigos
+  (50-80) caem todos dentro da MESMA faixa "bem leve" (entre os pontos já
+  medidos de 40 e 100 agregado) — não representam uma progressão real de
+  proximidade ao limiar neste sistema.
+
+Medição nova:
+  Rodado main_orchestrator.py --normal-rps 75 --normal-work-units 10
+  --attack-duration 0 --duration 180 (equivalente a um RPS agregado de 300,
+  já que --normal-rps é por cliente e há 4 clientes normais fixos) — um
+  ponto entre os 200 (estável) e 400 (instável) agregado já medidos
+  anteriormente, faltando no baseline original.
+  Resultado: pico de CPU 53.6%, média 41.1%, RTT médio 38.6ms, 36/36
+  janelas NO_ACTION, nunca saiu de 1 instância — ainda estável, mas bem
+  mais perto do limiar de 60% que os pontos anteriores. Salvo em
+  experiment_results/normal_baseline/metrics_normal_rps75_WU10.csv.
+  Isso restringe a fronteira de instabilidade (neste simulador, WU=10) para
+  entre 300 e 400 agregado, mais apertada do que a estimativa anterior
+  (entre 200 e 400).
+
+Alterado:
+  - NORMAL_SCENARIOS: {"S1":50,"S2":60,"S3":70,"S4":80} ->
+    {"S1":40,"S2":100,"S3":200,"S4":300} — os quatro pontos agora vêm de
+    medições reais deste simulador (40/100/200 já estavam no baseline
+    original, 300 é a medição nova acima), cobrindo uma progressão real de
+    ~8% a ~53,6% de CPU, todos confirmadamente sem escalar sozinhos.
+  - Comentário do arquivo reescrito pra explicar a recalibração (por que os
+    valores da Tabela 4 foram trocados, e com base em que dado).
+
+Por quê:
+  - Preserva o ESPÍRITO da Tabela 4 (cenários de carga leve até perto do
+    limiar, nenhum escalando sozinho) usando pontos calibrados para a
+    curva de capacidade real deste simulador, em vez de números emprestados
+    de um testbed diferente que aqui caem todos no mesmo patamar "sem
+    efeito".
+
+Nota:
+  - Os 24 resultados já coletados em experiment_results/combined_sweep/
+    (seções 23/24/27) foram gerados com os valores ANTIGOS de
+    NORMAL_SCENARIOS (50-80) e ficam desatualizados a partir desta mudança
+    — precisam ser regerados (rodar run_experiments_combined.py de novo)
+    antes de serem usados como resultado final. Os gráficos de apresentação
+    (seção 29) também precisarão ser regenerados depois disso.
+
+Verificado:
+  - python3 -m py_compile run_experiments_combined.py, sem erros.
+  - Não executado de ponta a ponta ainda (precisa de Docker + sudo); fica
+    para quando o usuário rodar a varredura combinada novamente.
+
+--------------------------------------------------------------------------------
+31) Auditoria completa do simulador (pedido do usuário antes de partir pro
+    dataset de ML) — 3 bugs reais encontrados e corrigidos
+--------------------------------------------------------------------------------
+Contexto:
+  Releitura completa do código (main_orchestrator.py, config.py,
+  stats_collector.py, docker_manager.py, tcpdump_sniffer.py,
+  attack_summary_logger.py, cost_calculator.py, app/simple_server.py,
+  traffic_injectorV0.py, normal_traffic.py) e verificação estrutural dos 50
+  runs já coletados (normal_baseline/wu_calibration/combined_sweep), a
+  pedido do usuário, para garantir que o simulador está correto ANTES de
+  começar a gerar o dataset real de ML. A maior parte do código já estava
+  correta (lógica de escalonamento, geração de tráfego, medição de CPU —
+  nenhum problema novo encontrado ali). Três bugs reais encontrados:
+
+Bug 1 — main_orchestrator.py: RTT "vazando" entre fases:
+  Problema: durante a janela de ataque, o loop principal só lê
+  get_average_rtt_attack_ms() (RTT só do ataque); get_average_rtt_ms()
+  (RTT do tráfego normal) só é chamado nas iterações rotuladas 'normal'.
+  Só que o tráfego normal nunca para durante o ataque (roda a simulação
+  inteira por design) — então normal_traffic.rtt_measurements fica
+  acumulando SEM SER DRENADO durante toda a janela de ataque (até ~140s).
+  Na primeira iteração depois que o ataque termina, get_average_rtt_ms()
+  finalmente é chamado de novo e despeja a média de TODAS essas amostras
+  acumuladas numa linha só — que deveria representar um snapshot de 5s como
+  qualquer outra linha, mas na prática é uma média sobre um período de até
+  ~140s.
+  Confirmado nos dados reais: em metrics_S2_atk10pct_wu500000.csv, a
+  primeira linha 'normal' depois do ataque mostra avg_rtt_ms=73.1, contra
+  ~26-27ms nas linhas logo antes e logo depois. Levantamento em todas as 33
+  execuções com ataque (wu_calibration + combined_sweep): distorção de
+  0.9x a ~30x (ou indefinida, nos casos de falha total de requisição já
+  documentados na seção 27), afetando exatamente 1 linha por execução (33
+  de ~1750 linhas no total, ~2% — mas justamente a linha da transição de
+  fase, um ponto de alto valor informativo pra um futuro modelo de ML).
+  Correção: get_average_rtt_ms() agora é chamado TODA iteração,
+  incondicionalmente (pra sempre drenar a lista), e o valor só É USADO
+  quando a fase não é de ataque — em vez de só ser chamado condicionalmente.
+
+Bug 2 — traffic_capture.csv (captura de pacotes do tcpdump) nunca era
+  salvo por execução:
+  Problema: nenhum dos três scripts de varredura (run_experiments.py,
+  run_experiments_normal.py, run_experiments_combined.py) movia/renomeava
+  traffic_capture.csv como já faziam com simulation_metrics.csv,
+  attack_summary_log.csv e rtt_log.csv — mesmo problema que rtt_log.csv
+  tinha antes da correção da seção 21/24, nunca corrigido pra este arquivo.
+  Resultado: dos 50 runs já coletados, só o ÚLTIMO tem traffic_capture.csv
+  preservado — todos os outros 49 tiveram a captura de pacotes (o dado
+  bruto rotulado por pacote, candidato a fonte de features mais rica que
+  rtt_log.csv pro modelo de ML) sobrescrita e perdida.
+  Correção: os três scripts agora movem traffic_capture.csv pro subdiretório
+  de resultado correspondente, seguindo a mesma convenção de nome já usada
+  pros outros logs (traffic_capture_rps{rps}_att{attackers}_WU{wu}.csv,
+  traffic_capture_normal_rps{rps}_WU{wu}.csv,
+  traffic_capture_{cenário}_atk{pct}pct_wu{wu}.csv).
+
+Bug 3 — tcpdump_sniffer.py: parâmetro "interface" nunca era usado de
+  verdade, e config.TCPDUMP_INTERFACE estava morto:
+  Problema: TcpdumpSniffer.start() sempre rodava com "-i any" fixo no
+  código, ignorando por completo o parâmetro `interface` recebido no
+  construtor (e portanto ignorando config.TCPDUMP_INTERFACE =
+  "br-4b3ba7f6ed06", um nome de bridge Docker específico de uma máquina,
+  que muda se a rede for recriada). Na prática isso não chegou a
+  contaminar dados: o traffic_capture.csv existente (do último run) só
+  contém tráfego 127.0.0.1 nas portas esperadas (8080-8083 + portas
+  efêmeras de cliente) — mas a captura era estruturalmente mais ampla que
+  o necessário (toda interface do host, sem filtro de porta), o que é um
+  risco real numa máquina de desenvolvimento geral (não uma VM isolada).
+  Investigado ANTES de corrigir: tentar simplesmente "consertar" isso
+  passando a interface da bridge Docker seria uma REGRESSÃO — o tráfego do
+  simulador (cliente no host conectando em "http://localhost:<porta>")
+  trafega pela interface de loopback (lo), não pela bridge Docker (que só
+  vê o lado do container). Uma interface específica ficaria cega pra esse
+  tráfego.
+  Correção: mantido "-i any" (agora de propósito, documentado), mas o
+  escopo da captura passou a ser restringido por um filtro BPF de portas
+  (tcp and portrange STARTING_HOST_PORT..STARTING_HOST_PORT+MAX_INSTANCES-1)
+  em vez de por interface — não depende de nomes de bridge gerados
+  dinamicamente pelo Docker, e elimina o risco de capturar tráfego alheio
+  do host. TCPDUMP_INTERFACE removido de config.py (estava morto, e
+  "consertá-lo" teria sido a regressão acima). TcpdumpSniffer ganhou o
+  parâmetro port_range; main_orchestrator.py passa interface="any" e
+  port_range=(config.STARTING_HOST_PORT, config.STARTING_HOST_PORT +
+  config.MAX_INSTANCES - 1) explicitamente.
+
+Verificação estrutural dos 50 runs já coletados (sem mudança de código):
+  - Nenhum arquivo faltando, nenhuma contagem de linha fora do esperado
+    (34-38 por execução), nenhum NaN além do campo
+    active_containers_names vazio (esperado) na primeira linha (t=0.01,
+    antes da primeira leitura de stats) de cada execução.
+
+Achado novo, ainda não investigado (fora do escopo desta correção):
+  - attack_summary_log_S3_atk1pct_wu300000.csv mostra 491 erros de
+    requisição mesmo com taxa de ataque planejada de só 2 req/s agregado —
+    não bate com o padrão "volume alto sobrecarrega o servidor" visto em
+    outros casos. Pode ser workers do injetor de ataque presos numa URL de
+    alvo que ficou inválida após um SCALE_DOWN, mas não foi confirmado.
+    Fica como item pra investigar depois.
+
+Por quê:
+  - Pedido explícito do usuário: garantir que o simulador está correto e
+    os dados coletados são confiáveis ANTES de partir pra geração do
+    dataset de ML — os bugs 1 e 2 em particular afetariam diretamente a
+    qualidade de um dataset gerado a partir dos dados atuais (RTT
+    distorcido numa linha por execução; e a fonte de dado mais rica pro ML
+    praticamente ausente de 49 dos 50 runs já coletados).
+
+Verificado:
+  - python3 -m py_compile em main_orchestrator.py, config.py,
+    tcpdump_sniffer.py, run_experiments.py, run_experiments_normal.py,
+    run_experiments_combined.py — sem erros.
+  - grep confirma zero referências restantes a config.TCPDUMP_INTERFACE
+    fora do comentário que documenta a remoção.
+  - Verificação de ponta a ponta CONFIRMADA (ver seção 33): rodado
+    main_orchestrator.py de verdade com --attack-start 10 --pulse-duration
+    15 --duration 40, os três fixes checados contra a saída real.
+
+--------------------------------------------------------------------------------
+32) apresentacao_professor.txt e CLAUDE.md — atualizados após a auditoria (seção 31)
+--------------------------------------------------------------------------------
+Contexto:
+  Os dois documentos tinham ficado desatualizados em relação ao código e
+  aos dados atuais — apresentacao_professor.txt foi escrito antes da
+  recalibração de NORMAL_SCENARIOS (seção 30), e CLAUDE.md não era tocado
+  desde bem antes desta sessão (ainda descrevia o ataque como pulsado
+  estilo Yo-Yo, min_rtt_burst fixo em 50ms, CUSUM sobre o arquivo inteiro,
+  EDOS_PULSE_*/EDOS_IDLE_*/TCPDUMP_INTERFACE como se ainda existissem em
+  config.py, e rtt_log.csv como não sendo salvo por execução).
+
+Alterado (apresentacao_professor.txt):
+  - Item 3: adicionado item (f) resumindo a auditoria e os 3 bugs
+    corrigidos na seção 31.
+  - Item 4.3: corrigida a alegação "nenhuma das 24 execuções teve falha de
+    requisição" (falsa depois da recalibração — S3/S4 em intensidade/custo
+    altos têm falhas reais, até ~3800 erros em S4@10%/500mil) e adicionada
+    uma nota sobre a recalibração de S1-S4 (40/100/200/300, não mais
+    50/60/70/80 da Tabela 4).
+  - Item 5, Achado 2: exemplo trocado de S1@5%/500mil (0 detecções antes
+    da recalibração) para S2@1%/500mil (0 detecções, ainda válido nos
+    dados atuais) — o exemplo antigo não reflete mais os dados depois da
+    seção 30.
+  - Item 5: adicionado Achado 3 (novo, desta auditoria) — o detector perde
+    cobertura justamente no cenário mais grave (S4@10%/500mil) por causa
+    das falhas reais de requisição lá, não porque o ataque enfraqueceu.
+  - Item 6: mencionado que traffic_capture.csv agora é salvo por execução.
+  - "28 itens" -> "31 itens" (contagem de changes.txt).
+
+Alterado (CLAUDE.md):
+  - Seção "Running the simulator": comandos atualizados (os três scripts
+    de varredura e seus subdiretórios de saída, run_burst_analysis.py e
+    generate_presentation_graphs.py adicionados).
+  - Descrição do tráfego de ataque: de "pulsado, agendado por
+    SCALE_COOLDOWN_SECONDS" pra "janela única, sem repetição" (o desenho
+    Yo-Yo foi retirado há muito tempo, seção 13, mas o CLAUDE.md nunca
+    tinha sido atualizado pra refletir isso).
+  - Descrição do simple_server.py: de "ThreadingHTTPServer single-
+    threaded-per-request" pra mencionar o ProcessPoolExecutor persistente
+    e o keep-alive HTTP/1.1.
+  - Descrição dos três scripts de varredura: subdiretórios de saída
+    (normal_baseline/wu_calibration/combined_sweep), e corrigido "rtt_log.csv
+    não é salvo por execução" pra refletir que rtt_log.csv E
+    traffic_capture.csv agora SÃO salvos pelos três scripts.
+  - Descrição do EntCusumZV3.py: piso fixo (50ms) e CUSUM sobre o arquivo
+    inteiro substituídos pela descrição do piso adaptativo (seção 26);
+    adicionada menção a run_burst_analysis.py; achados de diluição e perda
+    de cobertura (seção 27) documentados como caveats conhecidos.
+  - "Known inconsistencies": removida a entrada sobre EDOS_PULSE_*/
+    EDOS_IDLE_*/EDOS_SATURATION_* (não existem mais em config.py, foram
+    removidos de verdade na seção 13, não só "não usados" como a entrada
+    antiga dizia). Adicionadas entradas sobre TCPDUMP_INTERFACE removido,
+    attack_summary_log.csv só ter linhas de ataque, e o achado ainda não
+    explicado do S3_atk1pct_wu300000 (ver seção 31).
+
+Por quê:
+  - Documentação desatualizada que afirma algo FALSO sobre o comportamento
+    atual do código (ex: "ataque é pulsado", "nenhuma falha de requisição
+    em 24 execuções") é pior que não ter documentação — engana quem lê
+    depois, seja o orientador seja uma sessão futura do Claude Code neste
+    projeto.
+
+Verificado:
+  - Releitura completa dos dois arquivos depois da edição, conferindo que
+    nenhuma referência a EDOS_PULSE_*/TCPDUMP_INTERFACE/"pulsado" continua
+    presente fora do contexto histórico (changes.txt, docs/*.md).
+  - Números citados nos dois documentos (contagem de itens do changes.txt,
+    valores de S1-S4, contagem de erros por cenário) conferidos contra os
+    dados reais em experiment_results/combined_sweep/ antes de escrever,
+    não copiados de memória.
+
+--------------------------------------------------------------------------------
+33) Verificação de ponta a ponta dos 3 fixes da seção 31 (confirmada)
+--------------------------------------------------------------------------------
+Execução real:
+  sudo python3 main_orchestrator.py --rps 5 --attackers 4 --work-units
+  300000 --attack-start 10 --pulse-duration 15 --duration 40
+  (run curto: ataque de t=10 a t=25, 15s de tráfego só-normal depois, o
+  suficiente pra observar a transição fim-de-ataque sem esperar os 180s
+  padrão.)
+
+Resultado — Fix 1 (RTT vazando entre fases):
+  Linha de transição (t=30, primeira rotulada 'normal' depois do ataque)
+  mostrou avg_rtt_ms=42.65 — elevado frente ao baseline (~18ms) mas um
+  valor plausível de janela de 5s, não a distorção de até ~30x (ou
+  indefinida) vista nos dados antigos antes da correção.
+
+Resultado — Fix 2 (traffic_capture.csv por execução):
+  traffic_capture.csv presente com 9312 linhas de dado real (562KB) —
+  antes da correção esse arquivo simplesmente não seria salvo por nenhum
+  dos scripts de varredura.
+
+Resultado — Fix 3 (filtro de porta do tcpdump):
+  0 dos 9312 pacotes capturados caem fora da faixa de porta alvo
+  (8080-8083) tanto no src_port quanto no dst_port — confirmado via
+  `awk -F, '!(($3>=8080 && $3<=8083) || ($5>=8080 && $5<=8083))'`. As
+  portas altas observadas na coluna dst_port (ex.: 58818) são o lado
+  efêmero do cliente nos pacotes de RESPOSTA do servidor (src_port=8080),
+  não vazamento — captura bidirecional funcionando como esperado com
+  "portrange 8080-8083".
+
+Verificado:
+  - Os 4 arquivos de saída (simulation_metrics.csv, rtt_log.csv,
+    traffic_capture.csv, attack_summary_log.csv) apareceram na raiz do
+    projeto como esperado (chamada direta a main_orchestrator.py, fora de
+    um script de varredura) e foram removidos depois de conferidos (só
+    lixo de verificação, não fazem parte do dataset real).

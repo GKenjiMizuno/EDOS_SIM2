@@ -28,7 +28,8 @@ TCPDUMP_REGEX = re.compile(
 
 
 class TcpdumpSniffer:
-    def __init__(self, interface: str, output_csv: str, simulation_start_time:float):
+    def __init__(self, interface: str, output_csv: str, simulation_start_time: float,
+                 port_range: Optional[tuple] = None):
         self.interface = interface
         self.output_csv = output_csv
         self.process: Optional[subprocess.Popen] = None
@@ -36,7 +37,11 @@ class TcpdumpSniffer:
         self.running = False
         self.current_label = "benign"
         self.label_lock = threading.Lock()
-        self.simulation_start_time = simulation_start_time 
+        self.simulation_start_time = simulation_start_time
+        # (min_port, max_port) dos containers alvo: restringe a captura a
+        # essas portas via filtro BPF, em vez de depender de qual interface
+        # de rede é escolhida (ver start()).
+        self.port_range = port_range
         self._init_csv()
     
     def set_label(self, label: str):
@@ -64,14 +69,28 @@ class TcpdumpSniffer:
             print("[Sniffer] Realtime tcpdump already running.")
             return
 
+        # -i any: a captura roda no host (fora dos containers), e o tráfego
+        # do simulador contra "http://localhost:<porta>" trafega pela
+        # interface de loopback (lo), não pela bridge Docker (br-xxxx) — só
+        # o lado do container é que aparece nela. Uma interface Docker
+        # específica ficaria cega para esse tráfego, então "any" é
+        # intencional aqui, não um placeholder. O escopo é restrito via
+        # filtro de portas (BPF) abaixo em vez de por interface, o que
+        # também evita depender de um nome de bridge gerado dinamicamente
+        # pelo Docker (muda se a rede for recriada).
+        bpf_filter = "tcp"
+        if self.port_range:
+            lo, hi = self.port_range
+            bpf_filter = f"tcp and portrange {lo}-{hi}"
+
         cmd = [
             "tcpdump",
-            "-i", "any",
+            "-i", self.interface,
             "-l",
             "-n",
             "-tt",
             "-q",     # saída mais simples
-            "tcp"
+            bpf_filter
             ]
 
         self.process = subprocess.Popen(

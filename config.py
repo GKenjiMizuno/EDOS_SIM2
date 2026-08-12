@@ -71,7 +71,13 @@ ATTACK_SLEEP = 0.00
 NORMAL_WORK_UNITS = 10
 NORMAL_SLEEP =0.0
 # --- TCPDUMP SNIFFER CONFIG ---
-TCPDUMP_INTERFACE = "br-4b3ba7f6ed06"
+# Sem TCPDUMP_INTERFACE aqui de propósito: era um nome de bridge Docker
+# gerado dinamicamente (br-xxxx, muda se a rede for recriada) e nunca era
+# realmente usado pelo sniffer (main_orchestrator.py sempre chamava com
+# interface="any" na prática) — removido em vez de mantido como config
+# morta. O escopo da captura agora é limitado por porta
+# (STARTING_HOST_PORT..STARTING_HOST_PORT+MAX_INSTANCES-1), não por
+# interface — ver tcpdump_sniffer.py.
 TCPDUMP_OUTPUT_CSV = "traffic_capture.csv"
 
 

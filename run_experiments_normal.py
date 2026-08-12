@@ -48,4 +48,16 @@ for rps, work_units in itertools.product(NORMAL_RPS_VALUES, NORMAL_WORK_UNITS_VA
     if os.path.exists(attack_summary_src):
         os.remove(attack_summary_src)
 
+    # =========================
+    # Traffic capture (tcpdump)
+    # =========================
+    traffic_capture_src = "traffic_capture.csv"
+    traffic_capture_filename = f"traffic_capture_normal_rps{rps}_WU{work_units}.csv"
+    traffic_capture_dst = os.path.join(RESULTS_DIR, traffic_capture_filename)
+
+    if os.path.exists(traffic_capture_src):
+        shutil.move(traffic_capture_src, traffic_capture_dst)
+    else:
+        print(f"[WARNING] {traffic_capture_src} não encontrado.")
+
 print("\nAll normal-traffic experiments completed.")

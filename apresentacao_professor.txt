@@ -70,8 +70,19 @@ precisaram ser corrigidas. Resumo dos problemas mais importantes:
      rodam o simulador várias vezes sozinhos, testando diferentes
      combinações de parâmetros e salvando os resultados em CSV.
 
+  f) Auditoria completa antes de partir pro dataset de ML: releitura de
+     todo o código do simulador e verificação estrutural dos 50 runs já
+     coletados. A maior parte do simulador já estava correta; 3 bugs reais
+     foram encontrados e corrigidos: (i) uma linha de RTT distorcida por
+     execução na transição fim-de-ataque (o tráfego normal "vazava" sem
+     ser lido durante toda a janela de ataque); (ii) a captura de pacotes
+     do tcpdump (traffic_capture.csv) nunca era salva por execução — só o
+     último run tinha esse dado preservado; (iii) o filtro de captura do
+     tcpdump era mais amplo que o necessário (toda interface de rede do
+     host, sem filtro de porta).
+
 Detalhe técnico completo de cada mudança está registrado em changes.txt, no
-mesmo diretório do projeto (28 itens, cada um com o que mudou e por quê).
+mesmo diretório do projeto (33 itens, cada um com o que mudou e por quê).
 
 
 4. OS TRÊS EXPERIMENTOS RODADOS
@@ -111,12 +122,27 @@ mesmo diretório do projeto (28 itens, cada um com o que mudou e por quê).
   nos dois custos validados no item 4.2 (300 mil e 500 mil).
   24 execuções no total (4 cenários x 3 intensidades x 2 custos).
 
-  Resultado: tendência esperada e consistente — quanto maior o cenário
-  (S1 a S4), a intensidade do ataque (1% a 10%) e o custo (300 mil ou 500
-  mil), mais forte o efeito sobre o sistema (mais escalonamento real,
-  mais tempo de resposta). Em nenhuma das 24 execuções houve falha de
-  requisição — ou seja, o ataque se manteve "discreto" o tempo todo, como
-  o modelo pede.
+  Os valores de S1-S4 (40/100/200/300 requisições/s agregado) foram
+  recalibrados a partir do baseline real deste simulador em vez de usar
+  os números da Tabela 4 do artigo direto (50/60/70/80) — o testbed do
+  artigo é maior/mais complexo, então aqueles números não significam a
+  mesma carga aqui. Os quatro valores atuais vêm de medições reais (nenhum
+  escala sozinho, sem ataque, e cobrem uma progressão real de ~8% a ~54%
+  de CPU) — ver changes.txt seção 30 para o detalhe da calibração.
+
+  Resultado: tendência esperada — quanto maior o cenário (S1 a S4), a
+  intensidade do ataque (1% a 10%) e o custo (300 mil ou 500 mil), mais
+  forte o efeito sobre o sistema (mais escalonamento real, mais tempo de
+  resposta). Diferente do que se pensava antes da recalibração, nem todas
+  as 24 execuções ficaram livres de falha de requisição: nos cenários
+  maiores (S3 e S4), principalmente em intensidade/custo mais altos, o
+  ataque chega a causar falhas reais de requisição (até ~3800 erros na
+  execução mais extrema, S4 a 10% com custo 500 mil) — nesse ponto o
+  ataque deixa de ser "discreto" e passa a se parecer mais com um DDoS
+  comum. Nos cenários/intensidades mais baixos o ataque se manteve
+  discreto (zero ou poucas falhas), como o modelo pede — então o dataset
+  final deve tratar essas duas situações como classes de severidade
+  distintas, não misturar tudo sob um único rótulo "ataque".
 
 
 5. FERRAMENTA DE DETECÇÃO ESTATÍSTICA (EntCusumZV3.py)
@@ -140,13 +166,14 @@ antes/depois em 9 arquivos reais: casos de ataque real que antes davam
 positivos nos casos onde realmente não havia efeito de ataque.
 
 Achado 2 — "diluição" em ataques de baixa intensidade: em pelo menos um
-cenário do experimento principal (S1, intensidade 5%, custo 500 mil), o
-ataque causou escalonamento real e tempo de resposta bem mais alto (medido
-separadamente pelo simulador), mas o detector não conseguiu identificar
-nada. A causa: o arquivo de log de tempo de resposta mistura TODAS as
-requisições (normais e de ataque) sem identificar qual é qual. Como nesse
-cenário o ataque é só ~5% do volume total, a média de cada janela de tempo
-fica "diluída" pelas ~95% de requisições normais, escondendo o efeito do
+cenário do experimento principal (S2, intensidade 1%, custo 500 mil), o
+ataque causou 3 escalonamentos reais (SCALE_UP), CPU chegando a 78% e RTT
+de ataque (medido separadamente pelo simulador) chegando a quase 300ms —
+mas o detector não identificou nenhuma das 18 janelas como burst. A causa:
+o arquivo de log de tempo de resposta mistura TODAS as requisições
+(normais e de ataque) sem identificar qual é qual. Como nesse cenário o
+ataque é só ~1% do volume total, a média de cada janela de 20s fica
+"diluída" pelas ~99% de requisições normais, escondendo o efeito do
 ataque dentro da média geral.
 
 Isso não é um bug a ser corrigido — é, na prática, a prova de que o ataque
@@ -154,6 +181,19 @@ está cumprindo seu papel de ser discreto. E é exatamente por isso que faz
 sentido treinar um modelo de Machine Learning (capaz de aprender padrões
 mais sutis do que uma média simples) em vez de depender só de uma regra
 estatística fixa.
+
+Achado 3 — o detector perde justamente onde o ataque é mais grave: no
+cenário mais extremo (S4, 10%, custo 500 mil — o mesmo que causa ~3800
+falhas de requisição citado no item 4.3), o detector identificou só 5
+bursts, MENOS que em cenários visivelmente mais brandos (S2 e S3 na mesma
+intensidade/custo identificaram 14 e 15). Não é porque o ataque ali é mais
+fraco — pelo contrário, é o mais forte de todos por CPU e tempo de
+resposta. É porque, quando o servidor começa a falhar de verdade
+(requisições que nunca completam), essas falhas não deixam nenhum registro
+de RTT — então sobra pouquíssima amostra pro detector analisar
+naquele trecho (só 6 janelas de 20s deram pra calcular, em vez das ~18
+usuais). Ou seja: o detector fica "cego" justamente no pior momento do
+ataque, não porque ele piorou, mas porque faltou dado.
 
 
 6. ORGANIZAÇÃO DOS DADOS
@@ -168,8 +208,10 @@ três subpastas, uma por experimento:
 
 Cada subpasta tem, para cada execução: o CSV de métricas (CPU, instâncias,
 tempo de resposta ao longo do tempo), o log de resumo do ataque (volume
-enviado, erros), o log bruto de tempo de resposta, e (quando aplicável) a
-tabela e o gráfico da detecção de burst.
+enviado, erros), o log bruto de tempo de resposta, a captura de pacotes do
+tcpdump por requisição (rótulo benigno/ataque por pacote — corrigido para
+ser salva por execução no item 3.f), e (quando aplicável) a tabela e o
+gráfico da detecção de burst.
 
 
 7. PRÓXIMOS PASSOS
