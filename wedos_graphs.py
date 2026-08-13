@@ -35,7 +35,12 @@ GREEN = "#1baf7a"
 RED = "#d03b3b"
 ORANGE = "#e08a2b"
 
-GRID_RE = re.compile(r"metrics_(S\d)_atk(\d+)pct_wu(\d+)_(stage1[ab])_rep(\d+)\.csv$")
+# pct aceita decimal (ex.: "0.5pct") e o stage aceita o sufixo opcional
+# "_confirm" (ex.: "stage1b_confirm") -- antes disso, 8 arquivos legítimos
+# (as 3 reps de 0.5%, as 2 reps extras de confirmação do candidato principal,
+# e as 3 reruns do "mistério S3") eram descartados silenciosamente por não
+# bater com o regex, faltando nos gráficos 06/07 sem nenhum aviso.
+GRID_RE = re.compile(r"metrics_(S\d)_atk([\d.]+)pct_wu(\d+)_(stage1[ab](?:_confirm)?)_rep(\d+)\.csv$")
 
 
 def carregar_grid():
@@ -44,12 +49,15 @@ def carregar_grid():
         m = GRID_RE.search(os.path.basename(f))
         if not m:
             continue
-        cenario, pct, wu, stage, rep = m.groups()
-        pct, wu, rep = int(pct), int(wu), int(rep)
+        cenario, pct_str, wu, stage, rep = m.groups()
+        # pct_str preserva a formatação exata do nome de arquivo em disco
+        # ("1", "0.5", "10", ...) -- reconstruir os outros caminhos a partir
+        # dela, não do float, senão "1.0pct" não bate com "1pct" no disco.
+        pct, wu, rep = float(pct_str), int(wu), int(rep)
         df = pd.read_csv(f)
 
         rtt_bursts_path = os.path.join(
-            GRID_DIR, f"rtt_bursts_{cenario}_atk{pct}pct_wu{wu}_{stage}_rep{rep}.xlsx"
+            GRID_DIR, f"rtt_bursts_{cenario}_atk{pct_str}pct_wu{wu}_{stage}_rep{rep}.xlsx"
         )
         bursts = total_janelas = None
         if os.path.exists(rtt_bursts_path):
@@ -59,7 +67,7 @@ def carregar_grid():
 
         errs = 0
         asum_path = os.path.join(
-            GRID_DIR, f"attack_summary_log_{cenario}_atk{pct}pct_wu{wu}_{stage}_rep{rep}.csv"
+            GRID_DIR, f"attack_summary_log_{cenario}_atk{pct_str}pct_wu{wu}_{stage}_rep{rep}.csv"
         )
         if os.path.exists(asum_path):
             adf = pd.read_csv(asum_path)
@@ -78,8 +86,15 @@ def carregar_grid():
 
 
 def plot_heatmap(grid):
+    # Só a Stage1A testou a grade CHEIA (4 cenários x 3 intensidades) em
+    # cada WU -- a Stage1B testa só 1 cenário/intensidade por WU (refino de
+    # fronteira, não grade completa), então incluí-la aqui deixava a maioria
+    # dos painéis quase em branco (só 1 célula preenchida por WU), parecendo
+    # dado faltando em vez de "não fazia parte deste desenho experimental".
+    # A Stage1B tem seu próprio gráfico (10_wedos_refinamento_fronteiras.png).
+    grid = grid[grid["stage"] == "stage1a"]
     if grid.empty:
-        print("[SKIP] heatmap: sem dados em wedos_grid/")
+        print("[SKIP] heatmap: sem dados de stage1a em wedos_grid/")
         return
     cenarios = sorted(grid["cenario"].unique())
     pcts = sorted(grid["pct"].unique())
@@ -99,7 +114,7 @@ def plot_heatmap(grid):
                     scaled[i, j] = (sub["scaleups"] > 0).any()
         im = ax.imshow(mat, cmap="Blues", vmin=0, vmax=vmax, aspect="auto")
         ax.set_xticks(range(len(pcts)))
-        ax.set_xticklabels([f"{p}%" for p in pcts])
+        ax.set_xticklabels([f"{p:g}%" for p in pcts])
         ax.set_yticks(range(len(cenarios)))
         ax.set_yticklabels(cenarios)
         ax.set_xlabel("Intensidade do ataque")
@@ -113,7 +128,7 @@ def plot_heatmap(grid):
                 ax.text(j, i, f"{mat[i, j]:.0f}%{marca}", ha="center", va="center",
                         color=cor_texto, fontsize=11, fontweight="bold")
     axes[0].set_ylabel("Cenário de tráfego normal (S1→S4 = volume crescente)")
-    fig.suptitle("Pico de CPU por cenário × intensidade × custo (WU)\n"
+    fig.suptitle("Pico de CPU por cenário × intensidade × custo (WU) — grade completa (Stage 1A)\n"
                   "▲ = pelo menos 1 SCALE_UP disparado nessa execução", fontsize=12, y=1.02)
     fig.tight_layout()
     caminho = os.path.join(OUT_DIR, "06_wedos_heatmap_cpu.png")
@@ -146,6 +161,64 @@ def plot_efetividade_furtividade(grid):
     cbar.set_label("Taxa de detecção pelo EntCusumZV3 (0=furtivo, 1=sempre detectado)")
     fig.tight_layout()
     caminho = os.path.join(OUT_DIR, "07_wedos_efetividade_furtividade.png")
+    fig.savefig(caminho, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[OK] {caminho}")
+
+
+def plot_refinamento_fronteiras(grid):
+    # Complementa o heatmap (que agora só mostra a Stage1A): esta é a
+    # visualização certa para a Stage1B, que testa 1 cenário/intensidade por
+    # vez ao longo de vários WU, com repetições reais -- uma reta com barra
+    # de erro por cenário é mais honesta aqui do que uma matriz cheia de
+    # células em branco.
+    grupos = [("S1", 10.0, "S1 — 10% de intensidade"),
+              ("S2", 1.0, "S2 — 1% de intensidade"),
+              ("S3", 1.0, "S3 — 1% de intensidade")]
+    disponiveis = [g for g in grupos if not grid[(grid.cenario == g[0]) & (grid.pct == g[1])].empty]
+    if not disponiveis:
+        print("[SKIP] refinamento de fronteiras: sem dados de stage1b em wedos_grid/")
+        return
+
+    fig, axes = plt.subplots(1, len(disponiveis), figsize=(6 * len(disponiveis), 5), squeeze=False)
+    axes = axes[0]
+    sc_plot = None
+    for ax, (cenario, pct, titulo) in zip(axes, disponiveis):
+        sub = grid[(grid.cenario == cenario) & (grid.pct == pct)]
+        agg = sub.groupby("wu").agg(
+            cpu_media=("peak_cpu", "mean"), cpu_std=("peak_cpu", "std"),
+            taxa_scaleup=("scaleups", lambda s: (s > 0).mean()), n=("peak_cpu", "size"),
+        ).reset_index().sort_values("wu")
+        ax.errorbar(agg["wu"], agg["cpu_media"], yerr=agg["cpu_std"].fillna(0),
+                     color="black", linewidth=1, capsize=4, zorder=2)
+        sc_plot = ax.scatter(agg["wu"], agg["cpu_media"], c=agg["taxa_scaleup"], cmap="RdYlGn_r",
+                              vmin=0, vmax=1, s=90, edgecolor="black", linewidth=0.6, zorder=3)
+        for _, row in agg.iterrows():
+            ax.annotate(f"n={int(row['n'])}", (row["wu"], row["cpu_media"]),
+                        textcoords="offset points", xytext=(0, 8), fontsize=7, ha="center")
+
+        if cenario == "S2" and pct == 1.0:
+            sub05 = grid[(grid.cenario == "S2") & (grid.pct == 0.5)]
+            if not sub05.empty:
+                agg05 = sub05.groupby("wu").agg(cpu_media=("peak_cpu", "mean"),
+                                                 cpu_std=("peak_cpu", "std")).reset_index()
+                ax.errorbar(agg05["wu"], agg05["cpu_media"], yerr=agg05["cpu_std"].fillna(0),
+                             color=ORANGE, linestyle="--", marker="s", markersize=6,
+                             capsize=4, label="0.5% (comparação)", zorder=2)
+                ax.legend(fontsize=8)
+
+        ax.axhline(config.CPU_THRESHOLD_SCALE_UP, color=RED, linestyle=":", linewidth=1)
+        ax.set_xlabel("Custo por requisição de ataque (WU)")
+        ax.set_ylabel("Pico de CPU (%) — média ± desvio entre repetições")
+        ax.set_title(titulo)
+        ax.grid(True, alpha=0.25)
+
+    if sc_plot is not None:
+        cbar = fig.colorbar(sc_plot, ax=list(axes), fraction=0.02, pad=0.02)
+        cbar.set_label("Fração de repetições com SCALE_UP")
+    fig.suptitle("Stage 1B — refino fino nas fronteiras (repetições reais)\n"
+                 "rótulo \"n=\" = nº de repetições nesse WU", fontsize=12, y=1.04)
+    caminho = os.path.join(OUT_DIR, "10_wedos_refinamento_fronteiras.png")
     fig.savefig(caminho, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[OK] {caminho}")
@@ -249,6 +322,7 @@ if __name__ == "__main__":
     print(f"Carregados {len(grid)} pontos de experiment_results/wedos_grid/\n")
     plot_heatmap(grid)
     plot_efetividade_furtividade(grid)
+    plot_refinamento_fronteiras(grid)
     plot_reprodutibilidade()
     plot_fronteira_falha()
     print(f"\nGráficos salvos em {OUT_DIR}/")

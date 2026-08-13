@@ -104,3 +104,22 @@ Convenção de marcador: [X] concluída | [~] em andamento | [ ] pendente
 PRÓXIMO PASSO AUTOMÁTICO (sem precisar perguntar):
   Compilar relatório final (RELATORIO_WEDOS_13_08.txt) com todos os
   achados desta sessão, pra entregar quando o usuário voltar a checar.
+
+
+PENDÊNCIAS IDENTIFICADAS DEPOIS DO FECHAMENTO (revisando os gráficos com o
+usuário, 13/08 tarde) — plano em si está fechado, isso é refinamento:
+
+[ ] Refino do S3 (Fase 1 Stage1B) rodado com só 2 repetições por ponto
+    (marcado "exploratório" no próprio wedos_stage1b_refined.py), diferente
+    de S1/S2 que usaram 3. Resultado: variação grande demais pra confiar
+    ponto a ponto (só a conclusão geral "S3 escala em qualquer WU testado"
+    é robusta, os valores individuais de pico de CPU não são):
+      WU=100.000: rep1=83,9%  rep2=72,3%   (dif. 11,6 pontos)
+      WU=125.000: rep1=82,2%  rep2=60,1%   (dif. 22,1 pontos)
+      WU=150.000: rep1=67,7%  rep2=92,2%   (dif. 24,5 pontos)
+      WU=175.000: rep1=171,2% rep2=73,9%   (dif. 97,3 pontos!)
+    Recomendação: rodar mais 1 repetição (rep3) nesses 4 pontos
+    (grid.run_point("S3", 200, 1, wu, rep=3, tag="stage1b") pra wu em
+    [100000,125000,150000,175000]) antes de considerar esses números
+    finais para a monografia -- S3 é um dos dois candidatos principais do
+    achado da Fase 2, então vale o mesmo rigor de repetição que S1/S2.

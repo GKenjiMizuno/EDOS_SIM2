@@ -1,0 +1,317 @@
+APRESENTAÇÃO AO ORIENTADOR — CARACTERIZAÇÃO DO ATAQUE W-EDoS
+==================================================
+Data: 13 de agosto de 2026
+(continuação de apresentacao_professor.txt — aquele documento cobre a
+construção e as correções do simulador; este cobre a etapa seguinte: usar
+o simulador já corrigido para caracterizar o ataque de verdade, com rigor
+estatístico, antes de gerar o dataset final de treino)
+
+
+1. POR QUE ESTA ETAPA FOI FEITA
+---------------------------------
+
+Depois de corrigir os bugs do simulador (documentado na apresentação
+anterior), ficou uma pergunta em aberto: os 24 testes do experimento
+principal (item 4.3 daquela apresentação) foram rodados **uma única vez
+cada**. Isso é suficiente para calibrar o simulador, mas não é suficiente
+para afirmar com confiança "esse ataque específico é indetectável" ou
+"esse é o ponto exato onde o sistema começa a escalar" — pode ser só
+coincidência de uma execução isolada.
+
+Esta etapa resolveu isso: repetiu os pontos mais importantes várias
+vezes, encontrou os limites reais com mais precisão, e comparou os
+resultados com a ferramenta de detecção estatística já construída. O
+objetivo final continua o mesmo — gerar evidência confiável para treinar
+o modelo de Machine Learning — mas agora com repetição e validação, não
+só uma amostra.
+
+
+2. METODOLOGIA — AS 5 ETAPAS (chamadas de "Fases" no projeto)
+-----------------------------------------------------------------
+
+Fase 0 — Checagens antes de confiar nos dados
+  Antes de rodar qualquer teste novo, três perguntas precisavam de
+  resposta:
+  (a) Os dados já coletados estão estruturalmente corretos? (conferência
+      automática, sem achar problema novo)
+  (b) O ambiente (computador + Docker) muda de comportamento se ficar
+      ligado rodando testes por muitas horas seguidas, sem reiniciar nada
+      entre eles? Resposta: sim, de forma mensurável. Teste feito: rodar
+      a MESMA configuração exata (tráfego normal de 300 req/s, sem
+      nenhum ataque) duas vezes — uma vez logo no início de uma sessão
+      longa de testes ("lote A"), e de novo quase 3 horas depois, na
+      mesma sessão, depois de 54 outras execuções de teste terem rodado
+      no meio do caminho ("lote B"). Mesma configuração nos dois casos,
+      resultado bem diferente:
+        Lote A: picos de CPU de 62%, 72% e 39% nas 3 repetições (média
+          ~58%), escalou só 3 vezes no total.
+        Lote B: picos de CPU de 80%, 93% e 75% nas 3 repetições (média
+          ~83%), escalou 7 vezes no total.
+      Ou seja: o mesmo teste, rodado mais tarde numa sessão longa e
+      cheia de uso de Docker, ficou consistentemente mais "quente" do
+      que no início — evidência de que o ambiente acumula algum tipo de
+      desgaste com o uso contínuo, não é só ruído aleatório de uma
+      requisição pra outra. Por isso todos os testes desta etapa usam
+      repetição, não uma amostra só (gráfico 08 na seção 4 mostra isso
+      visualmente).
+  (c) Até que volume de tráfego normal (sem NENHUM ataque) o sistema
+      aguenta sozinho sem escalar? Resposta: até ~205-210 requisições
+      por segundo. Isso importa porque, se um teste "escala" acima
+      disso, pode ser só o próprio tráfego normal pesando, não o ataque
+      — então o cenário mais carregado que estava sendo considerado
+      (300 req/s) foi excluído dos testes finos por já estar
+      instável sozinho.
+
+Fase 1 — Mapa fino de "quando o ataque força escalonamento"
+  Primeiro uma varredura grossa (48 combinações, 1 execução cada) pra
+  achar aproximadamente onde estão as fronteiras. Depois, um refino fino
+  exatamente nessas fronteiras, agora com 2 ou 3 repetições reais por
+  ponto (31 execuções) — pra confirmar que a fronteira encontrada não é
+  coincidência de uma execução só.
+
+Fase 2 — Rodar o detector estatístico nos candidatos encontrados
+  Para os pontos mais interessantes da Fase 1, aplicar a ferramenta de
+  detecção (EntCusumZV3, já existente, ver apresentação anterior item 5)
+  e ver se ela consegue perceber o ataque ou não.
+
+Fase 3 — Gráficos finais (explicados na seção 4 abaixo).
+
+Fase 4 — Até onde o ataque pode piorar (fora do escopo "discreto")
+  Diferente da Fase 1 (que procura o ataque mais discreto possível), a
+  Fase 4 faz o oposto: parte do pior caso já conhecido e aumenta ainda
+  mais o custo/volume/número de atacantes, pra caracterizar o
+  comportamento quando o ataque já deixou de ser sutil e virou um
+  colapso real do sistema (28 execuções, 3 direções testadas
+  separadamente: custo por requisição, volume por atacante, e número de
+  atacantes).
+
+
+3. RESULTADO PRINCIPAL (o achado mais importante desta etapa)
+-------------------------------------------------------------
+
+Existe um ataque que:
+  - força o sistema a ligar containers extras de verdade (custo real de
+    infraestrutura, o prejuízo que o EDoS busca causar), E
+  - ao mesmo tempo fica **completamente invisível** pra ferramenta de
+    detecção estatística (0 alertas em todas as janelas de tempo
+    analisadas).
+
+Isso foi confirmado de forma repetida, não é sorte de uma execução:
+  - Cenário S2 (100 req/s de tráfego normal) + ataque de só 1% de volume
+    extra + custo alto por requisição: escalou em 3 de 3 repetições,
+    zero alertas em 56 janelas de tempo analisadas no total.
+  - Cenário S3 (200 req/s, mais perto do próprio limite do sistema) +
+    ataque de 1%: escalou de forma consistente, zero alertas em 15
+    execuções independentes diferentes — mesmo no ataque mais barato
+    testado.
+
+Prova de que isso é "diluição" e não uma falha da ferramenta de
+detecção: quando o MESMO nível de ataque foi testado sozinho, sem
+tráfego normal misturado (Fase 4), a taxa de detecção subiu pra
+80-87,5% das janelas. Ou seja: a ferramenta funciona bem quando não tem
+tráfego normal "escondendo" o ataque dentro da média — o problema não é
+a ferramenta ser ruim, é que 1% de ataque misturado em 99% de tráfego
+normal realmente desaparece dentro da média, exatamente como o ataque
+W-EDoS é desenhado pra fazer.
+
+Conclusão prática: uma média simples de tempo de resposta (o que o
+detector estatístico usa) não é suficiente pra pegar esse tipo de
+ataque quando ele está bem feito. Isso reforça — com prova concreta,
+não só teoria — por que faz sentido treinar um modelo de Machine
+Learning: ele pode aprender padrões mais sutis do que uma média.
+
+
+4. EXPLICAÇÃO DOS GRÁFICOS GERADOS (graficos_apresentacao/06 a 09)
+--------------------------------------------------------------------
+
+06_wedos_heatmap_cpu.png — "Onde o ataque esquenta o sistema"
+  Um painel por custo de ataque testado (só com a varredura grossa, que
+  testou todas as combinações — o refino fino tem um gráfico próprio,
+  ver 10 abaixo). Em cada painel: linhas = os 4 cenários de tráfego
+  normal (S1 a S4, de baixo pra alto volume), colunas = intensidade do
+  ataque (1%, 5%, 10%). Cor mais escura = CPU mais alta naquele ponto.
+  Um triângulo (▲) marca onde o sistema realmente ligou um container
+  extra. Serve pra ver de relance onde o "efeito visual" (CPU alta) bate
+  com o "efeito real" (escalou de verdade) — nem sempre os dois andam
+  juntos.
+
+  Outro detalhe que chama atenção ao olhar o painel de S3, coluna 10%:
+  o valor de CPU não sobe sempre que o custo por requisição (WU) sobe —
+  em alguns pontos ele estabiliza ou até cai um pouco, o que parece
+  contraintuitivo (esperaríamos "ataque mais caro = CPU mais alta,
+  sempre"). Números concretos (S3, 10% de intensidade):
+
+    WU=200.000: pico de CPU 230,9% — 2.603 requisições de ataque
+      COMPLETADAS com sucesso, 0 erro.
+    WU=300.000: pico de CPU 227,9% — 2.152 completadas, 507 erros.
+    WU=400.000: pico de CPU 210,7% — 1.571 completadas, 1.164 erros.
+    WU=500.000: pico de CPU 211,2% — só 793 completadas, 1.931 erros.
+
+  O atacante tenta mandar sempre a mesma quantidade de requisições por
+  segundo, não importa o quanto o servidor está sofrendo (esse é um
+  detalhe de design do simulador — o ataque não "recua" sozinho). Mas
+  conforme o custo por requisição sobe, cada uma demora mais pra
+  processar, e o servidor só tem 2 processos trabalhando em paralelo por
+  instância — então menos requisições conseguem ser processadas até o
+  fim dentro do tempo do teste, e mais delas falham (erro/timeout) antes
+  de terminar. Como a CPU só é gasta de verdade enquanto a requisição
+  está sendo processada, ter MENOS requisições completando o
+  processamento (mesmo que cada uma custe mais) acaba resultando em CPU
+  parecida ou até um pouco menor — o gargalo deixa de ser "quanto custa
+  cada requisição" e passa a ser "quantas cabem pra processar". O mesmo
+  padrão geral aparece em S4, embora de forma menos limpa (são execuções
+  únicas, sem repetição, nesta varredura grossa).
+
+10_wedos_refinamento_fronteiras.png — "de perto, nos 3 pontos que
+  interessam"
+  Finalidade: responder "qual é o menor custo de ataque que já força
+  escalonamento, com confiança de repetição, não sorte de um teste só?"
+  — complementa o gráfico 6 (que só tem 1 execução por ponto).
+
+  Como ler: um painel por cenário (S1, S2, S3 — cada um na intensidade
+  onde fazia sentido refinar, ver seção 2: S1 a 10%, S2 e S3 a 1%, já
+  que cada cenário só mostrou fronteira interessante numa intensidade
+  diferente). Eixo horizontal = custo por requisição (WU). Eixo
+  vertical = pico de CPU médio das repetições. Cor = fração de
+  repetições que escalou (verde=nenhuma, vermelho=todas). Rótulo "n="=
+  quantas vezes aquele ponto foi repetido (sem repetição, sem barra).
+  Barra vertical = desvio-padrão entre as repetições — quanto maior,
+  menos as repetições concordaram entre si (menos confiável é a média).
+  No painel do S2 tem também, em laranja tracejado, o teste com
+  intensidade ainda menor (0,5%) pra comparação.
+
+  Três leituras que vale destacar (a primeira é o resultado bom, as
+  outras duas são limitações reais que apareceram olhando de perto):
+
+  (a) S1 tem um degrau claro entre 375.000 (nunca escala) e 400.000
+      (escala forte, ~145%) — fronteira real e nítida ali.
+
+  (b) Entre WU=350.000 e 375.000, a CPU CAI (62,2% → 55,1%) mesmo o
+      ataque ficando mais caro — parece contraintuitivo, mas tem
+      explicação: o ataque manda requisição num ritmo fixo por um tempo
+      fixo, e com só 2 processos por instância processando, uma
+      requisição mais cara faz MENOS requisições caberem nesse tempo
+      (540 completadas em WU=375.000 contra 630 em WU=350.000, sem
+      nenhum erro). Menos requisições completadas × cada uma mais cara
+      ainda deu um total de trabalho um pouco MENOR pra CPU processar —
+      não é erro de medição, é a capacidade de processamento virando o
+      gargalo antes do custo por requisição.
+
+  (c) O refino do S3 foi feito com só 2 repetições por ponto (contra 3
+      de S1/S2, decisão de economizar tempo na hora) — e a variação
+      entre essas 2 repetições ficou grande demais pra confiar no valor
+      exato de cada ponto (só a conclusão geral "S3 escala em qualquer
+      WU testado" continua sólida):
+        WU=100.000: 83,9% x 72,3%   WU=125.000: 82,2% x 60,1%
+        WU=150.000: 67,7% x 92,2%   WU=175.000: 171,2% x 73,9% (!)
+      Fica registrado como pendência (ver PLANO_WEDOS_STATUS.txt) rodar
+      uma 3ª repetição nesses 4 pontos antes de fechar os números finais
+      — S3 é um dos dois candidatos principais do achado da seção 3,
+      então merece o mesmo rigor de repetição que S1/S2 tiveram.
+
+07_wedos_efetividade_furtividade.png — o gráfico mais importante
+  Cada ponto é um teste. Eixo horizontal = quão discreto o ataque é em
+  volume (quanto menor a %, mais parecido com tráfego normal). Eixo
+  vertical = o quanto ele esquenta a CPU (efeito real). Cor do ponto =
+  taxa de detecção da ferramenta estatística (verde = passou
+  despercebido, vermelho = foi pego). O "pior cenário pro sistema, melhor
+  ataque W-EDoS" é um ponto no canto superior esquerdo E verde — baixo
+  volume, alto impacto, sem ser detectado. É exatamente onde os
+  candidatos S2 e S3 da seção 3 aparecem.
+
+  Detalhe que chama atenção ao olhar o gráfico: mesmo no canto superior
+  DIREITO (10% de intensidade — o menos discreto testado), tem pontos
+  verdes com CPU altíssima e ainda assim pouco detectados. Dois exemplos
+  concretos, mesma intensidade (10%), CPU parecida, detecção bem
+  diferente:
+
+    S2, custo=400.000: RTT médio pula de 27,8ms (sem ataque) para 98,6ms
+      durante o ataque — quase 4x, e passa longe do piso de alarme
+      (50ms). Detectado em 78% das janelas.
+    S3, custo=200.000: CPU chega a 230,9% (a MAIOR de todo o
+      levantamento!), mas o RTT médio durante o ataque mal sai do lugar
+      (34,9ms para 58,0ms) — nem chega a cruzar o próprio piso de alarme
+      (62,8ms). Detectado em só 11% das janelas.
+
+  A explicação: CPU alta não é a mesma coisa que tempo de resposta
+  visivelmente alterado — e é o tempo de resposta que a ferramenta
+  observa, não a CPU. No caso do S2, o sistema tem folga de sobra, então
+  as requisições de ataque (mais caras) ficam individualmente MUITO mais
+  lentas que as normais (até 1,8 segundo) — isso cria picos isolados bem
+  visíveis. No caso do S3, o cenário já estava perto do próprio teto de
+  capacidade (Fase 0.5); quando o servidor satura desse jeito, o atraso
+  se espalha de forma parecida entre TODAS as requisições (normais e de
+  ataque juntas, competindo pelo mesmo processamento limitado do
+  servidor) em vez de criar picos isolados — o efeito em CPU é real e
+  forte, mas o "formato" da assinatura no tempo de resposta fica mais
+  parecido com ruído comum, e passa mais despercebido.
+
+08_wedos_reprodutibilidade_loteA_loteB.png — o teste de "o ambiente
+muda com o tempo?"
+  É o gráfico do experimento descrito na Fase 0(b) (item 2 acima).
+  Compara a MESMA configuração (tráfego normal de 300 req/s, sem
+  nenhum ataque) rodada duas vezes na mesma sessão de trabalho contínua:
+  lote A logo no início (21h06 de um dia) e lote B quase 3 horas depois
+  (00h20 da madrugada seguinte), depois de 54 outras execuções de teste
+  terem rodado no meio do caminho — sem reiniciar o Docker nem o
+  computador entre elas. "Sessão" aqui significa exatamente isso: um
+  período contínuo de testes, um atrás do outro, sem reinício. Cada
+  bolinha do gráfico é uma repetição (3 por lote), o traço horizontal é
+  a média do lote. O lote B fica visivelmente mais alto que o lote A
+  (pico médio ~83% contra ~58%, apesar de ser a configuração idêntica)
+  — essa diferença visual é a prova de que testar só uma vez não é
+  confiável, e por isso a Fase 1 e a Fase 4 desta etapa sempre usam
+  várias repetições por ponto, não uma amostra só.
+
+09_wedos_fronteira_falha.png — "até onde o ataque pode piorar"
+  Três gráficos lado a lado (um pra cada coisa que foi aumentada: custo
+  por requisição, volume por atacante, número de atacantes). Eixo
+  vertical = taxa de erro real de requisição (não CPU, erro de verdade —
+  o servidor não respondeu). Duas linhas de referência: erro leve (1%) e
+  erro severo (10%). Mostra que, no ponto de partida escolhido pra esse
+  teste (que já era considerado "pior caso" em testes anteriores), o
+  sistema já estava bem além do limite (erro perto de 98-99%) — então
+  esse gráfico mostra o quão pior fica DEPOIS do colapso, não onde o
+  colapso começa (esse limite mais fino já tinha sido encontrado antes,
+  em testes anteriores, entre um custo bem menor de requisição).
+
+
+5. O QUE PRECISOU SER CORRIGIDO NO CAMINHO
+---------------------------------------------
+
+Dois problemas reais e pequenos foram achados e corrigidos durante esta
+etapa (detalhe técnico completo em changes.txt, itens 34 e 35):
+
+  - Os três scripts de automação (que rodam o simulador várias vezes
+    sozinhos) tentavam pedir senha de administrador toda vez, o que
+    travava a execução automática sem ninguém pra digitar a senha.
+    Corrigido — não precisa mais dessa permissão, o computador já tem
+    autorização configurada de forma mais específica e segura.
+  - A taxa de erro do tráfego NORMAL (não do ataque) nunca era salva em
+    nenhum arquivo, só aparecia na tela e sumia. Agora tem um arquivo
+    próprio salvando isso, importante porque é um dado real que pode
+    ajudar a entender melhor o comportamento do sistema.
+
+Também foi identificado (mas não necessariamente resolvido) um caso raro
+onde uma execução antiga tinha um número de erros que não se encaixava
+no padrão esperado — foi refeito 3 vezes e o número estranho não se
+repetiu nenhuma das 3 vezes, então parece ter sido um problema pontual
+do ambiente naquele momento, não um erro sistemático do simulador.
+
+
+6. PRÓXIMOS PASSOS
+----------------------
+
+  - Decidir, com base no achado da seção 3, quais desses cenários
+    (baixa intensidade, alto custo por requisição) vão compor o dataset
+    final de treino do modelo de Machine Learning — são exatamente os
+    casos mais difíceis e mais interessantes de aprender.
+  - Fechar a decisão pendente sobre o cenário mais carregado (S4), que
+    ficou de fora desta etapa por já estar instável sozinho, sem ataque.
+  - Com o mapa de fronteiras agora mais confiável, definir quantas
+    repetições finais rodar por cenário escolhido antes de considerar o
+    dataset pronto para treino.
+
+Detalhe técnico completo (números crus, tabelas, todas as execuções)
+está em RELATORIO_WEDOS_13_08.txt e PLANO_WEDOS_STATUS.txt, na mesma
+pasta do projeto.
