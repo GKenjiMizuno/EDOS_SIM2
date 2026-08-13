@@ -6,6 +6,7 @@ import random
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
 import csv
+import normal_traffic_summary_logger
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -57,6 +58,7 @@ def normal_http_request_worker(target_url, rps_per_worker):
     global traffic_active
     session = requests.Session() # Use session for potential connection pooling
     mean_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
+    worker_start_time = time.monotonic()
 
     print(f"  [Normal_Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
 
@@ -91,6 +93,13 @@ def normal_http_request_worker(target_url, rps_per_worker):
         request_count, error_count = counters["ok"], counters["err"]
 
     print(f"  [Normal_Injector Worker {threading.get_ident()}] Stopped. Total requests: {request_count}, Errors: {error_count}")
+
+    normal_traffic_summary_logger.log_worker_stop(
+        request_count=request_count,
+        error_count=error_count,
+        worker_start_time=worker_start_time,
+        rps_per_worker=rps_per_worker,
+    )
 
 def save_rtt_log(filename=None):
     if filename is None:
@@ -153,8 +162,14 @@ def start_http_traffic(target_urls, rps_per_worker_override, num_clients_overrid
     client_threads.clear()
 
     num_targets = len(target_urls)
-    
+
     print(f"[Normal_Injector] Starting HTTP flood with {num_clients_override} attackers, ~{rps_per_worker_override * num_clients_override} RPS total, across {num_targets} targets: {', '.join(target_urls)}")
+
+    normal_traffic_summary_logger.log_traffic_start(
+        target_urls=target_urls,
+        rps_per_worker=rps_per_worker_override,
+        num_clients=num_clients_override,
+    )
 
     for i in range(num_clients_override):
         # Distribuição Round Robin dos workers pelas URLs de destino

@@ -58,7 +58,9 @@ for scenario_name, normal_aggregate_rps in NORMAL_SCENARIOS.items():
             print(f"\n===== {scenario_name} ({normal_aggregate_rps} req/s normal) + {pct}% ataque (~{attack_aggregate_rps:.2f} req/s) @ WU={work_units} =====")
 
             cmd = [
-                "sudo",
+                # Sem "sudo" -- ver run_experiments_normal.py para a
+                # explicação (setcap no tcpdump + Docker sem root; sudo
+                # aqui travaria subprocess.run esperando senha interativa).
                 "python3",
                 "main_orchestrator.py",
                 "--normal-rps", str(normal_rps_per_client),

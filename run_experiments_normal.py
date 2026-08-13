@@ -17,7 +17,11 @@ for rps, work_units in itertools.product(NORMAL_RPS_VALUES, NORMAL_WORK_UNITS_VA
     print(f"\n===== Running Normal-Only Experiment RPS={rps}, WORK_UNITS={work_units} =====")
 
     cmd = [
-        "sudo",
+        # Sem "sudo": tcpdump roda via capability (setcap cap_net_raw,
+        # cap_net_admin no binário) em vez de root, e Docker não precisa de
+        # root com o usuário no grupo docker -- "sudo" aqui só faria
+        # subprocess.run travar esperando senha interativa em execução não
+        # interativa (bug real, não só redundância).
         "python3",
         "main_orchestrator.py",
         "--normal-rps", str(rps),
@@ -47,6 +51,25 @@ for rps, work_units in itertools.product(NORMAL_RPS_VALUES, NORMAL_WORK_UNITS_VA
     attack_summary_src = "attack_summary_log.csv"
     if os.path.exists(attack_summary_src):
         os.remove(attack_summary_src)
+
+    # =========================
+    # RTT log
+    # =========================
+    # rtt_log.csv é sobrescrito a cada execução (ver
+    # normal_traffic.save_rtt_log), então precisa ser movido aqui como já é
+    # feito em run_experiments.py/run_experiments_combined.py -- faltava
+    # aqui (bug real: RTT do baseline normal se perdia a cada iteração da
+    # varredura, só o da última sobrevivia). Diferente do attack_summary_log
+    # (descartado de propósito, sem dado útil sem ataque), o RTT de tráfego
+    # normal é dado real e precisa ser preservado por cenário.
+    rtt_log_src = "rtt_log.csv"
+    rtt_log_filename = f"rtt_log_normal_rps{rps}_WU{work_units}.csv"
+    rtt_log_dst = os.path.join(RESULTS_DIR, rtt_log_filename)
+
+    if os.path.exists(rtt_log_src):
+        shutil.move(rtt_log_src, rtt_log_dst)
+    else:
+        print(f"[WARNING] {rtt_log_src} não encontrado.")
 
     # =========================
     # Traffic capture (tcpdump)

@@ -1,0 +1,311 @@
+RESUMO DA MADRUGADA — 11/08 (noite) a 12/08/2026
+====================================================
+O que foi pedido: rodar testes, analisar os dados, gerar gráficos, procurar
+anomalias, com base nos artigos Sotelo Monge / W-EDoS, sem alterar nenhum
+código existente (só criar scripts novos se precisasse), e com análise
+estatística de verdade. Este arquivo resume o que foi feito.
+
+IMPORTANTE - nenhum arquivo de código existente foi alterado. Só foram
+criados scripts novos (listados na seção 7), exatamente como combinado.
+
+
+1. O PROBLEMA DO SUDO — RESOLVIDO, E ISSO MUDA O PROJETO PRA FRENTE
+----------------------------------------------------------------------
+No começo da noite eu não conseguia rodar simulação nenhuma sozinho: todo
+main_orchestrator.py precisa de root só por causa do tcpdump (captura de
+pacote crua exige privilégio elevado no Linux), e sudo pedia senha
+interativa que eu não tenho como fornecer.
+
+Solução aplicada (com sua autorização, um único comando seu, uma vez só):
+  sudo setcap cap_net_raw,cap_net_admin=eip $(which tcpdump)
+
+Isso dá ao BINÁRIO do tcpdump a permissão específica de capturar pacote,
+sem precisar rodar como root. Docker já funcionava sem sudo (seu usuário já
+está no grupo docker). Com os dois resolvidos, o simulador INTEIRO roda sem
+sudo — testado e confirmado com uma execução real de ponta a ponta antes de
+eu começar o resto do trabalho.
+
+Consequência prática: os scripts run_experiments*.py ainda têm "sudo" fixo
+no próprio código (não mudei isso, por instrução sua de não alterar
+código), então rodá-los direto ainda tentaria pedir senha. Por isso criei
+scripts novos (não-modificam-o-original) que fazem a mesma coisa sem o
+prefixo sudo — ver seção 7. Se um dia vocês quiserem, remover o "sudo" dos
+scripts originais é uma mudança de código real, pequena, mas isso fica pra
+quando você aprovar explicitamente.
+
+ATENÇÃO: essa capacidade do tcpdump pode ser resetada se o pacote tcpdump
+for atualizado no sistema (atualização de pacote troca o binário). Se a
+captura de pacote parar de funcionar no futuro, rodar o mesmo comando de
+novo resolve.
+
+
+2. OS 3 BUGS CORRIGIDOS ONTEM — CONFIRMADOS FUNCIONANDO EM EXECUÇÃO REAL
+----------------------------------------------------------------------
+Os 3 bugs da auditoria de ontem (seção 31 do changes.txt) foram verificados
+de novo, agora numa varredura automatizada real (não só um teste manual
+isolado):
+
+  - Fix do RTT vazando entre fases: confirmado no log real da varredura
+    combinada desta madrugada. Exemplo concreto (S1, 1%, WU=300000): RTT
+    cai pra ~17ms logo depois que o ataque termina, igual ao baseline —
+    antes da correção, essa mesma linha tinha mostrado valores distorcidos
+    (até ~30x o esperado) em vários dos testes de ontem.
+  - traffic_capture.csv por execução: confirmado, todo run novo gera esse
+    arquivo e ele é movido corretamente pro subdiretório certo.
+  - Filtro de porta do tcpdump: sem problema, tcpdump inicia normalmente
+    com "-i any" + range de porta em toda execução desta madrugada.
+
+
+3. ACHADO PRINCIPAL DA NOITE: REPRODUTIBILIDADE (ou falta dela)
+----------------------------------------------------------------------
+Isso é o achado mais importante desta madrugada, e muda como vocês devem
+pensar em calibração daqui pra frente.
+
+3.1) Candidato S4 = 250 agregado (WU=10): rodei 3 repetições de verdade,
+     de volta, na mesma sessão:
+       rep1: CPU pico 65.8%   rep2: CPU pico 67.4%   rep3: CPU pico 69.3%
+       média = 67.5%, desvio-padrão = apenas 1.8 pontos percentuais
+       As 3 repetições escalaram (SCALE_UP) exatamente 1 vez cada uma.
+     Ou seja: 250 é MUITO reprodutível entre si (desvio pequeno), mas
+     reprodutivelmente ACIMA do limiar de 60% — não é um candidato seguro
+     pra S4. Gráfico: graficos_apresentacao/04_curva_capacidade_reproducibilidade.png
+
+3.2) Candidato S4 = 300 agregado (WU=10): aqui está o problema real. A
+     MESMA configuração, testada 2 vezes em momentos diferentes da sessão
+     longa (uma vez isolada, outra depois de dezenas de outras execuções
+     Docker terem rodado antes), deu resultados bem diferentes:
+       1ª amostra (mais isolada): CPU pico 53.6%, 0 escalonamentos
+       2ª amostra (depois de muitas outras execuções): CPU pico 87.9%,
+         3 escalonamentos
+     A diferença entre as 3 repetições de 250 (rodadas em sequência, uma
+     atrás da outra) foi pequena (desvio de ~2 pontos). A diferença entre
+     as 2 amostras de 300 (separadas por muitas outras execuções ao longo
+     de uma sessão longa) foi enorme (34 pontos percentuais).
+
+HIPÓTESE (não totalmente confirmada, mas bem sustentada pelo padrão dos
+dados — ver também seção 4): o ambiente (WSL2 + Docker) parece degradar ou
+mudar de comportamento ao longo de uma sessão longa com muitas execuções
+seguidas de containers subindo/descendo, não é só ruído aleatório de
+requisição-a-requisição. Repetições feitas em sequência rápida concordam
+entre si; a mesma config testada em momentos bem separados da sessão pode
+divergir bastante.
+
+RECOMENDAÇÃO (não apliquei, é uma decisão sua):
+  - Nem 250 nem 300 são candidatos confiáveis pra S4 com os dados que
+    temos. O candidato mais promissor continua sendo 200 (única amostra
+    até agora: pico 52.8%, média 41.8%, 0 escalonamentos — boa margem),
+    mas dado o que aprendemos essa madrugada, eu recomendaria rodar 2-3
+    repetições DELE também antes de fixar, em vez de confiar numa amostra
+    só — exatamente o erro que gerou essa confusão toda com 300.
+  - Ao rodar lotes longos de calibração no futuro, vale considerar reiniciar
+    o Docker (ou até o WSL) entre lotes grandes, ou pelo menos rodar as
+    configurações em ordem ALEATÓRIA em vez de sequencial — se o ambiente
+    realmente degrada com o tempo, rodar sempre na mesma ordem (ex: sempre
+    WU baixo primeiro, WU alto por último) faz esse efeito de tempo se
+    misturar com o efeito real do parâmetro que está sendo testado.
+
+
+4. WU_CALIBRATION — REGENERADO, COM MUDANÇAS REAIS EM RELAÇÃO A ONTEM
+----------------------------------------------------------------------
+Rodei a detecção de burst de novo em cima dos 9 arquivos (já regenerados
+ontem à noite, pós-fix). Números atuais:
+
+  rps=1  WU=100000: pico CPU=33.6%  bursts=0/18   erros=0
+  rps=1  WU=200000: pico CPU=30.5%  bursts=0/18   erros=0
+  rps=1  WU=500000: pico CPU=72.7%  bursts=13/18  erros=20
+  rps=5  WU=100000: pico CPU=74.3%  bursts=0/19   erros=13
+  rps=5  WU=200000: pico CPU=134.9% bursts=15/18  erros=0
+  rps=5  WU=500000: pico CPU=211.3% bursts=8/9    erros=2521
+  rps=10 WU=100000: pico CPU=156.4% bursts=15/18  erros=0
+  rps=10 WU=200000: pico CPU=239.4% bursts=15/18  erros=1747
+  rps=10 WU=500000: pico CPU=213.7% bursts=6/7    erros=5241
+
+Comparando com os números registrados na sessão anterior a esta madrugada
+(mesma configuração, execução separada): o ponto rps=10/WU=500000 bateu
+quase exatamente (CPU pico ~213-214% nas duas vezes) — esse continua
+confiável. MAS rps=10/WU=200000 e rps=5/WU=500000 pioraram bastante: erros
+muito mais altos do que antes (1747 e 2521 agora, uma fração pequena disso
+antes) e menos janelas de RTT disponíveis pra análise (cobertura pior). Isso
+é consistente com a mesma hipótese da seção 3 — esses valores foram
+regenerados numa sessão que já tinha rodado muitas outras execuções antes.
+Gráfico: graficos_apresentacao/05_wu_calibration_resumo_atual.png
+
+4.1) Estatística detalhada do EntCusumZV3.py (entropia + Z-score + CUSUM)
+     nos 9 arquivos de wu_calibration — sem alterar o arquivo, só rodando
+     ele mesmo e olhando os números com mais cuidado:
+
+  arquivo            média baseline  desvio baseline  amostras  piso burst  bursts
+  rps10/WU100000      15.6ms           18.8ms           790      28.1ms    15/18
+  rps10/WU200000      17.2ms           20.0ms           804      31.0ms    15/18
+  rps10/WU500000      17.4ms           21.5ms           771      31.3ms     6/7
+  rps1/WU100000       17.2ms           20.1ms           786      31.0ms     0/18
+  rps1/WU200000       17.3ms           19.6ms           824      31.1ms     0/18
+  rps1/WU500000       15.9ms           19.0ms           806      28.6ms    13/18
+  rps5/WU100000       17.6ms           19.8ms           841      31.8ms     0/19
+  rps5/WU200000       16.3ms           18.9ms           804      29.4ms    15/18
+  rps5/WU500000       16.2ms           19.1ms           766      29.1ms     8/9
+
+  Média das 9 médias de baseline: 16,7ms (desvio entre elas: só ~0,7ms,
+  variação de 15,6 a 17,6ms). Ou seja: diferente do achado da seção 3
+  (onde o baseline de tráfego SÓ normal variou muito entre execuções
+  separadas no tempo), aqui o baseline pré-ataque (calculado nos primeiros
+  ~20s de CADA execução, sempre no início) ficou bem estável entre as 9
+  execuções — reforça que a variância da seção 3 tem a ver com o momento
+  da sessão em que o teste roda, não com o baseline em si sendo
+  instável por natureza.
+
+  Relação WU x taxa de detecção (E-lógico entre burst e custo): nos 3
+  pares com WU=100000, só 1 de 3 teve burst detectado (rps10, o de maior
+  volume); com WU=200000, 2 de 3; com WU=500000, todos os 3 tiveram
+  burst detectado, mas 2 deles (rps5 e rps10) com cobertura de janela
+  reduzida por causa das falhas de requisição reais (efeito já documentado
+  no changes.txt seção 27: quando o servidor falha de verdade, sobra menos
+  RTT pra detectar, então a cobertura cai justamente no pior caso).
+
+
+5. COMBINED_SWEEP — [SEÇÃO A COMPLETAR QUANDO A REGERAÇÃO TERMINAR]
+----------------------------------------------------------------------
+[placeholder — atualizado no final desta madrugada]
+
+
+6. INVESTIGAÇÃO DO MISTÉRIO S3_atk1pct_wu300000 — [PENDENTE]
+----------------------------------------------------------------------
+[placeholder — vou rodar 2 repetições extras depois que a varredura
+combinada terminar, pra não rodar dois testes Docker ao mesmo tempo]
+
+
+7. SCRIPTS NOVOS CRIADOS ESTA MADRUGADA (nenhum arquivo existente alterado)
+----------------------------------------------------------------------
+  - overnight_run_combined_sweep.py: espelha run_experiments_combined.py
+    exatamente, mas sem "sudo" fixo (não precisa mais, ver seção 1). Usado
+    pra terminar a varredura combinada que estava pendente.
+  - overnight_stats_analysis.py: consolida a análise estatística de
+    reprodutibilidade (normal_baseline, wu_calibration).
+  - overnight_reproducibility_graphs.py: gera os 2 gráficos novos da
+    seção 3/4.
+  - overnight_anomaly_search.py: busca sistemática por anomalias no
+    combined_sweep (monotonicidade quebrada, cobertura baixa, erros altos,
+    scale-up sem erro).
+  Todos são scripts avulsos, não fazem parte do fluxo permanente do
+  projeto — podem ser apagados se não forem mais úteis, ou mantidos como
+  ferramentas de calibração/depuração.
+
+
+8. LIGAÇÃO COM SOTELO MONGE / W-EDoS (agora com o artigo em mãos)
+----------------------------------------------------------------------
+Você subiu o PDF do artigo (Sotelo Monge et al., "Detection of economic
+denial of sustainability (EDoS) threats in self-organizing networks",
+Computer Communications 145, 2019) no meio da madrugada — extraí o texto e
+conferi contra ele diretamente, em vez de trabalhar só de memória da
+sessão anterior. Alguns pontos que valem registrar:
+
+  - Definição 5 (W-EDoS) do artigo, na íntegra: um ataque B é W-EDoS
+    quando A (tráfego legítimo) e B são "network-based similar" (mesmo
+    número de clientes/requisições e mesma distribuição ao longo do
+    tempo), MAS o workload médio por requisição em B é significativamente
+    maior que em A. É exatamente essa definição que justifica o desenho
+    do simulador (mesmo padrão de tráfego, custo por requisição diferente
+    via `work=N`) e a preocupação com "diluição"/"furtividade" discutida
+    nas sessões anteriores.
+  - O limiar de 60% de CPU do simulador (config.CPU_THRESHOLD_SCALE_UP)
+    bate exatamente com o critério do artigo pra disparar escalonamento
+    ("average CPU consumption runs above 60% in a one-minute interval").
+    Diferença a notar: o artigo usa janela de 1 MINUTO, o simulador usa
+    janela de 5 segundos (config.MONITOR_INTERVAL_SECONDS) — mesmo limiar
+    percentual, granularidade de tempo diferente. Não é um erro, só uma
+    escolha de design que vale documentar explicitamente na monografia.
+  - Tabela 4 do artigo: 1000 CLIENTES por cenário (S1-S4), taxa λ de
+    50/60/70/80 req/s. O simulador usa só 4 clientes persistentes (Poisson)
+    pra atingir a mesma taxa agregada — isso é uma simplificação real e
+    grande de escala (1000 clientes independentes e esparsos vs. 4 workers
+    de alta taxa), e é exatamente por isso que os valores de S1-S4 do
+    artigo (50-80 req/s) não podiam ser copiados direto pro simulador sem
+    recalibrar (seção 30 do changes.txt já tinha concluído isso; agora
+    tem confirmação direta do texto do artigo do porquê a diferença de
+    escala existe).
+  - Confirmação nova: dividindo Número de Requisições (R) pela taxa (λ) na
+    Tabela 4 do artigo em todos os 4 cenários (9000/50, 10800/60,
+    12600/70, 14400/80) dá exatamente 180 segundos nos quatro casos — o
+    artigo também usa uma janela de observação de 180s, igual ao
+    SIMULATION_DURATION_SECONDS do simulador. Essa parte já estava
+    alinhada, vale citar como validação metodológica.
+  - Tabela 3 do artigo: o tráfego normal usa 8 endpoints com custo de CPU
+    bem diferente entre si (18.56ms a 226.04ms), escolhidos aleatoriamente
+    por requisição; o ataque mira só o endpoint mais caro (226.04ms). O
+    simulador simplifica isso pra um único endpoint com custo
+    parametrizado (`work=N`) — outra simplificação de design deliberada,
+    vale mencionar explicitamente na metodologia da monografia (o
+    resultado equivalente é obtido variando N em vez de escolher entre 8
+    endpoints fixos).
+
+O achado da seção 3 desta madrugada (reprodutibilidade) tem relação direta
+com a Definição 5: o artigo assume que tráfego normal, sozinho, resulta em
+"network-based similar" comportamento estável — a lógica de comparar
+"antes/depois do ataque" desse desenho pressupõe que o baseline normal não
+cruza o limiar de 60% sozinho. Se o próprio baseline tem variância grande o
+bastante pra às vezes cruzar o limiar sozinho (visto com os candidatos 250
+e 300 aqui), isso ameaça essa suposição central — um SCALE_UP observado no
+sweep combinado pode não ser só efeito do ataque, pode ser ruído do
+próprio baseline. A recomendação da seção 3 (repetir antes de fixar S4)
+não é só rigor estatístico genérico: é especificamente necessário pra
+manter válida a lógica de comparação que a Definição 5 pressupõe.
+
+8.1) ACHADO IMPORTANTE — o método de detecção do artigo é DIFERENTE do que
+     EntCusumZV3.py implementa hoje (vale deixar isso preciso na monografia)
+
+Lendo a Seção 5 do artigo (Definição 7, "Workload-based Unexpected
+Behaviors") de perto, o método de detecção real do Sotelo Monge é:
+  1. Calcula entropia (Rényi/Shannon) de DUAS séries temporais separadas:
+     X_cpu (consumo de CPU) E X_app (tempo de resposta em nível de
+     aplicação) — não só uma.
+  2. Faz a PREVISÃO de cada série com Double Exponential Smoothing (DES,
+     equações 14-18 do artigo) — não é Z-score nem CUSUM.
+  3. Constrói um intervalo de previsão ADAPTATIVO em cima do erro de
+     previsão (equação 20), e marca a observação como "unexpected" quando
+     o valor real cai FORA desse intervalo previsto.
+  4. Um alerta de W-EDoS só é emitido quando X_cpu E X_app estão AMBOS
+     "unexpected" ao mesmo tempo (E, não OU) — isso é proposital: o
+     artigo explica que isso filtra falsos positivos do "efeito rebote"
+     do limiar adaptativo se recalibrando depois de uma mudança real.
+
+O que o EntCusumZV3.py faz hoje:
+  1. Entropia de Shannon só em cima do RTT (não calcula entropia da CPU
+     separadamente).
+  2. Z-score comparando a janela atual contra a média/desvio da janela
+     ANTERIOR (não é previsão DES, é uma comparação mais simples).
+  3. CUSUM acumulando desvios em relação a uma média de baseline (fixa,
+     não um intervalo de previsão adaptativo).
+  4. Burst marcado quando RTT > piso E (Z-alarme OU CUSUM-alarme) — um
+     OU entre duas técnicas na MESMA métrica (RTT), não um E entre duas
+     métricas DIFERENTES (CPU e RTT) como no artigo.
+
+Isso não invalida o que já foi feito — CUSUM e Z-score são técnicas de
+Controle Estatístico de Processo (SPC) legítimas, e o artigo também
+enquadra o problema como SPC. Mas é uma diferença real de método que vale
+declarar explicitamente na monografia, em vez de dizer "implementamos o
+detector do Sotelo Monge": o mais preciso é algo como "usamos entropia
+(conceito do artigo) combinada com Z-score/CUSUM (técnicas de SPC mais
+simples que a suavização exponencial dupla usada no artigo original) como
+uma linha de base estatística simplificada, para comparar depois com o
+modelo de Machine Learning" — que, aliás, é quase exatamente a frase que
+já está em apresentacao_professor.txt (seção 5) — então essa parte da
+apresentação já estava enquadrada do jeito certo, só vale reforçar isso
+com essa comparação mais precisa contra o texto do artigo.
+
+Se vocês quiserem chegar mais perto do método original do artigo no
+futuro (fora do escopo desta madrugada, é mudança de código real): incluir
+entropia sobre a série de CPU (já temos os dados, é só não estar sendo
+usada nesse cálculo) e trocar a comparação por previsão (DES ou até algo
+mais simples) em vez de Z-score/CUSUM puros.
+
+
+9. PRÓXIMOS PASSOS QUANDO VOCÊ ACORDAR
+----------------------------------------------------------------------
+  - Ler esta seção e a seção 5/6 (que vou completar antes de terminar).
+  - Decidir o valor final de S4 (recomendo rodar reps de 200 antes de
+    fixar, ver seção 3).
+  - Revisar se quer que eu remova o "sudo" fixo dos 3 scripts originais
+    agora que não é mais necessário (mudança de código real, preciso da
+    sua aprovação explícita antes).
+  - Decidir se os scripts overnight_*.py devem virar parte permanente do
+    projeto ou ser apagados.

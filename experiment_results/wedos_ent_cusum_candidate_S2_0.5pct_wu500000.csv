@@ -1,0 +1,4 @@
+file,baseline_mean_ms,baseline_std_ms,baseline_n_samples,burst_floor_ms,total_windows,bursts_detected,detection_rate,avg_entropy,avg_max_z,max_max_z,avg_cusum,max_cusum
+experiment_results/wedos_grid/rtt_log_S2_atk0.5pct_wu500000_stage1b_rep1.csv,26.617399344964266,21.414879439002792,1977,47.911318820935676,19,4,0.211,1.047,8.876,26.77,159845.6,464670.0
+experiment_results/wedos_grid/rtt_log_S2_atk0.5pct_wu500000_stage1b_rep2.csv,26.50817612425169,21.42054844431971,1996,47.714717023653044,19,0,0.0,1.361,6.198,13.31,19.9,70.0
+experiment_results/wedos_grid/rtt_log_S2_atk0.5pct_wu500000_stage1b_rep3.csv,27.628266915686996,21.365206888126597,2040,49.7308804482366,19,0,0.0,1.352,7.369,13.35,27.1,202.0

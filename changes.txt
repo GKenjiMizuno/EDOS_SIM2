@@ -1250,3 +1250,149 @@ Verificado:
     projeto como esperado (chamada direta a main_orchestrator.py, fora de
     um script de varredura) e foram removidos depois de conferidos (só
     lixo de verificação, não fazem parte do dataset real).
+
+--------------------------------------------------------------------------------
+34) run_experiments*.py — removido "sudo" fixo (obsoleto) e rtt_log.csv
+    faltando em run_experiments_normal.py (2 bugs reais, corrigidos direto)
+--------------------------------------------------------------------------------
+Contexto:
+  Início de uma nova sessão (12/08, tarde), caracterização exaustiva de
+  W-EDoS. Usuário mudou a política de trabalho no meio da sessão: bugs reais
+  encontrados agora são corrigidos direto, sem pedir permissão antes (antes
+  disso, a sessão da madrugada 11→12/08 tinha ficado só no "relatar, não
+  alterar" -- ver RESUMO_MADRUGADA_12_08.txt). Uma auditoria estrutural
+  somente-leitura (wedos_structural_audit.py, novo script, Fase 0.2 do plano
+  desta sessão) rodou sobre os 53 arquivos metrics_*.csv já coletados e
+  achou o bug 2 abaixo; o bug 1 já estava documentado como item em aberto na
+  seção 9 do RESUMO_MADRUGADA_12_08.txt.
+
+Bug 1 — "sudo" fixo em run_experiments.py, run_experiments_normal.py e
+  run_experiments_combined.py:
+  Problema: os 3 scripts de varredura chamavam subprocess.run(["sudo",
+  "python3", "main_orchestrator.py", ...]). Isso já não é necessário desde
+  que o binário tcpdump ganhou a capability cap_net_raw,cap_net_admin via
+  setcap (sessão da madrugada 11→12/08) e o usuário já está no grupo docker
+  -- rodando de forma não interativa (como um script de varredura faz),
+  "sudo" trava esperando senha num terminal que não existe, em vez de só
+  ser redundante.
+  Correção: removido "sudo" da lista de argumentos nos 3 scripts, com
+  comentário explicando o porquê (evita que alguém "conserte" isso de
+  volta sem saber da mudança do setcap).
+
+Bug 2 — run_experiments_normal.py nunca salvava rtt_log.csv por cenário:
+  Problema: mesmo bug estrutural das seções 21/24 (rtt_log.csv sobrescrito
+  a cada execução do main_orchestrator.py), corrigido em run_experiments.py
+  e run_experiments_combined.py na época, mas nunca replicado em
+  run_experiments_normal.py -- só attack_summary_log.csv (descartado de
+  propósito, sem dado útil sem ataque) e traffic_capture.csv eram tratados;
+  rtt_log.csv ficava implicitamente perdido a cada iteração, sobrevivendo
+  só o da última combinação RPS x WORK_UNITS da varredura. Confirmado: none
+  dos 20 arquivos metrics_normal_*.csv já coletados em
+  experiment_results/normal_baseline/ tem um rtt_log_normal_* correspondente.
+  Correção: adicionado o mesmo bloco de shutil.move já usado nos outros
+  dois scripts (rtt_log_normal_rps{rps}_WU{work_units}.csv), na mesma
+  posição relativa (depois do attack_summary_log, antes do traffic_capture).
+
+Por quê:
+  Bug 1 bloquearia toda e qualquer execução real dos 3 scripts originais
+  fora de um terminal interativo (exatamente por isso a sessão anterior
+  criou os overnight_*.py como cópias sem sudo, em vez de consertar o
+  original). Bug 2 é perda silenciosa de dado real (RTT do baseline normal,
+  usado por EntCusumZV3.py) -- mesma classe de problema já corrigida nos
+  outros dois scripts, só não tinha sido replicada aqui.
+
+Verificado:
+  - python3 -m py_compile nos 3 arquivos, sem erro de sintaxe.
+  - grep confirma zero '"sudo"' como argumento de comando restante nos 3
+    arquivos (só em comentários explicando a remoção).
+  - Não executados de ponta a ponta ainda nesta sessão (os 3 scripts
+    originais não fazem parte do plano desta caracterização, que usa os
+    scripts novos wedos_*.py -- mas ficam corrigidos para uso futuro).
+
+--------------------------------------------------------------------------------
+35) normal_traffic.py/main_orchestrator.py — taxa de erro do tráfego normal
+    era completamente invisível (achado real, corrigido: novo log)
+--------------------------------------------------------------------------------
+Contexto:
+  Durante a Fase 0.3 (teste de reprodutibilidade, wedos_repro_test.py,
+  candidato S4=300 agregado/WU=10) desta sessão, o console mostrou taxas de
+  erro altas para os workers de tráfego NORMAL: rep1 ~16.3% (7307 erros em
+  37481+7307 tentativas), rep2 ~26.7% (11019 erros em 30282+11019). RTT das
+  requisições bem-sucedidas continuou baixo o tempo todo (~37-58ms, longe
+  do timeout de 2s) -- ou seja, não é lentidão geral por saturação, parece
+  falha binária (uma fração das requisições falha rápido, o resto passa
+  normal).
+
+Achado real: essa taxa de erro sempre existiu e nunca foi medida.
+  attack_summary_log.csv só recebe linhas de workers de ATAQUE, por design
+  (ver CLAUDE.md) -- normal_traffic.py conta request_count/error_count por
+  worker (normal_http_request_worker) mas só IMPRIME no console
+  ("[Normal_Injector Worker N] Stopped. Total requests: X, Errors: Y"),
+  nunca grava em nenhum CSV. Ou seja: TODA execução já feita neste projeto
+  (normal_baseline, combined_sweep, incluindo a recalibração de S1-S4 na
+  seção 30) teve esses números só passando pelo console, nunca persistidos
+  nem analisados -- inclusive as conclusões "36/36 janelas NO_ACTION" da
+  seção 30 nunca verificaram taxa de erro do tráfego normal, só CPU/RTT de
+  sucesso. Isso pode inclusive estar relacionado ao "mistério da
+  reprodutibilidade" documentado em RESUMO_MADRUGADA_12_08.txt seção 3: se
+  uma fração variável de requisições normais falha silenciosamente (nunca
+  chega a ser processada), isso reduz a carga de CPU real aplicada de forma
+  não determinística entre execuções -- possível causa raiz ainda não
+  confirmada, fica para investigação com os dados novos (Fase 0/1 desta
+  sessão, ver relatório final RELATORIO_WEDOS_*.txt).
+
+  Nota lateral encontrada durante a investigação: normal_traffic.py e
+  traffic_injectorV0.py usam timeout=2 (hardcoded) nas chamadas
+  session.get(), e NÃO usam config.HTTP_REQUEST_TIMEOUT_SECONDS=10.0 (essa
+  constante só é referenciada em traffic_injector.py, o módulo antigo já
+  documentado como morto/não importado em CLAUDE.md) -- config "documenta"
+  um timeout que o código vivo não usa. Não alterado ainda (mudar o timeout
+  é uma decisão de metodologia experimental com impacto em todos os dados
+  já coletados, não um bug óbvio de corrigir sozinho -- ver conversa com o
+  usuário).
+
+Correção aplicada (a parte inequívoca: dar visibilidade ao dado que já
+  existia, sem mudar nenhum comportamento de rede):
+  - Novo módulo normal_traffic_summary_logger.py, espelhando
+    attack_summary_logger.py exatamente (mesma estrutura de linhas
+    start/stop), mas escrevendo em
+    config.NORMAL_TRAFFIC_SUMMARY_LOG_FILE = "normal_traffic_summary_log.csv"
+    (arquivo novo e separado de attack_summary_log.csv, para não quebrar a
+    convenção já documentada em CLAUDE.md de que aquele arquivo só recebe
+    linhas de ataque).
+  - normal_traffic.py: normal_http_request_worker agora captura
+    worker_start_time e chama log_worker_stop() no fim (mesmo padrão de
+    traffic_injectorV0.py); start_http_traffic() chama log_traffic_start()
+    logo após o guard de "já em progresso" (não duplica linha nas chamadas
+    subsequentes que só reiniciam o log de intenção, já que o tráfego
+    normal não é reiniciado a cada scale como o de ataque).
+  - main_orchestrator.py: chama
+    normal_traffic_summary_logger.init_normal_traffic_summary_log() no
+    mesmo bloco que já inicializa attack_summary_logger.
+  - config.py: nova constante NORMAL_TRAFFIC_SUMMARY_LOG_FILE.
+  - wedos_s3_mystery.py, wedos_combined_grid.py, wedos_failure_sweep.py,
+    wedos_repro_test.py (scripts novos desta sessão): passaram a mover
+    normal_traffic_summary_log.csv pro subdiretório de resultado
+    correspondente, mesma convenção dos outros logs. run_experiments*.py
+    (os 3 scripts originais) NÃO foram tocados por esta mudança específica
+    -- ficam para quando/se o dataset final for regerado com eles.
+
+Por quê:
+  Dado real relevante (taxa de erro do tráfego "normal", usado como
+  baseline de comparação em toda a tese) estava sendo descartado
+  silenciosamente desde o início do projeto. Corrigir a visibilidade é uma
+  mudança segura e inequívoca (só adiciona um log, não muda nenhum
+  comportamento de envio de requisição); decidir SE o timeout de 2s
+  hardcoded é "o problema" e se deve mudar é uma decisão de metodologia
+  experimental, deixada para investigação com dado real antes de agir.
+
+Verificado:
+  - python3 -m py_compile em config.py, normal_traffic_summary_logger.py,
+    normal_traffic.py, main_orchestrator.py, traffic_injectorV0.py e nos 4
+    scripts wedos_*.py listados acima -- sem erro de sintaxe.
+  - Ainda não verificado em execução real com o código novo (a
+    verificação de ponta a ponta acontece nas próprias execuções da Fase 0/1
+    desta sessão que já estavam em andamento quando esta correção foi
+    aplicada -- os runs restantes do lote A não capturam esse log ainda,
+    por já estarem com o processo Python pai em execução antes da correção;
+    lote B e todos os runs daqui em diante capturam.

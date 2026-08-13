@@ -1,0 +1,106 @@
+STATUS DO PLANO W-EDoS — atualizado 13/08/2026, madrugada (retomada pós-reboot)
+====================================================================
+Este arquivo existe pra sobreviver a interrupção de sessão (reboot, crash,
+etc.) — é a fonte de verdade de "onde paramos", mais confiável que memória
+de conversa. Atualizar a cada fase concluída/iniciada.
+
+Convenção de marcador: [X] concluída | [~] em andamento | [ ] pendente
+
+
+[X] Fase 0.2 — Auditoria estrutural (wedos_structural_audit.py)
+    Varredura só-leitura de experiment_results/ inteiro. Resultado:
+    experiment_results/wedos_structural_audit_report.csv, 53 arquivos,
+    sem problemas.
+
+[X] Fase 0.3 — Teste de reprodutibilidade (wedos_repro_test.py)
+    3 reps x lotes A/B em 2 pontos de fronteira (normal agg=300/WU=10;
+    wu_calibration rps10/WU200000). Ambos os lotes completos.
+
+[X] Fase 0.4 — Investigação mistério S3_atk1pct_wu300000 (wedos_s3_mystery.py)
+    3 reps rerodadas (rodada original contaminada por diagnóstico ao vivo
+    de INSTANCE_MAX_CONCURRENT_REQUESTS 2->4->8->2; corrigida por
+    wedos_rerun_contaminated.py, pool=2 fixo). Concluída.
+
+[X] Fase 0.5 — Varredura fina de limiar de capacidade (overnight_threshold_sweep.py)
+    Teto real do baseline normal (WU=10) confirmado em ~205-210 agregado
+    (200-250, 3 reps/ponto). Decisão: S4 (300 agregado) EXCLUÍDO do
+    refinamento da Fase 1 -- já instável sem ataque nenhum.
+
+[X] Fase 1 Stage1A — Varredura combinada grossa (wedos_combined_grid.py stage1a)
+    4 cenários (S1-S4) x {1,5,10}% x {200k,300k,400k,500k WU} x 1 rep.
+    48/48 combinações completas em experiment_results/wedos_grid/.
+
+[X] Fase 1 Stage1B — Refino fino nas fronteiras (wedos_stage1b_refined.py)
+    Sequência original (9 pontos, ver header do script):
+      [X] S1 @ 10%, WU em {325k, 350k, 375k} x 3 reps (9/9)
+      [X] S2 @ 1%,  WU em {425k, 450k, 475k} x 3 reps (9/9)
+      [X] S2 @ 0.5%, WU=500000 x 3 reps (3/3)
+      [X] S2 @ 1%,  WU=500000 reps 2-3 (confirmação; rep1 já existe da Stage1A)
+      [X] S3 @ 1%,  WU em {100k, 125k, 150k, 175k} x 2 reps (8/8)
+    Total: 31/31 arquivos em experiment_results/wedos_grid/*stage1b*. CONCLUÍDA.
+
+    HISTÓRICO DE INTERRUPÇÃO (só registro, não afeta mais nada): rodada
+    original interrompida por reboot do Windows em ~13/08 02:30, durante
+    S2_atk1pct_wu475000_rep1. Retomada via wedos_stage1b_resume.py (não
+    repetiu os pontos já confirmados), concluída sem novos incidentes.
+    Containers Docker limpos ao final (nenhum órfão).
+
+[X] Fase 4 — Varredura de fronteira de falha (wedos_failure_sweep.py all)
+    3 eixos OFAT, 2 reps/ponto, partindo do pior caso calibrado
+    (rps=10/atacante, WU=500000, 4 atacantes), sem tráfego normal
+    sobreposto além do default:
+      [X] wu:        {400k,500k,750k,1M,1.5M,2M} x 2 reps (12/12)
+      [X] rps:       {10,20,40,80} x 2 reps (8/8)
+      [X] attackers: {4,8,16,32} x 2 reps (8/8)
+    Total 28/28 execuções em experiment_results/wedos_failure/. CONCLUÍDA.
+    Docker limpo ao final (nenhum container órfão).
+
+[X] Pós-processamento: run_burst_analysis.py (regenerou EntCusumZV3 p/
+    todos os 173 rtt_log_*.csv da árvore). Concluído, sem erro/warning.
+
+[X] Fase 2 — Consolidação entropia+Z-score+CUSUM (wedos_ent_cusum_report.py)
+    5 consolidações rodadas, salvas em experiment_results/wedos_ent_cusum_*.csv:
+      - candidate_S2_1pct_wu500000 (candidato principal)
+      - candidate_S2_0.5pct_wu500000 (teste de furtividade extra)
+      - boundary_S1 (fronteira 300k-500k)
+      - boundary_S3 (fronteira 100k-500k)
+      - all_wedos_grid (consolidado geral) + fase4_failure (comparação)
+
+    ACHADO PRINCIPAL DA FASE 2 (achado de tese, não só métrica):
+      - S2 @1% intensidade / WU=500000 (candidato "melhor W-EDoS"): SCALE_UP
+        real em 3/3 repetições (1-3 scale-ups cada), mas detection_rate do
+        EntCusumZV3 = 0.0 em TODAS as 3 -- zero janelas de RTT marcadas
+        como burst em 56 janelas totais. Custo de infraestrutura real,
+        estatisticamente invisível.
+      - S3 (baseline 200 agregado, perto do próprio teto de ~205-210) @1%
+        WU entre 100k-500k (15 arquivos, stage1a+1b+mystery): detection_rate
+        = 0.0 em TODOS os 15, incluindo o WU mais barato testado (100000) --
+        confirma a hipótese "menos margem precisa de menos ataque" (ver
+        header de wedos_stage1b_refined.py) E que esse caso também é
+        completamente invisível ao detector RTT.
+      - S2 @0.5% (mais furtivo em intensidade, mas NÃO mais eficaz): só
+        1/3 reps escalou E foi detectada junto (rep1); as outras 2/3 nem
+        escalaram nem foram detectadas -- ou seja, reduzir intensidade
+        abaixo de 1% não ganha furtividade adicional, só perde
+        confiabilidade do efeito.
+      - CONTRASTE COM FASE 4 (isolado, sem tráfego normal diluindo):
+        detection_rate salta pra 0.8-0.875 nos mesmos WUs (500k, 750k) --
+        confirma a causa raiz já documentada no CLAUDE.md (caveat 1 do
+        EntCusumZV3.py): o detector funciona bem quando o ataque não está
+        diluído por tráfego normal concorrente; a "invisibilidade" dos
+        candidatos S2/S3 acima é efeito real de diluição, não falha do
+        detector em si.
+
+[X] Fase 3 — Gráficos finais (wedos_graphs.py)
+    74 pontos carregados de wedos_grid/. 4 gráficos gerados sem erro:
+      graficos_apresentacao/06_wedos_heatmap_cpu.png
+      graficos_apresentacao/07_wedos_efetividade_furtividade.png
+      graficos_apresentacao/08_wedos_reprodutibilidade_loteA_loteB.png
+      graficos_apresentacao/09_wedos_fronteira_falha.png
+
+
+===== PLANO COMPLETO: TODAS AS FASES (0.2 a 4) CONCLUÍDAS =====
+
+PRÓXIMO PASSO AUTOMÁTICO (sem precisar perguntar):
+  Compilar relatório final (RELATORIO_WEDOS_13_08.txt) com todos os
+  achados desta sessão, pra entregar quando o usuário voltar a checar.

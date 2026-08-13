@@ -16,7 +16,9 @@ for rps, attackers, work_units in itertools.product(RPS_VALUES, ATTACKERS_VALUES
     print(f"\n===== Running Experiment RPS={rps}, ATTACKERS={attackers}, WORK_UNITS={work_units} =====")
 
     cmd = [
-        "sudo",
+        # Sem "sudo" -- ver run_experiments_normal.py para a explicação
+        # (setcap no tcpdump + Docker sem root; sudo aqui travaria
+        # subprocess.run esperando senha interativa).
         "python3",
         "main_orchestrator.py",
         "--rps", str(rps),

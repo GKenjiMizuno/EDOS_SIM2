@@ -3,6 +3,7 @@ import csv
 import docker # Certifique-se de que 'docker' SDK está instalado (pip install docker)
 
 import attack_summary_logger
+import normal_traffic_summary_logger
 # Importar seus outros módulos (assumindo que estão no mesmo diretório ou no PYTHONPATH)
 from tcpdump_sniffer import TcpdumpSniffer
 import config
@@ -141,6 +142,12 @@ def main():
         # NOVO: inicializa o CSV de resumo do ataque
         attack_summary_logger.init_attack_summary_log()
         print(f"[Orchestrator] Attack summary will be logged to: {config.ATTACK_SUMMARY_LOG_FILE}")
+
+        # NOVO: idem para o tráfego normal (antes só existia o resumo do
+        # ataque -- taxa de erro do tráfego normal era invisível, ver
+        # normal_traffic_summary_logger.py e changes.txt).
+        normal_traffic_summary_logger.init_normal_traffic_summary_log()
+        print(f"[Orchestrator] Normal traffic summary will be logged to: {config.NORMAL_TRAFFIC_SUMMARY_LOG_FILE}")
 
     except Exception as e_csv_init:
         print(f"[Orchestrator] CRITICAL: Failed to initialize metrics log file {config.METRICS_LOG_FILE}. Error: {e_csv_init}. Aborting.")

@@ -1,0 +1,179 @@
+RELATÓRIO FINAL — CARACTERIZAÇÃO W-EDoS (sessão 12/08 tarde → 13/08 manhã)
+====================================================================
+Plano completo (Fases 0.2 a 4) rodado do início ao fim, incluindo uma
+interrupção real por reboot do Windows na madrugada (documentada na seção
+6). Este relatório resume o que foi coletado, o que foi achado, e o que
+precisa de decisão sua.
+
+Ver também: PLANO_WEDOS_STATUS.txt (checklist técnico fase-a-fase, mais
+granular que este texto) e changes.txt §34/35 (bugs corrigidos direto).
+
+
+1. RESUMO EXECUTIVO
+----------------------------------------------------------------------
+O achado central da sessão: **existe um ataque W-EDoS real, reproduzido
+de forma consistente, que força escalonamento (custo de infraestrutura
+real) e é 100% invisível ao detector estatístico baseado em RTT
+(EntCusumZV3.py) quando sobreposto a tráfego normal** -- exatamente a
+definição do artigo (Sotelo Monge et al., Definição 5) que o simulador
+foi desenhado pra reproduzir. Dois candidatos concretos, ambos com
+detection_rate = 0.0 em TODAS as repetições:
+
+  - S2 (baseline 100 req/s agregado) + 1% de intensidade de ataque +
+    WU=500000: SCALE_UP real em 3/3 repetições, 0 janelas de burst
+    detectadas em 56 janelas totais analisadas.
+  - S3 (baseline 200 req/s agregado, perto do próprio teto de capacidade
+    de ~205-210) + 1% de intensidade + WU tão baixo quanto 100000 (o mais
+    barato já testado): 0 janelas de burst detectadas em 15/15 execuções
+    independentes (100k a 500k de WU, incluindo stage1a + stage1b +
+    reruns do "mistério" S3).
+
+Controle que confirma que isso é diluição, não falha do detector: quando
+o MESMO nível de ataque roda ISOLADO (Fase 4, sem tráfego normal
+sobreposto), a taxa de detecção sobe pra 80-87.5% nos mesmos valores de
+WU. A "invisibilidade" é um efeito real de mistura com tráfego normal,
+não um bug do EntCusumZV3.py.
+
+
+2. FASE 1 (Stage 1A + 1B) — MAPA DE FRONTEIRAS S1-S3 (S4 excluído)
+----------------------------------------------------------------------
+S4 (300 agregado) foi excluído do refinamento porque a Fase 0.5 já tinha
+confirmado que o próprio baseline normal, SEM ataque nenhum, já é
+instável acima de ~205-210 agregado -- 300 está bem além do teto de
+capacidade do simulador, então qualquer efeito observado ali seria do
+teto de capacidade, não do ataque.
+
+Stage 1A (varredura grossa, 48 pontos, 1 rep cada) mapeou onde cada
+cenário passa a escalar; Stage 1B (31 execuções, com repetições reais)
+refinou essas fronteiras:
+
+  S1 (40 agregado, mais folga):
+    WU=300000: nunca escala (0/1 e reruns consistentes)
+    WU=325000: INCONSISTENTE -- 2/3 reps escalam (2-3 scale-ups), 1/3 não
+    WU=350000: consistente -- 1 scale-up em 3/3 reps
+    WU=375000: consistente -- 0 scale-ups em 3/3 reps (!)
+    WU=400000+: escala com força (2-3 scale-ups)
+    Achado: a fronteira NÃO é monotônica de forma limpa (325k mais
+    inconsistente que 350k) -- mesmo sintoma de ruído de sessão longa já
+    documentado no RESUMO_MADRUGADA §3, não um erro de medição pontual.
+
+  S2 (100 agregado, candidato principal):
+    1% / WU=425000-450000: nunca escala (0/9 reps combinadas)
+    1% / WU=475000: consistente -- escala em 3/3 reps (2-3 scale-ups cada)
+    1% / WU=500000: consistente -- escala em 3/3 reps (1-3 scale-ups) --
+      CANDIDATO PRINCIPAL, ver seção 1.
+    0.5% / WU=500000: só 1/3 reps escala -- reduzir intensidade abaixo de
+      1% não ganha furtividade adicional, só perde confiabilidade.
+
+  S3 (200 agregado, perto do próprio teto):
+    1% / WU=100000 (o mais barato testado): já escala em 1-3/2 reps.
+    Todo o intervalo 100k-500k escala de forma consistente -- confirma a
+    hipótese "menos margem precisa de menos ataque pra tombar".
+
+Ver experiment_results/wedos_ent_cusum_boundary_S1.csv e _S3.csv pros
+números completos linha a linha.
+
+
+3. FASE 4 — FRONTEIRA DE FALHA / COLAPSO REAL
+----------------------------------------------------------------------
+28 execuções (3 eixos: WU, RPS/atacante, nº atacantes), isolado (sem
+tráfego normal sobreposto), partindo do ponto rps=10/WU=500000/4
+atacantes (já classificado como "pior caso" em wu_calibration).
+
+ACHADO IMPORTANTE (contextualização, não um bug): esse ponto de partida
+JÁ estava bem além do colapso -- taxa de erro de ~98% (120 sucessos,
+5241 erros, exatamente batendo com o número já registrado no
+RESUMO_MADRUGADA §4 pra esse mesmo ponto). Ou seja, a Fase 4 não
+encontrou onde o colapso COMEÇA no eixo WU (esse limite já está mapeado
+em wu_calibration original: entre WU=100000, 0 erros, e WU=200000, 1747
+erros) -- ela mapeou o quão PIOR fica depois que já colapsou:
+
+  Eixo WU (400k a 2M): erro sobe de 97.3% pra 99.8%, CPU chega a
+    saturar os 4 instances (MAX_INSTANCES) com média de ~195% mesmo com
+    o teto de instâncias atingido -- literalmente sem capacidade de
+    escalar mais.
+  Eixo RPS/atacante (10 a 80): erro sobe de 98.0% pra 99.8%.
+  Eixo nº de atacantes (4 a 32): erro sobe de 98.0% pra 99.8%.
+
+Recomendação pra trabalho futuro (não fiz sozinho -- é uma escolha de
+desenho experimental, não um bug): se quiser resolução fina de ONDE o
+colapso começa (não só o quão pior fica depois), o ponto de partida
+certo seria WU~150000-250000 (a faixa real de transição, já mapeada por
+wu_calibration/overnight_wu_error_sweep), não WU=500000.
+
+Dados: experiment_results/wedos_failure/, consolidado em
+experiment_results/wedos_ent_cusum_fase4_failure.csv.
+
+
+4. GRÁFICOS GERADOS (Fase 3)
+----------------------------------------------------------------------
+graficos_apresentacao/:
+  06_wedos_heatmap_cpu.png — heatmap CPU por cenário x intensidade x WU
+  07_wedos_efetividade_furtividade.png — efetividade (scale-up) vs.
+    furtividade (detection_rate) dos candidatos
+  08_wedos_reprodutibilidade_loteA_loteB.png — comparação lote A/B
+    (Fase 0.3, mesma config em momentos diferentes da sessão)
+  09_wedos_fronteira_falha.png — os 3 eixos da Fase 4
+
+
+5. BUGS REAIS ENCONTRADOS E CORRIGIDOS NESTA SESSÃO
+----------------------------------------------------------------------
+Já documentados em detalhe no changes.txt (§34 e §35) -- resumo:
+  - "sudo" fixo em run_experiments*.py (obsoleto desde o setcap do
+    tcpdump da madrugada anterior) -- removido, travava execução não
+    interativa.
+  - run_experiments_normal.py nunca salvava rtt_log.csv por cenário
+    (mesma classe de bug já corrigida nos outros 2 scripts de sweep,
+    nunca replicada aqui) -- corrigido.
+  - Taxa de erro do tráfego NORMAL nunca era persistida em CSV (só
+    console) -- novo log normal_traffic_summary_log.csv +
+    normal_traffic_summary_logger.py, espelhando o padrão já usado pro
+    tráfego de ataque.
+  - Contaminação pontual de INSTANCE_MAX_CONCURRENT_REQUESTS (diagnóstico
+    ao vivo 2->4->8, revertido a 2) que afetou 4 execuções antigas --
+    identificadas e rerodadas com pool=2 fixo (wedos_rerun_contaminated.py).
+
+
+6. INCIDENTE: REBOOT DO WINDOWS (só registro histórico)
+----------------------------------------------------------------------
+Na madrugada de 13/08 (~02:30), o Windows reiniciou pra atualização
+durante a Stage 1B (rodando WU=475000 rep1). O processo Python em
+background morreu junto. Retomado sem perda de dado real: os 15 pontos já
+confirmados antes do reboot não foram repetidos (wedos_stage1b_resume.py,
+não altera o script original). Criado PLANO_WEDOS_STATUS.txt
+especificamente pra esse cenário se repetir -- é a fonte de verdade de
+"onde paramos" que sobrevive a reboot, independente de memória de
+conversa.
+
+
+7. DECISÕES PENDENTES (precisam de você, não decidi sozinho)
+----------------------------------------------------------------------
+  - Valor final de S4: continua sem um valor seguro confirmado (ver
+    RESUMO_MADRUGADA §3/9) -- decisão explicitamente fora do escopo desta
+    sessão (S4 foi excluído do refinamento, não resolvido).
+  - Timeout hardcoded de 2s em normal_traffic.py/traffic_injectorV0.py
+    (não usa config.HTTP_REQUEST_TIMEOUT_SECONDS) -- decisão de
+    metodologia experimental, não bug óbvio (ver changes.txt §35).
+  - Remover "sudo" dos 3 scripts originais (run_experiments*.py) já foi
+    feito nesta sessão (ver seção 5) -- mencionando aqui só pra fechar o
+    item que ficou pendente na seção 9 do RESUMO_MADRUGADA.
+  - Scripts overnight_*.py (da sessão anterior) seguem sem uso nesta
+    caracterização -- os wedos_*.py desta sessão os substituíram
+    funcionalmente. Decidir se apaga ou mantém como está.
+  - Resolução fina do início do colapso na Fase 4 (ver seção 3) fica pra
+    quando/se você quiser -- não é um problema com os dados coletados,
+    só uma oportunidade de refinamento futuro.
+
+
+8. ONDE ESTÁ TUDO
+----------------------------------------------------------------------
+  experiment_results/wedos_grid/       -- Fase 1 (Stage1A 48 + Stage1B 31 =
+                                           79 execuções), 574 arquivos (5
+                                           tipos de log/captura + xlsx/png
+                                           de burst por execução)
+  experiment_results/wedos_failure/    -- Fase 4, 28 execuções, 196 arquivos
+  experiment_results/wedos_ent_cusum_*.csv -- Fase 2, 6 consolidações
+  experiment_results/wedos_structural_audit_report.csv -- Fase 0.2
+  graficos_apresentacao/06 a 09        -- Fase 3
+  PLANO_WEDOS_STATUS.txt               -- checklist técnico atualizado
+  changes.txt §34/35                   -- bugs corrigidos, com detalhe técnico

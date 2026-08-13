@@ -93,11 +93,35 @@ CPU_SAMPLING_INTERVAL_SECONDS = 1.0
 
 ATTACK_SUMMARY_LOG_FILE = "attack_summary_log.csv"
 
+# Log irmão do attack_summary_log.csv, mas para os workers de TRÁFEGO NORMAL
+# (normal_traffic.py). Antes desta correção, os contadores request_count/
+# error_count de cada worker de tráfego normal só eram impressos no console
+# (nunca gravados em CSV) -- taxa de erro do baseline normal era invisível
+# para qualquer análise pós-execução, mesmo quando alta (achado real: ~16-27%
+# de erro em execuções de auditoria com normal_rps agregado=300/WU=10,
+# nunca detectado antes por falta deste log). Ver changes.txt.
+NORMAL_TRAFFIC_SUMMARY_LOG_FILE = "normal_traffic_summary_log.csv"
+
 # --- Configurações de Capacidade da Instância (A3) ---
 # Tamanho do pool de processos persistente (criado uma única vez no startup do
 # simple_server.py) usado para executar o trabalho de CPU de cada requisição.
 # Substitui o teto acidental do GIL por um valor explícito e reprodutível, sem
 # pagar o custo de criar um processo novo a cada requisição (fork-per-request).
+#
+# Diagnóstico real (sessão 12/08 tarde, ver changes.txt): com work=10
+# (trivial) e tráfego sustentado, o teto de vazão por instância fica em torno
+# de ~150 req/s mesmo com o pool maior -- testado 2, 4 e 8 workers contra o
+# MESMO tráfego sustentado (300 req/s, container isolado): taxa de erro ficou
+# ~28%, ~31%, ~36% respectivamente (igual ou pior, nunca melhor). Ou seja, NÃO
+# é o nº de processos-trabalhadores que limita -- é provavelmente um gargalo
+# estrutural (a thread única de gerenciamento de resultados do
+# ProcessPoolExecutor, ou contenção de GIL no processo do servidor,
+# competindo com as threads do ThreadingHTTPServer), que mais processos não
+# resolvem. Mantido em 2 (valor original) por decisão do usuário: aumentar
+# não ajuda o teto e quebraria a comparabilidade com todo o dataset histórico
+# (normal_baseline/wu_calibration/combined_sweep, todos coletados com 2). O
+# teto de ~150 req/s/instância fica documentado como característica
+# conhecida do simulador, não "consertado" por este parâmetro.
 INSTANCE_MAX_CONCURRENT_REQUESTS = 2
 
 # --- Configurações do Injetor Open-Loop (B2) ---
