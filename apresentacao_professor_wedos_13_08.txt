@@ -7,6 +7,27 @@ o simulador já corrigido para caracterizar o ataque de verdade, com rigor
 estatístico, antes de gerar o dataset final de treino)
 
 
+OS CENÁRIOS S1-S4 (referenciados no documento inteiro, definidos aqui uma
+vez só)
+------------------------------------------------------------------------
+
+S1 a S4 são os 4 níveis de tráfego normal (sem ataque nenhum ainda) usados
+como "carga de base" em todos os testes — a diferença entre eles é só o
+volume de requisições normais por segundo:
+
+  Cenário   Volume agregado   Por cliente (4 clientes)   Situação
+  S1        40 req/s          10 req/s                   leve, bem longe do teto
+  S2        100 req/s         25 req/s                   moderado, com folga — candidato principal (seção 3)
+  S3        200 req/s         50 req/s                   pesado, perto do próprio teto (~205-210)
+  S4        300 req/s         75 req/s                   excluído dos testes finos — já instável sozinho (Fase 0-c)
+
+Os 4 usam o mesmo custo de processamento por requisição normal (bem
+barato) e os mesmos 4 clientes persistentes mandando tráfego o tempo
+todo — a única variável entre eles é a taxa. É em cima de cada um desses
+cenários que o ataque (intensidade % + custo por requisição) é somado
+nos testes das seções seguintes.
+
+
 1. POR QUE ESTA ETAPA FOI FEITA
 ---------------------------------
 

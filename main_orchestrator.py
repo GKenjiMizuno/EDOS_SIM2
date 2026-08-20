@@ -4,6 +4,7 @@ import docker # Certifique-se de que 'docker' SDK está instalado (pip install d
 
 import attack_summary_logger
 import normal_traffic_summary_logger
+import host_stats
 # Importar seus outros módulos (assumindo que estão no mesmo diretório ou no PYTHONPATH)
 from tcpdump_sniffer import TcpdumpSniffer
 import config
@@ -29,16 +30,17 @@ def parse_args():
     parser.add_argument("--work-units", type=int, default=None)
     parser.add_argument("--attack-duration", type=int, default=None)
     parser.add_argument("--normal-rps", type=float, default=None)
+    parser.add_argument("--normal-clients", type=int, default=None)
     parser.add_argument("--normal-work-units", type=int, default=None)
     parser.add_argument("--attack-start", type=int, default=None)
     parser.add_argument("--pulse-duration", type=int, default=None)
 
     return parser.parse_args()
 
-def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, decision, active_names, label):
+def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, decision, active_names, label, host_cpu_percent):
     try:
         with open(config.METRICS_LOG_FILE, 'a', newline='') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage', 'avg_rtt_ms', 'decision', 'active_containers_names', 'label'])
+            writer = csv.DictWriter(csvfile, fieldnames=['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage', 'avg_rtt_ms', 'decision', 'active_containers_names', 'label', 'host_cpu_percent'])
             writer.writerow({
                 'elapsed_time_s': round(elapsed_time, 2),
                 'num_instances': num_instances,
@@ -48,6 +50,7 @@ def log_metrics_to_csv(elapsed_time, num_instances, avg_cpu, mem_usage,avg_rtt, 
                 'decision': decision,
                 'active_containers_names': ','.join(active_names) if active_names else '',
                 'label': label,
+                'host_cpu_percent': round(host_cpu_percent, 2),
             })
     except Exception as e:
         print(f"[Orchestrator] Error logging metrics to CSV: {e}")
@@ -134,7 +137,7 @@ def main():
     try:
         with open(config.METRICS_LOG_FILE, 'w', newline='') as csvfile:
             fieldnames = ['elapsed_time_s', 'num_instances', 'average_cpu_percent', 'mem_usage','avg_rtt_ms',
-                  'decision', 'active_containers_names', 'label']
+                  'decision', 'active_containers_names', 'label', 'host_cpu_percent']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
         print(f"[Orchestrator] Metrics will be logged to: {config.METRICS_LOG_FILE}")
@@ -377,7 +380,8 @@ def main():
         print(f"[DEBUG Orchestrator] End of Iteration. previous_num_instances_for_injector_logic updated to: {previous_num_instances_for_injector_logic}")
 
         # 5. Registrar métricas no CSV
-        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, avg_cpu, avg_mem_app_mb,avg_rtt, scaling_decision, current_active_container_names,label)
+        host_cpu_percent = host_stats.get_host_cpu_percent()
+        log_metrics_to_csv(elapsed_time_seconds, num_instances_after_scaling, avg_cpu, avg_mem_app_mb,avg_rtt, scaling_decision, current_active_container_names,label, host_cpu_percent)
         
         # 6. Acumular dados para cálculo de custo
         instance_intervals_for_cost.append((num_instances_after_scaling, config.MONITOR_INTERVAL_SECONDS))
@@ -465,6 +469,10 @@ if __name__ == "__main__":
         if args.normal_rps is not None:
             config.HTTP_NORMAL_RPS_PER_CLIENT = args.normal_rps
             print(f"Normal traffic RPS per client set to: {config.HTTP_NORMAL_RPS_PER_CLIENT}")
+
+        if args.normal_clients is not None:
+            config.HTTP_NORMAL_NUM_CLIENTS = args.normal_clients
+            print(f"Normal traffic number of clients set to: {config.HTTP_NORMAL_NUM_CLIENTS}")
 
         if args.normal_work_units is not None:
             config.NORMAL_WORK_UNITS = args.normal_work_units

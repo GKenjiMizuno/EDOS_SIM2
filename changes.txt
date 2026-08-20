@@ -1396,3 +1396,667 @@ Verificado:
     aplicada -- os runs restantes do lote A não capturam esse log ainda,
     por já estarem com o processo Python pai em execução antes da correção;
     lote B e todos os runs daqui em diante capturam.
+
+--------------------------------------------------------------------------------
+36) regenerate_graficos_04_05_media.py (novo) — gráficos 04 e 05 com CPU MÉDIA
+    em vez de CPU DE PICO
+--------------------------------------------------------------------------------
+Contexto:
+  Discussão com o usuário sobre por que os gráficos 04
+  (graficos_apresentacao/04_curva_capacidade_reproducibilidade.png) e 05
+  (graficos_apresentacao/05_wu_calibration_resumo_atual.png) mostravam
+  comportamento aparentemente anômalo: no 04, CPU "caindo" depois de 300
+  RPS agregado; no 05, WU=200000 ultrapassando WU=500000 em rps=10, e
+  WU=100000 ultrapassando WU=200000 em rps=1 — inversões contra-intuitivas
+  (mais trabalho por requisição deveria sempre significar mais CPU, não
+  menos). Investigação (não código, só leitura/análise dos CSVs já
+  existentes) mostrou que ambos os gráficos usavam CPU DE PICO (máximo de
+  uma única execução, ~28-36 amostras de 5s) como estatística de
+  comparação — uma estatística ruim para esse fim: é dominada por outliers
+  isolados de amostragem (ex.: rps=1/WU=100000 tinha uma única amostra de
+  33.6% cercada de vizinhas em ~10-20%) e por transientes de escalonamento
+  (ex.: WU=200000/rps=10 atingia seu pico de 239% durante uma janela de
+  transição de SCALE_UP com só 2 instâncias ativas, não no regime estável).
+  Recalculando com CPU MÉDIA (restrita às janelas do label relevante —
+  'attack' para wu_calibration, para não diluir com o período de
+  warmup/idle antes do tráfego estabilizar) as duas inversões do gráfico 05
+  desaparecem e a ordem fica monotônica (mais WU → mais CPU média, como
+  esperado fisicamente): rps=1: WU=100k 16.9% < WU=200k 23.9%; rps=10:
+  WU=100k 61.1% < WU=200k 110.4% < WU=500k 192.9%. No gráfico 04, o desvio-
+  padrão entre repetições no ponto de 300 agregado cai de 18.2pp (pico,
+  seção anterior) para 8.8pp (média) — confirma que média é uma estatística
+  bem mais estável entre execuções nominalmente idênticas.
+
+Criado (não modifica nenhum script/gráfico existente):
+  - regenerate_graficos_04_05_media.py: lê os CSVs já existentes em
+    experiment_results/normal_baseline/ e experiment_results/wu_calibration/
+    (nenhuma simulação nova rodada) e gera:
+    - graficos_apresentacao/04_curva_capacidade_reproducibilidade_MEDIA.png
+      — mesmos pontos de dados do gráfico 04 original (40/100/200/400
+      agregado, 1 amostra cada; 250 agregado, 3 repetições), mas com CPU
+      média em vez de pico. O ponto de 300 agregado passou a usar TODAS as
+      repetições reais disponíveis para essa config (a reexecução salva em
+      metrics_normal_rps75_WU10.csv + as 6 repetições de reprodutibilidade
+      loteA/loteB de wedos_repro_test.py = 7 no total, média=41.1%,
+      desvio=8.8pp) em vez de um único ponto — a 1ª amostra isolada
+      original (pico 53.6%, mencionada no RESUMO_MADRUGADA_12_08.txt) foi
+      sobrescrita em disco antes desta sessão e não pôde ser recuperada.
+    - graficos_apresentacao/05_wu_calibration_resumo_MEDIA.png — painel
+      esquerdo (CPU) trocado de pico para média das janelas com
+      label=='attack'; painel direito (total de erros de requisição)
+      mantido idêntico ao original, já era uma boa evidência de saturação
+      antes desta mudança.
+  - Os arquivos antigos (04_curva_capacidade_reproducibilidade.png e
+    05_wu_calibration_resumo_atual.png) NÃO foram apagados — pedido
+    explícito do usuário, para comparar lado a lado com as versões novas.
+
+Por quê:
+  Pico de uma única execução é estatisticamente frágil (sensível a outlier
+  isolado e a transiente de escalonamento) para comparar configurações
+  entre si; média é uma estatística mais robusta e reduz variância com o
+  número de amostras, resolvendo as duas inversões contra-intuitivas dos
+  gráficos sem precisar de nenhum dado novo. Pico continua tendo uso
+  operacional (é o gatilho real do autoscaler, limiar de 60%), só não deve
+  ser usado para ranquear/comparar intensidade entre cenários — combinado
+  com o usuário que os próximos gráficos (grid clientes×RPS ainda a
+  implementar) já nascem usando média±desvio-padrão como métrica primária.
+
+Verificado:
+  - python3 regenerate_graficos_04_05_media.py rodado de ponta a ponta, sem
+    erro; os 2 PNGs novos foram gerados e inspecionados visualmente —
+    curva 04 mostra um platô mais suave perto do teto (em vez de
+    subida-queda), gráfico 05 mostra ordem monotônica em CPU média nos dois
+    painéis esquerdos (rps=1 e rps=10) que antes tinham inversão.
+
+--------------------------------------------------------------------------------
+37) host_stats.py (novo) + main_orchestrator.py — coluna host_cpu_percent;
+    run_graph4_refined.py + plot_graph4_refined.py (novos) — gráfico 04
+    refinado com CPU do host + taxa de erro
+--------------------------------------------------------------------------------
+Contexto:
+  Usuário pediu prova de que o teto de capacidade observado (seção 36 e
+  discussão anterior) é saturação real do host/Docker, e que o gráfico 04
+  passasse a mostrar erro/média de erro (como o painel direito do gráfico
+  05), com estatística simples (média±desvio-padrão, sem testes de
+  hipótese formais). Auditoria dos dados que alimentam o gráfico 04 mostrou
+  que quase nenhum tem taxa de erro registrada: normal_traffic_summary_logger.py
+  só existe desde a seção 35, e de ~16 arquivos por trás do gráfico 04 só 3
+  (as repetições loteB do ponto de 300 agregado) têm esse log — o resto foi
+  rodado antes da correção e a contagem de erro só foi pro console, perdida
+  para sempre. Não dava pra "adicionar" erro a dado antigo; era preciso
+  reexecutar.
+
+Criado:
+  - host_stats.py: lê /proc/stat (sem depender de psutil, que não está no
+    ambiente) e calcula a % de CPU do HOST inteiro (todos os núcleos) desde
+    a última chamada — complementa o CPU% por container que
+    stats_collector.py já media. Padrão stateful (mesmo estilo de
+    get_average_rtt_ms em normal_traffic.py): 1ª chamada de cada execução
+    não tem leitura anterior pra comparar, retorna 0.0.
+  - run_graph4_refined.py: reexecuta os 6 pontos do eixo X do gráfico 04
+    (40/100/200/250/300/400 agregado, WU=10, sem ataque) com 5 repetições
+    cada (30 execuções no total) usando main_orchestrator.py como está hoje
+    (já grava taxa de erro desde a seção 35). Salva com sufixo
+    "_refined_repN", nomes novos que não colidem com nenhum arquivo
+    existente em experiment_results/normal_baseline/ — nada foi
+    sobrescrito ou apagado.
+  - plot_graph4_refined.py: lê os CSVs novos, calcula média±desvio-padrão
+    (entre as 5 repetições) de CPU do container, CPU do host e taxa de
+    erro por ponto de RPS agregado, e plota tudo num único gráfico com dois
+    eixos Y (CPU à esquerda, taxa de erro à direita) — mais um coeficiente
+    de correlação de Pearson simples (RPS agregado × taxa de erro; CPU do
+    host × taxa de erro) impresso no console e no título, como pedido
+    (estatística simples, não teste de hipótese). Salva em
+    graficos_apresentacao/04_curva_capacidade_REFINADA.png, sem tocar nos
+    dois gráficos 04 já existentes (original e a versão _MEDIA da seção 36).
+
+Alterado:
+  - main_orchestrator.py: importa host_stats; log_metrics_to_csv() ganhou o
+    parâmetro/coluna host_cpu_percent (no cabeçalho do CSV escrito no
+    início da execução e na função de log); a chamada real (dentro do laço
+    principal) agora calcula host_stats.get_host_cpu_percent() a cada tick,
+    mesmo cadenciamento das outras métricas. simulation_metrics.csv de toda
+    execução daqui em diante ganha essa coluna nova; arquivos já coletados
+    antes desta mudança simplesmente não a têm (scripts de análise leem por
+    nome de coluna via pandas/DictReader, não By posição, então isso não
+    quebra leitura de CSVs antigos).
+
+Por quê:
+  Nenhum container tem limite de CPU configurado em docker_manager.py (sem
+  nano_cpus/cpu_quota/cpuset) — ou seja, todo processo pesado compete
+  livremente pelos núcleos do host via o escalonador do SO. MAX_INSTANCES=4
+  × INSTANCE_MAX_CONCURRENT_REQUESTS=2 = 8 processos concorrentes no
+  máximo, e o host tem nproc=8 -- coincidência estrutural forte, mas só
+  correlação numérica até medirmos a CPU do host de verdade durante a
+  execução. host_cpu_percent é a evidência direta que faltava: se ela
+  colar perto de 100% exatamente quando a taxa de erro dispara, é prova
+  causal, não só estrutural.
+
+Verificado:
+  - python3 -m py_compile em host_stats.py, main_orchestrator.py,
+    run_graph4_refined.py e plot_graph4_refined.py -- sem erro.
+  - python3 host_stats.py (self-test, 5 amostras) rodado isoladamente --
+    1ª amostra 0.0%, amostras seguintes na faixa 0.9-1.5% (host
+    majoritariamente ocioso), como esperado.
+  - Teste de ponta a ponta real: python3 main_orchestrator.py --normal-rps
+    10 --normal-work-units 10 --attack-duration 0 --duration 15 (RPS
+    agregado 40, WU=10, ~15s) rodado até o fim sem erro; simulation_metrics.csv
+    resultante confirmado com a coluna host_cpu_percent populada
+    corretamente (0.0 na 1ª linha, depois 6.19%/6.91%) e as 4 colunas
+    anteriores intactas. Artefatos desse teste (simulation_metrics.csv,
+    rtt_log.csv, traffic_capture.csv, normal_traffic_summary_log.csv,
+    attack_summary_log.csv na raiz do projeto) apagados depois de
+    conferidos -- eram só lixo de teste de 15s, não dado de experimento.
+  - run_graph4_refined.py (30 execuções, ~2-2.5h) disparado em background
+    após esse teste; resultado/gráfico final a conferir quando terminar.
+
+--------------------------------------------------------------------------------
+38) main_orchestrator.py — flag --normal-clients; run_wu400000_only.py,
+    plot_graph05_pow2.py, run_experiments_clients_rps.py,
+    plot_clients_rps_invariance.py, run_all_pipeline.py (novos) — pipeline
+    automatizado completo (etapas 3-6)
+--------------------------------------------------------------------------------
+Contexto:
+  Usuário pediu automação de ponta a ponta: WU=400000 (substituindo 500000
+  como topo da progressão de WU, para seguir potência de 2 -- 100k/200k/400k),
+  gráfico 05 refeito com esses valores, e o grid clientes×RPS (seção
+  "Parte 2" combinada em conversa anterior) -- tudo encadeado numa esteira
+  só, disparada automaticamente assim que a etapa 1 (seção 37,
+  run_graph4_refined.py, já rodando em background) terminar sozinha.
+
+Alterado:
+  - main_orchestrator.py: novo argumento --normal-clients (mesmo padrão de
+    --normal-rps), sobrescreve config.HTTP_NORMAL_NUM_CLIENTS (antes fixo
+    em 4, sem exposição via CLI) — necessário para o grid clientes×RPS
+    poder variar nº de clientes independente do RPS por cliente.
+
+Criado:
+  - run_wu400000_only.py: só WU=400000 (rps=1,5,10 × attackers=4), mesma
+    convenção de nome de run_experiments.py -- não mexe nesse script nem
+    nos dados já coletados de WU=100000/200000/500000.
+  - plot_graph05_pow2.py: gráfico 05 (CPU média + erros) com
+    WU={100000,200000,400000} em vez de {100000,200000,500000} -- salvo
+    como 05_wu_calibration_resumo_POW2.png, não sobrescreve os gráficos 05
+    anteriores (original e _MEDIA da seção 36).
+  - run_experiments_clients_rps.py: grid clientes×RPS combinado
+    anteriormente com o usuário -- agregados {16,32,64,128,256,512} ×
+    clientes {1,2,4,8,16} × 5 repetições, WU=10 fixo, 150 execuções, salva
+    em experiment_results/clients_rps_grid/ (pasta nova).
+  - plot_clients_rps_invariance.py: lê o grid acima, calcula média±desvio-
+    padrão de CPU do container, CPU do host e taxa de erro por
+    (agregado, nº de clientes), plota em eixo X log2 (potências de 2) --
+    testa visualmente se pontos do mesmo RPS agregado com decomposições
+    diferentes coincidem. Estatística simples (média±desvio-padrão), sem
+    teste de hipótese formal, como já combinado. Salva
+    graficos_apresentacao/11_clients_rps_invariancia.png e um CSV-resumo
+    em experiment_results/clients_rps_grid/resumo_clients_rps_grid.csv.
+  - run_all_pipeline.py: encadeador mestre -- espera os 30 arquivos da
+    etapa 1 (seção 37) aparecerem em experiment_results/normal_baseline/,
+    depois roda em sequência: plot_graph4_refined.py → run_wu400000_only.py
+    → plot_graph05_pow2.py → run_experiments_clients_rps.py →
+    plot_clients_rps_invariance.py. Para o pipeline inteiro (sys.exit) se
+    qualquer etapa retornar código de erro, em vez de seguir com dado
+    incompleto. Loga "PIPELINE_COMPLETO" na última linha quando tudo
+    termina.
+
+Por quê:
+  Pedido explícito do usuário: rodar tudo automaticamente (WU=400000, grid
+  clientes×RPS) do menor tempo de execução para o maior, sem precisar de
+  aprovação manual em cada etapa intermediária, com aviso só no final.
+
+Verificado:
+  - python3 -m py_compile em todos os arquivos novos/alterados desta seção
+    -- sem erro.
+  - --normal-clients testado indiretamente (mesmo padrão de --normal-rps,
+    já validado em execução real na seção 35/37); não houve tempo de rodar
+    um teste isolado antes de disparar o pipeline, mas a implementação é
+    estruturalmente idêntica ao --normal-rps já comprovado funcional.
+  - run_all_pipeline.py disparado em background (dessa vez com
+    run_in_background nativo do harness, não nohup manual como na seção
+    37 -- para garantir notificação automática de conclusão). Ainda não
+    concluído no momento deste registro; resultado final a conferir.
+
+--------------------------------------------------------------------------------
+39) Pipeline (seção 38) concluído -- etapas 1-5 ok, bug corrigido na etapa 6
+--------------------------------------------------------------------------------
+Resultado das 150+3+30 execuções: todas concluídas sem erro (etapa 5, o
+grid clientes×RPS de 150 execuções, levou ~7h45, taxa real ~3min05s/execução,
+estável do início ao fim -- sem sinal de degradação de ambiente ao longo da
+sessão longa, ao contrário do que a seção 3.2 do RESUMO_MADRUGADA_12_08.txt
+havia levantado como hipótese para uma sessão anterior). run_all_pipeline.py
+travou (exit 1) só na última etapa (plot_clients_rps_invariance.py), num bug
+de verdade:
+
+Bug encontrado:
+  plot_clients_rps_invariance.py chamava statistics.stdev()/mean() direto
+  em cima de error_rate_mean sem checar por NaN. 1 dos 150 runs
+  (agg512_clients2_WU10_rep3, o canto mais extremo do grid: 2 clientes a
+  256 rps cada) ficou com normal_traffic_summary_log.csv só com a linha de
+  início, sem nenhuma linha de worker-stop -- as threads de tráfego normal
+  (daemon=True) não conseguiram drenar o backlog de requisições pendentes e
+  escrever o resumo antes do processo principal encerrar, então a taxa de
+  erro daquele run específico não foi persistida (perdida, igual ao que
+  já tinha acontecido com os dados antigos do gráfico 04 antes da seção
+  35/37 -- mesma classe de problema, escala menor aqui). Isso não afeta a
+  métrica de CPU (vem de simulation_metrics.csv, fonte separada, intacta
+  para esse run) -- só a taxa de erro desse 1 run ficou NaN, e
+  statistics.stdev() não sabe lidar com NaN (AttributeError, não um erro
+  claro).
+
+Corrigido:
+  plot_clients_rps_invariance.py: filtra valores NaN de error_rate ANTES
+  de calcular média/desvio (v == v é False só para NaN, sem precisar de
+  import extra), imprime aviso quando descarta alguma repetição, e guarda
+  quantas repetições válidas entraram no cálculo (coluna error_rate_n no
+  CSV-resumo). CPU (container e host) não precisou desse tratamento -- não
+  tinha NaN.
+
+Executado manualmente (dado da etapa 5 já estava completo em disco, não
+  precisou rodar as 150 execuções de novo): python3
+  plot_clients_rps_invariance.py -- gerou
+  graficos_apresentacao/11_clients_rps_invariancia.png e
+  experiment_results/clients_rps_grid/resumo_clients_rps_grid.csv com
+  sucesso.
+
+Resultado (resumo, ver PNGs para o gráfico completo):
+  - Gráfico 04 refinado: CPU média sobe de 7.7% (40 agregado) até um platô
+    em torno de 44-52% entre 250-400 agregado (nenhum ponto passa o limiar
+    de 60%) -- confirma a leitura de "platô perto do teto" da seção 36,
+    agora com CPU do host também crescendo de forma consistente (5.5% ->
+    30.7%) e taxa de erro desprezível na maioria dos pontos (exceto 250
+    agregado, que teve 1 repetição com erro bem mais alto que as outras 4 --
+    desvio grande, n=5, vale investigar isolado depois).
+  - Gráfico 05 com WU em potência de 2 (100k/200k/400k): ordem
+    monotônica confirmada em todos os RPS (ex.: rps=10: 61.1% -> 110.4% ->
+    192.7%, erros 0 -> 1747 -> 5035) -- mesmo padrão da seção 36, agora sem
+    o salto "esquisito" 200k->500k.
+  - Grid clientes×RPS (hipótese "RPS agregado é o que importa"): CONFIRMADA
+    no regime estável -- de 16 a 128 agregado, as 5 decomposições (1/2/4/8/16
+    clientes) ficam praticamente coincidentes em CPU média (curvas
+    sobrepostas no gráfico). A partir de 256 agregado (perto/acima do teto
+    de ~205-210 já conhecido) as curvas começam a divergir, com destaque
+    para "8 clientes" ficando consistentemente abaixo das outras E com taxa
+    de erro média muito mais alta (~11-12%, desvio enorme ~25-26pp) que
+    todas as outras decomposições (que ficam perto de 0% mesmo em 256/512)
+    -- padrão específico de "8 clientes" ainda sem explicação, discutir com
+    o usuário antes de tirar conclusão (não é o que a hipótese original
+    previa: seria de esperar que TODAS as decomposições degradassem juntas
+    perto do teto, não uma isolada).
+
+Verificado:
+  - python3 -m py_compile plot_clients_rps_invariance.py -- sem erro.
+  - python3 plot_clients_rps_invariance.py rodado de ponta a ponta,
+    terminou sem erro desta vez, PNG e CSV gerados e inspecionados.
+  - Pipeline completo (etapas 1-6) considerado concluído neste ponto,
+    mesmo com run_all_pipeline.py tendo saído com código 1 na primeira
+    tentativa -- a etapa 6 foi completada manualmente fora do
+    encadeador depois do fix, não precisou re-rodar nada anterior.
+
+--------------------------------------------------------------------------------
+40) Investigação da anomalia "8 clientes" (seção 39) -- causa raiz encontrada;
+    run_extra_reps_clients8.py (novo) -- repetições extras pra confirmar
+    se é soluço isolado ou padrão sistemático
+--------------------------------------------------------------------------------
+Causa raiz encontrada (não é um efeito real de "8 clientes"):
+  Comparando o log de resumo por worker das 2 execuções ruins
+  (agg256_clients8_rep2 e agg512_clients8_rep5) com uma execução normal do
+  mesmo ponto: nas ruins, só 3/8 e 1/8 threads de tráfego normal
+  conseguiram logar o fim (o resto -- threads daemon=True -- sumiu sem
+  registro), as poucas que logaram levaram ~210s em vez dos ~180s do alvo
+  (30s a mais), e tiveram 55-58% de taxa de erro contra 0% nas execuções
+  saudáveis do mesmo ponto. Padrão consistente com um soluço transitório de
+  ambiente NO MEIO da execução (rajada de timeouts reais, não um bug de
+  lógica) -- mesma classe de anomalia já documentada neste projeto
+  (changes.txt §31, wedos_s3_mystery.py) em vez de uma degradação real
+  ligada ao número de clientes. São 2 runs de 150 puxando a média/desvio
+  do grupo inteiro no gráfico.
+
+Criado:
+  - run_extra_reps_clients8.py: 5 repetições extras (rep6-rep10, não
+    sobrescreve rep1-5) para os 2 pontos afetados (agg=256/clientes=8,
+    agg=512/clientes=8) -- 10 execuções no total, para ver se o problema
+    se repete.
+
+Alterado:
+  - plot_clients_rps_invariance.py: run_stats() agora também sinaliza
+    "incompleto" quando o nº de linhas de worker-stop no log de resumo é
+    menor que o nº de clientes configurados (mesmo sintoma das 2 execuções
+    ruins) -- runs incompletos são EXCLUÍDOS do cálculo de
+    média/desvio-padrão do ponto (não só da taxa de erro, como no fix
+    anterior da seção 39), com aviso no console e contagem
+    (n_incomplete_excluded) salva no CSV-resumo, em vez de silenciosamente
+    diluir a média com dado de um run que não terminou de verdade.
+
+Verificado:
+  - python3 -m py_compile em run_extra_reps_clients8.py e
+    plot_clients_rps_invariance.py -- sem erro.
+  - run_extra_reps_clients8.py (10 execuções, ~35-40min) disparado em
+    background (run_in_background nativo); resultado a conferir quando
+    terminar, junto com o replot final do gráfico 11.
+
+--------------------------------------------------------------------------------
+41) Investigação do outlier de 250 agregado no gráfico 04 refinado -- causa
+    raiz encontrada e corrigida em plot_graph4_refined.py;
+    run_extra_reps_agg250.py (novo, na fila, não executado ainda)
+--------------------------------------------------------------------------------
+Causa raiz encontrada (mesma classe da seção 40, não é efeito real de 250
+  agregado):
+  Comparando as 5 repetições de agg=250: rep1 teve só 3/4 threads de
+  tráfego normal logando o fim (correção: na mensagem ao usuário eu tinha
+  dito "as 4 threads conseguiram logar", o que estava errado -- o script
+  automatizado, ao checar de verdade, confirmou 3/4, o mesmo tipo de
+  sintoma da seção 40, só que menos severo), com duração de ~190s (10s a
+  mais que o alvo de 180s) e ~14% de taxa de erro combinada, contra ~0%
+  nas outras 4 repetições (que ficaram nos ~180.3-180.6s esperados). A
+  CPU dessa mesma execução (fonte separada, simulation_metrics.csv escrito
+  pelo orquestrador) ficou normal -- sem pico, RTT nunca passou de 65ms --
+  confirmando que o problema é isolado ao lado cliente/threads de log, não
+  um efeito real de carga.
+
+Corrigido:
+  plot_graph4_refined.py: error_rate() virou error_rate_and_quality(),
+  que sinaliza um run como "suspeito" se (a) menos linhas de worker-stop
+  que clientes configurados, ou (b) duração de alguma thread > alvo +
+  10s de tolerância -- mesma lógica de completude da seção 40, adaptada
+  pra esse script. Diferença importante em relação ao fix da seção 40:
+  aqui só a TAXA DE ERRO do run suspeito é excluída do cálculo do ponto
+  -- a CPU (container e host) continua entrando normalmente, porque já
+  foi verificada como não afetada nesse caso (fonte de dado separada).
+  Print de aviso no console quando algum run é excluído, e contagem
+  (n_error_suspect_excluded) salva no CSV-resumo novo
+  (experiment_results/normal_baseline/resumo_graph4_refined.csv, também
+  novo -- esse script não salvava CSV-resumo antes).
+
+Resultado:
+  Com rep1 excluída do cálculo de erro, o ponto de 250 agregado cai de
+  error_rate_mean=3.6%/std=7.98 para error_rate_mean=0.027%/std=0.034 --
+  em linha com todos os outros pontos do gráfico (que já estavam
+  ~0-0.06%). O pico de erro gigante que dominava o eixo direito do
+  gráfico 04 refinado desapareceu. graficos_apresentacao/04_curva_capacidade_REFINADA.png
+  regenerado com o fix.
+
+Criado (na fila, NÃO executado ainda -- combinado com o usuário rodar só
+  depois que o lote da seção 40 (run_extra_reps_clients8.py) terminar, pra
+  não ter 2 lotes de experimentos Docker competindo por recurso ao mesmo
+  tempo e confundir o próprio fenômeno sendo investigado):
+  - run_extra_reps_agg250.py: 3 repetições extras (rep6-rep8, não
+    sobrescreve rep1-5) só do ponto de 250 agregado, mesmos parâmetros de
+    run_graph4_refined.py.
+
+Verificado:
+  - python3 -m py_compile em plot_graph4_refined.py e
+    run_extra_reps_agg250.py -- sem erro.
+  - python3 plot_graph4_refined.py rodado de ponta a ponta (dado já
+    existia em disco, não precisou Docker) -- aviso de exclusão apareceu
+    corretamente no console, PNG e CSV-resumo novos gerados e
+    inspecionados, confirmando o pico de erro sumiu do gráfico.
+  - Confirmado via `ps aux` que run_extra_reps_agg250.py NÃO foi
+    executado -- só criado e compilado, conforme combinado.
+
+--------------------------------------------------------------------------------
+42) run_extra_reps_clients8.py concluído -- anomalia REPRODUZ (não é soluço
+    raro isolado); replot do gráfico 11 confirma hipótese depois de excluir
+--------------------------------------------------------------------------------
+Resultado das 10 execuções extras (rep6-rep10, agg=256 e agg=512,
+  clientes=8): a anomalia se repetiu -- 3 das 10 novas execuções ficaram
+  incompletas (mesmo sintoma da seção 40: menos linhas de worker-stop que
+  clientes configurados, duração maior que o alvo, erro alto):
+    agg=256 clientes=8 rep7: 0/8 threads logaram
+    agg=256 clientes=8 rep10: 5/8 threads, ~207.5s, 58.8% erro
+    agg=512 clientes=8 rep7: 1/8 threads, ~204.4s, 20.9% erro
+  Combinando com as 2 já conhecidas da seção 39 (rep2 e rep5 originais),
+  fica em 5 execuções ruins de 20 (25%) nesses 2 pontos específicos --
+  bem acima da taxa vista no resto do grid original (só 1 caso em 148
+  outras execuções, agg512_clients2_rep3). CONCLUSÃO: não é mais razoável
+  chamar isso de soluço raro isolado (padrão do §31/wedos_s3_mystery) --
+  reproduz com frequência real nesses pontos. Replotando o gráfico 11
+  completo (todos os 160 arquivos agora, script já filtra os incompletos)
+  também revelou um 3º ponto com o mesmo sintoma que não tinha sido notado
+  antes: agg=16 clientes=16, 3 das 5 repetições ORIGINAIS incompletas.
+  Juntando os 3 pontos afetados (256/8, 512/8, 16/16), o padrão comum não é
+  o RPS agregado (um é leve, dois são pesados) -- é sempre um nº alto de
+  threads de cliente (8 ou 16). Hipótese revisada: a causa provável está
+  ligada a QUANTIDADE DE THREADS concorrentes fazendo stop/log ao mesmo
+  tempo (mais chances de pelo menos uma não conseguir escrever a tempo),
+  não ao nível de carga -- ainda não confirmada a nível de SO/rede, fica
+  como próximo passo se o usuário quiser investigar mais fundo.
+
+  Depois de excluir os runs incompletos (lógica já existente na seção 40,
+  automática), a hipótese "RPS agregado é o que importa" se sustenta bem
+  em TODO o grid, incluindo os pontos antes contaminados: agg=256
+  clientes=8 (n=7 válidas) CPU média=47.2% -- praticamente igual às outras
+  decomposições do mesmo agregado (46.1-48.0%); agg=512 clientes=8 (n=8
+  válidas) CPU média=38.9%, um pouco abaixo das outras (41.9-52.3%) mas
+  dentro da mesma faixa, e consistente com seu RPS agregado ALCANÇADO
+  também ser o mais próximo dos vizinhos (397 vs 375-408).
+  graficos_apresentacao/11_clients_rps_invariancia.png regenerado -- as 5
+  curvas ficam visualmente sobrepostas em quase todo o grid.
+
+Próximo passo (combinado com o usuário): disparar run_extra_reps_agg250.py
+  (seção 41, criado mas não executado) agora que este lote terminou.
+
+--------------------------------------------------------------------------------
+43) run_extra_reps_agg250.py concluído -- anomalia reproduz de novo; achado
+    novo: run TOTALMENTE vazio também tem CPU anormal (diferente do
+    parcial); plot_graph4_refined.py corrigido de novo
+--------------------------------------------------------------------------------
+Resultado das 3 execuções extras (rep6-rep8, agg=250 do gráfico 04):
+    rep6: 0/4 threads logaram (mesmo sintoma "totalmente vazio" já visto em
+      agg512_clients2_rep3 e agg256_clients8_rep7 -- seção 39/42)
+    rep7: 4/4 threads, ~180.3s, 0% erro -- normal
+    rep8: 4/4 threads, ~180.6s, 0% erro -- normal
+  Mais 1 reprodução em 3 tentativas -- juntando com a rep1 original,
+  fica em 2 execuções ruins de 8 no total pra esse ponto (25%), a mesma
+  ordem de grandeza da taxa achada na seção 42 para os pontos de 8/16
+  clientes. Reforça a conclusão de lá: não é soluço raro isolado.
+
+Achado novo (importante, corrige uma suposição da seção 41): comparando a
+  série temporal de CPU da rep6 (0 linhas de worker-stop) com a da rep1
+  (3/4 linhas, parcial) -- a rep1 tinha CPU normal (correto assumir fonte
+  não afetada), mas a rep6 tem CPU ANORMAL do início ao fim (fica em
+  ~15-25%, nunca escala, contra ~44-45% esperado pro ponto de 250 -- olha
+  como um run bem mais leve que o normal, não como o baseline saudável com
+  só um problema de log no final). Ou seja: run TOTALMENTE vazio (0
+  linhas) não é só falha de log -- o tráfego real parece não ter sido
+  gerado direito desde o começo. Run PARCIAL (algumas linhas faltando)
+  continua parecendo só falha de log tardio, CPU não afetada.
+
+Corrigido:
+  plot_graph4_refined.py: error_rate_and_quality() agora retorna também
+  fully_empty (bool), separado de suspect (bool) -- runs totalmente vazios
+  são excluídos de TUDO (CPU e erro), runs parciais continuam só excluídos
+  do cálculo de erro (CPU mantida). Coluna nova n_fully_empty_excluded no
+  CSV-resumo, junto com n_error_suspect_excluded (já existia). Antes desse
+  fix, a rep6 (CPU anormal) tinha entrado no cálculo de CPU do ponto de
+  250 e inflado o desvio-padrão de 3.65 (valor correto, depois do fix)
+  para 8.91 -- diagnosticado e corrigido nesta mesma sessão, sem precisar
+  rodar nada de novo (dado já em disco).
+
+Resultado final do gráfico 04 refinado (todos os pontos, 5-8 repetições):
+  CPU sobe de 7.7% (40 agregado) a um platô de 44.6-51.9% entre 250-400,
+  nunca cruza os 60%; CPU do host sobe suave e consistente (5.5%->30.7%);
+  taxa de erro fica desprezível em todos os pontos (<0.06% em todos, sem
+  nenhum pico dominando o eixo). graficos_apresentacao/04_curva_capacidade_REFINADA.png
+  regenerado com o resultado final.
+
+Verificado:
+  - python3 -m py_compile em plot_graph4_refined.py -- sem erro.
+  - Rodado de ponta a ponta, avisos de exclusão (parcial E totalmente
+    vazio) apareceram corretamente no console, PNG e CSV-resumo
+    inspecionados -- desvio-padrão de CPU do ponto 250 voltou a um valor
+    plausível (3.65, em linha com os outros pontos do gráfico).
+
+--------------------------------------------------------------------------------
+44) Relatório consolidado da sessão (Artifact, fora do repo)
+--------------------------------------------------------------------------------
+Publicado um relatório HTML consolidando as seções 36-43 (curva de
+  capacidade refinada, calibração de WU em potência de 2, grid clientes×RPS
+  e a investigação do soluço transitório) a pedido do usuário -- não é um
+  arquivo do repositório, é um Artifact publicado (link entregue ao
+  usuário na conversa). Nenhum código do simulador alterado nesta seção;
+  registrado aqui só para manter o histórico completo da sessão.
+
+--------------------------------------------------------------------------------
+45) plot_graph4_refined.py e plot_clients_rps_invariance.py -- eixo Y da
+    taxa de erro fixado (estava com auto-scale enganoso)
+--------------------------------------------------------------------------------
+Contexto:
+  Usuário notou, olhando o gráfico 11, que o painel de taxa de erro
+  parecia mostrar erro alto e grande variação em alguns pontos (16
+  agregado/8 clientes; 64 agregado) sem nenhum efeito correspondente no
+  painel de CPU ao lado -- e perguntou por que.
+
+Causa (não era bug nos dados, era escala do eixo):
+  Conferido: o maior error_rate_mean em todo o grid clientes×RPS (já
+  limpo dos runs contaminados pelo soluço, seção 42) é 0.11%, e o maior
+  (média+desvio) é 0.26% -- ex.: 16 agregado/8 clientes teve 3 de 5
+  repetições com ZERO erro e 2 com 8 erros cada em ~2.900 requisições OK
+  (0.27-0.28%). O eixo Y desses painéis usava auto-scale do matplotlib,
+  que dava zoom numa faixa de fração de ponto percentual (~-0.05% a
+  0.26%) -- nessa escala, a diferença entre "0 erros" e "8 erros em
+  2.900" vira uma barra de erro gigante visualmente, sem relação com
+  nenhum efeito real de CPU. Mesmo problema conferido e confirmado em
+  plot_graph4_refined.py (maior média+desvio ali: 0.11%).
+
+Corrigido:
+  Eixo Y da taxa de erro fixado em 0-1% (ax2.set_ylim(0, 1.0)) nos dois
+  scripts, em vez de auto-scale -- escala honesta e comparável entre os
+  dois gráficos, deixando visualmente óbvio que a taxa de erro real é
+  desprezível em toda a grade testada (perto de zero, não "alta com
+  grande variação").
+
+Verificado:
+  - python3 -m py_compile nos dois scripts -- sem erro.
+  - Ambos rodados de ponta a ponta (dado já em disco, sem Docker) --
+    painéis de erro inspecionados visualmente, agora ficam achatados perto
+    de zero em toda a faixa, como esperado dado os números reais.
+
+--------------------------------------------------------------------------------
+46) Por que a dispersão aumenta em 256/512 (gráfico 11); novo gráfico
+    plot_individual_client_rps.py -- prova a decomposição por cliente
+    individual (não sobrescreve nem apaga o gráfico 11)
+--------------------------------------------------------------------------------
+Pergunta do usuário: por que os pontos do gráfico 11 (CPU média por
+  decomposição) começam a se dispersar em 256 e principalmente em 512
+  agregado, e se dava pra provar visualmente que a decomposição
+  clientes×RPS foi realizada com o RPS individual esperado por cliente
+  (não só o agregado somado).
+
+Causa raiz da dispersão (RPS agregado ALCANÇADO diverge por decomposição
+  em cargas altas, não é ruído):
+  Calculado achieved_aggregate_mean/target para cada ponto do grid
+  (resumo_clients_rps_grid.csv). Até 128 agregado, todas as decomposições
+  ficam em 95-101% do alvo. A partir de 256, e sobretudo em 512, o déficit
+  cresce e piora quanto MENOS clientes: em 512, 1 cliente atinge só 65%
+  do alvo, 16 clientes atingem 80% -- nenhuma decomposição chega perto de
+  512 de verdade. Confirmado com contagem de portas de origem (mesma
+  técnica da seção 42): agg16/16 clientes usa 22 portas (saudável, ~1 por
+  thread); agg512/1 cliente usa 394 portas para 1 thread só. CONCLUSÃO: é
+  o MESMO mecanismo do soluço transitório (seção 42), só que em versão
+  GRADUAL em vez de catastrófica -- perda progressiva de reaproveitamento
+  de keep-alive conforme a taxa de disparo por conexão sobe, não um
+  interruptor binário. Como a CPU reflete o RPS alcançado (não o alvo), a
+  CPU também diverge nesses pontos -- não é "mais clientes usam mais
+  CPU", é "decomposições com mais clientes mantêm mais conexões vivas e
+  por isso entregam mais RPS de verdade".
+
+Criado (novo gráfico, não mexe no 11):
+  plot_individual_client_rps.py -- lê real_rps por WORKER individual (não
+  só a soma) de normal_traffic_summary_log_*.csv, calcula razão
+  alcançado/alvo por cliente individual, plota média±desvio por
+  decomposição MAIS uma nuvem de pontos de fundo com cada worker
+  individual de cada repetição (prova visual literal de que cada cliente
+  isoladamente ficou perto do seu alvo individual, não só a soma). Mesmo
+  critério de exclusão de run incompleto do gráfico 11. Salva
+  graficos_apresentacao/12_rps_individual_por_cliente.png e
+  experiment_results/clients_rps_grid/resumo_rps_individual.csv.
+  Resultado: curvas e números praticamente idênticos aos do agregado
+  somado (consistência interna confirmada) -- linha de 1 cliente cai a
+  0.65 em 512 agregado, 16 clientes fica em 0.80, as demais decomposições
+  ficam escalonadas entre essas duas, mesmo padrão da tabela de agregado.
+
+Verificado:
+  - python3 -m py_compile plot_individual_client_rps.py -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG e CSV-resumo
+    inspecionados, números batem com resumo_clients_rps_grid.csv.
+
+--------------------------------------------------------------------------------
+47) plot_graph4_pow2_peak.py (novo) -- versão "por pico" do gráfico 04, em
+    potências de 2, reaproveitando o grid clientes×RPS
+--------------------------------------------------------------------------------
+Contexto:
+  Usuário pediu uma versão do gráfico 04 igual ao original (estatística de
+  pico) mas com RPS agregado em potência de 2. O grid clientes×RPS (seção
+  38-42) já cobre exatamente essa faixa (16-512, WU=10, sem ataque -- mesma
+  configuração base do gráfico 04) -- não precisou rodar nada novo, só usar
+  o subconjunto de 4 clientes (mesma convenção de nº de clientes do
+  gráfico 04 original) para manter a comparação 1:1: 5 repetições limpas
+  em cada um dos 6 pontos, nenhuma execução incompleta a excluir.
+
+Criado:
+  plot_graph4_pow2_peak.py -- para cada agregado (16/32/64/128/256/512),
+  calcula o pico de CPU de cada uma das 5 repetições e reporta média dos
+  picos ± desvio-padrão (não o pico de 1 amostra só, como o gráfico
+  original) + a faixa min-max sombreada + % de repetições que de fato
+  dispararam SCALE_UP naquele ponto (reforça a discussão pico vs média
+  desta sessão -- pico alto = escalonamento real, não ruído). Salva
+  graficos_apresentacao/13_curva_capacidade_pico_pow2.png e
+  experiment_results/clients_rps_grid/resumo_graph4_pico_pow2.csv.
+
+Resultado:
+  16/32/64/128 agregado: pico médio 4.5%/7.9%/13.7%/30.5%, 0% das
+  repetições escalou. 256 agregado: pico médio 68.4% (desvio 7.1pp,
+  min-max 59.6-75.6%), 80% das repetições escalou de verdade. 512
+  agregado: pico médio 94.5%, 100% das repetições escalou. A transição do
+  limiar de 60% fica localizada com precisão entre 128 e 256 agregado --
+  mais nítido que o gráfico 04 original, que não tinha ponto nenhum nessa
+  faixa (pulava de 200 para 250/300/400).
+
+Não coberto (fica para se o usuário pedir):
+  RPS agregado = 8 não existe no grid (menor ponto coletado é 16) -- não
+  reaproveitável de dado já existente, precisaria de 5 execuções novas
+  (carga bem leve, rápido).
+
+Verificado:
+  - python3 -m py_compile plot_graph4_pow2_peak.py -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco, sem Docker) -- PNG e
+    CSV-resumo inspecionados.
+
+--------------------------------------------------------------------------------
+48) plot_wu_calibration_instances_pow2.py (novo) -- série temporal de
+    CPU + nº de instâncias, complemento ao gráfico 05
+--------------------------------------------------------------------------------
+Contexto:
+  Discussão com o usuário sobre por que WU=200.000/rps=10 gera bastante
+  erro (1.747) tendo CPU MÉDIA mais baixa que WU=400.000/rps=10 (110% vs
+  193%) -- resposta foi que os dois cruzam o mesmo limiar de sobrecarga no
+  início do ataque (janela de 15-20s antes do autoscaler reagir), só que
+  200k se RECUPERA depois de escalar (CPU volta a 55-130%) e 400k NUNCA se
+  recupera (fica travado em ~185-217% o resto do run) -- a média do run
+  inteiro esconde isso. Usuário pediu um gráfico que deixasse esse
+  mecanismo visível, com informação de nº de instâncias.
+
+Criado:
+  plot_wu_calibration_instances_pow2.py -- grade 3x3 (rps=1/5/10 ×
+  WU=100k/200k/400k), cada painel com a série temporal de CPU média
+  (linha colorida por WU) e nº de instâncias (linha tracejada cinza, eixo
+  direito) ao longo dos 180s, faixa sombreada marcando a janela de ataque
+  (lida direto do dado via label=='attack', não hardcoded de config.py),
+  limiar de 60% marcado, e total de erros daquela combinação no título de
+  cada painel (destacado em vermelho/verde quando >200 erros). Salva
+  graficos_apresentacao/14_wu_calibration_instancias_pow2.png.
+
+Resultado visual: fica nítido nos 3 painéis de rps=10 (linha de baixo) --
+  WU=100.000 sobe a ~155%, cai rápido e fica baixo o resto do tempo, 0
+  erros; WU=200.000 sobe a ~240%, cai depois de escalar mas ainda oscila
+  bastante (55-130%), 1.747 erros; WU=400.000 sobe a ~217% e FICA LÁ,
+  travado, pelo resto dos 180s, 5.035 erros -- confirma visualmente a
+  explicação dada ao usuário.
+
+Verificado:
+  - python3 -m py_compile plot_wu_calibration_instances_pow2.py -- sem
+    erro.
+  - Rodado de ponta a ponta 2x (1ª vez com a legenda cortada embaixo da
+    figura, corrigido aumentando a altura da figura e ajustando
+    bbox_to_anchor/tight_layout) -- PNG final inspecionado, legenda e 9
+    painéis legíveis.
