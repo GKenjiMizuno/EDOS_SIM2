@@ -2060,3 +2060,230 @@ Verificado:
     figura, corrigido aumentando a altura da figura e ajustando
     bbox_to_anchor/tight_layout) -- PNG final inspecionado, legenda e 9
     painéis legíveis.
+
+--------------------------------------------------------------------------------
+49) plot_graph05_pow2_peak.py (novo) -- gráfico 05 potência de 2, versão
+    por PICO (não sobrescreve a versão média)
+--------------------------------------------------------------------------------
+Pedido do usuário: mesmo gráfico 05 pow2, mas com estatística de pico em
+  vez de média (a versão que já existe, 05_wu_calibration_resumo_POW2.png).
+  Criado plot_graph05_pow2_peak.py, mesma estrutura de
+  plot_graph05_pow2.py trocando mean_cpu()->peak_cpu() (df.max() em vez de
+  df.mean()), salvo como graficos_apresentacao/15_wu_calibration_resumo_pico_pow2.png
+  (arquivo novo, não mexe nos outros 2 gráficos 05).
+
+Resultado (1 amostra/ponto, mesma limitação do gráfico 05 original -- sem
+  repetição neste dado):
+    rps=1:  WU=100k pico=33.6  WU=200k pico=30.5  WU=400k pico=66.1
+    rps=5:  WU=100k pico=74.3  WU=200k pico=134.9 WU=400k pico=205.2
+    rps=10: WU=100k pico=156.4 WU=200k pico=239.4 WU=400k pico=216.2
+  Nota: em rps=10, WU=200.000 (239.4) volta a superar WU=400.000 (216.2)
+  no pico -- é a MESMA inversão discutida no início desta sessão (seção
+  "por que o verde ultrapassa o vermelho"), esperada e não é bug: pico é
+  sensível ao timing da transição de SCALE_UP (janela de 2 instâncias),
+  não ao nível sustentado -- reaparece aqui porque este gráfico usa pico
+  de propósito, a pedido do usuário, para comparação com o estilo do
+  gráfico 05 original.
+
+Verificado:
+  - python3 -m py_compile plot_graph05_pow2_peak.py -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG inspecionado.
+
+--------------------------------------------------------------------------------
+50) plot_graph4_reproducibilidade_refinada.py (novo) -- gráfico 04 original
+    (por pico) refeito com o dado completo, sem os marcadores especiais
+    de 250/300
+--------------------------------------------------------------------------------
+Pedido do usuário: refazer o gráfico 04 original (04_curva_capacidade_reproducibilidade.png,
+  estatística de pico) usando o dado completo já coletado (5-8 repetições
+  por ponto de run_graph4_refined.py, seção 37/41/43), removendo os
+  marcadores especiais de 250 (X vermelho, 3 reps) e 300 (losango
+  amarelo, reexecução) -- esses só existiam porque, na época, só esses 2
+  pontos tinham repetição; agora todo ponto tem, então uma curva única e
+  consistente é mais correta que destacar 2 pontos.
+
+Criado:
+  plot_graph4_reproducibilidade_refinada.py -- mesmo critério de exclusão
+  de run totalmente vazio da seção 43 (CPU genuinamente anormal nesses
+  casos, não só falha de log), calcula pico por repetição e reporta
+  média±desvio + faixa min-max sombreada, uma cor só, sem destaque
+  especial por ponto. Salvo graficos_apresentacao/16_curva_capacidade_reproducibilidade_refinada.png
+  -- não sobrescreve o gráfico original nem o _REFINADA (por média).
+
+Resultado: curva sobe suave de 10.0% (40 agregado) a 93.8% (400 agregado),
+  cruzando o limiar de 60% por volta de 200 agregado (pico médio 58.9%,
+  min-max 49.9-71.6% -- a única repetição que cruza os 60% de verdade
+  ali, dentro da faixa observada). Bem mais legível que o gráfico
+  original: uma curva só, sem inversão nem destaque de pontos isolados,
+  com barra de erro real em todo ponto.
+
+Verificado:
+  - python3 -m py_compile plot_graph4_reproducibilidade_refinada.py -- sem
+    erro.
+  - Rodado de ponta a ponta (dado já em disco) -- aviso de exclusão da
+    rep6/250 (já conhecida, seção 43) apareceu corretamente; PNG
+    inspecionado.
+
+--------------------------------------------------------------------------------
+51) Relatório consolidado (Artifact) atualizado com gráficos 12-16 e
+    avaliação para o TCC
+--------------------------------------------------------------------------------
+Usuário pediu material pra apresentar progresso ao orientador. Atualizado
+  o mesmo Artifact da seção 44 (mesmo link) com: explicação host vs.
+  container CPU (seção 01), seção nova de validação cruzada por pico
+  (gráficos 13 e 16, tabela dos 12 pontos combinados), seção nova do
+  mecanismo de fila/recuperação (gráfico 14, menção ao gráfico 15 como
+  reprodução esperada do artefato de pico), seção "Estado atual" reescrita
+  respondendo diretamente as 2 perguntas centrais (RPS agregado importa? /
+  dá pra explicar o limite do simulador -- 3 mecanismos distintos), e
+  seção nova "Base científica para o TCC" com avaliação e sugestões de
+  melhoria. Nenhum código do simulador alterado; registrado só para manter
+  o histórico completo da sessão.
+
+--------------------------------------------------------------------------------
+52) plot_grid_heatmap.py (novo) -- heatmap agregado×clientes, visualização
+    célula a célula do grid inteiro
+--------------------------------------------------------------------------------
+Usuário pediu uma visualização que mostrasse o grid inteiro (todas as 30
+  células, agregado × clientes) de uma vez, célula a célula, complementar
+  às linhas resumidas do gráfico 11. Criado plot_grid_heatmap.py -- lê
+  resumo_clients_rps_grid.csv (já calculado, nenhum experimento novo),
+  monta uma matriz 6x5 (linhas=RPS agregado 16-512, colunas=nº de
+  clientes 1/2/4/8/16), cor + texto = CPU média do container em cada
+  célula. Salvo graficos_apresentacao/17_grid_heatmap_cpu.png.
+
+Resultado: linhas de 16 a 128 ficam visualmente uniformes (variação
+  <1 ponto percentual entre colunas da mesma linha) -- confirma a
+  hipótese de forma direta e literal (mesma linha = mesma cor,
+  independente da coluna). Linha de 256 quase uniforme (45.2-48.0%).
+  Linha de 512 mostra gradiente visível (52.3% em 1 cliente até 38.9% em
+  8 clientes) -- é a mesma ressalva já documentada (seção 46), agora
+  visível de forma direta numa única imagem.
+
+Verificado:
+  - python3 -m py_compile plot_grid_heatmap.py -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG inspecionado.
+
+Ajuste seguinte (mesmo item 52): usuário pediu para adicionar o RPS/cliente
+  em cada célula do heatmap, não só o agregado (que já estava nos eixos).
+  Anotação de cada célula agora tem 2-3 linhas: CPU%, "N rps/cli"
+  (calculado como agregado/clientes daquela célula, a decomposição real
+  usada naquela execução) e, quando a contagem de repetições válidas é
+  diferente de 5, "(n=N)". Reexecutado (dado já em disco) e PNG
+  reinspecionado.
+
+--------------------------------------------------------------------------------
+53) Relatório consolidado (Artifact) atualizado com o gráfico 17 (heatmap)
+--------------------------------------------------------------------------------
+Adicionado o gráfico 17 (heatmap agregado×clientes, seção 52) na seção
+  "RPS agregado é o que importa?" do relatório consolidado (mesmo link da
+  seção 44/51), logo depois do gráfico 12, com um parágrafo explicando a
+  leitura ("cada linha deveria ter cor uniforme"). Nenhum código do
+  simulador alterado.
+
+--------------------------------------------------------------------------------
+54) plot_graph4_reproducibilidade_refinada.py -- gráfico 16 refinado com
+    marcação de SCALE_UP real por repetição
+--------------------------------------------------------------------------------
+Contexto: usuário perguntou por que o desvio-padrão do gráfico 16 é alto
+  em 200/250 agregado e cai em 300 -- resposta (dada em chat, ver
+  histórico): em 200, 3 de 5 repetições nunca escalaram (pico 50-55%) e 2
+  escalaram (pico 63-72%) -- é uma mistura de 2 comportamentos diferentes,
+  não ruído em torno de 1 comportamento só. Em 250, 6 de 8 escalaram, 2
+  não. Em 300, as 5 de 5 escalam sempre, sempre 3 vezes -- comportamento
+  uniforme, desvio baixo. Pedido: refinar o gráfico pra mostrar isso
+  visualmente, de forma simples.
+
+Alterado:
+  plot_graph4_reproducibilidade_refinada.py -- para cada repetição
+  individual, verifica se `decision=='SCALE_UP'` aconteceu de verdade em
+  algum tick daquele run, e plota um ponto (verde preenchido = escalou,
+  cinza vazado = não escalou) além da linha de média±desvio já existente.
+  Anota "N/total escalou" acima de cada agregado. Mesmo arquivo de saída
+  (16_curva_capacidade_reproducibilidade_refinada.png), não criou gráfico
+  novo -- é um refinamento do mesmo.
+
+Resultado: fica visualmente óbvio que 200 e 250 agregado têm pontos
+  cinzas e verdes misturados (às vezes escala, às vezes não -- por isso o
+  desvio alto), enquanto 40/100 (nunca escala) e 300/400 (sempre escala)
+  ficam com pontos de uma cor só (desvio baixo nos dois extremos, alto só
+  na transição).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado 2x (1ª vez com anotação "2.0/5.0 escalou", corrigido pra
+    "2/5" com formatação :.0f) -- PNG final inspecionado.
+
+--------------------------------------------------------------------------------
+55) plot_graph4_reproducibilidade_media_scaleup.py (novo) -- gráfico 18,
+    mesma estrutura do gráfico 16 (16 clientes fixo, colorido por
+    SCALE_UP real) mas com CPU MÉDIA em vez de pico -- pra comparação lado
+    a lado
+--------------------------------------------------------------------------------
+Contexto: depois de explicar por que execuções que escalam têm pico alto
+  (o pico É o instante que disparou o escalonamento, não um efeito
+  colateral dele -- causa e efeito), usuário pediu a mesma estrutura de
+  gráfico (pontos coloridos por SCALE_UP real) só que usando CPU MÉDIA da
+  execução inteira em vez de pico, pra comparar visualmente os dois
+  pontos de vista lado a lado.
+
+Criado: plot_graph4_reproducibilidade_media_scaleup.py, cópia estrutural
+  de plot_graph4_reproducibilidade_refinada.py trocando pico por média
+  (mesmo critério de exclusão de run vazio das seções 43/54). Salvo
+  graficos_apresentacao/18_curva_capacidade_reproducibilidade_media_scaleup.png
+  -- não sobrescreve o gráfico 16.
+
+Resultado (confirma a expectativa): por média, os pontos verdes
+  (escalou) e cinzas (não escalou) ficam completamente misturados em
+  TODOS os agregados, sem separação visível -- diferente do gráfico 16
+  por pico, onde ficavam claramente separados em 200/250. A curva de
+  média nem chega perto do limiar de 60% (máximo ~52-57% em 400
+  agregado), porque a média dilui o pico pontual que disparou o
+  escalonamento dentro dos 180s inteiros. Confirma visualmente, numa
+  comparação direta e lado a lado, a explicação de causa/efeito dada ao
+  usuário.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG inspecionado.
+
+--------------------------------------------------------------------------------
+56) plot_host_saturacao_prova.py (novo) -- prova direta de que o erro
+    catastrófico coincide com a saturação real dos 8 núcleos do host
+--------------------------------------------------------------------------------
+Usuário pediu um gráfico que comprovasse a teoria "o erro explode quando
+  bate no teto de 8 núcleos do host" (estrutural: MAX_INSTANCES=4 ×
+  INSTANCE_MAX_CONCURRENT_REQUESTS=2 = 8, coincidindo com nproc=8).
+  Único conjunto de dados com host_cpu_percent E ataque pesado o
+  suficiente para testar isso é wu_calibration/WU=400000 (coletado depois
+  da seção 37) -- os 3 níveis de rps/atacante (1/5/10).
+
+Criado: plot_host_saturacao_prova.py -- plota host_cpu_percent (não
+  container) ao longo do tempo, 1 linha por rps/atacante, com o total de
+  erros de cada uma na legenda, e linha de referência em 100% ("os 8
+  núcleos saturados"). Salvo graficos_apresentacao/19_host_saturacao_prova.png.
+
+Resultado (prova direta, tipo dose-resposta):
+    rps=1  -- host fica em ~10-14% o tempo todo -- 3 erros
+    rps=5  -- host sobe a 80-91% mas oscila, nunca gruda no teto -- 71 erros
+    rps=10 -- host GRUDA em 99-100% a partir de t=80s até o fim -- 5.035 erros
+  A única linha que satura de verdade em ~100% (todos os 8 núcleos
+  lógicos ocupados, sem folga, por >80s seguidos) é exatamente a que tem
+  o colapso catastrófico de erro -- correlação direta entre saturação
+  real do host e explosão de erro, não só coincidência de nível de carga.
+
+Verificado:
+  - python3 -m py_compile plot_host_saturacao_prova.py -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG inspecionado.
+
+--------------------------------------------------------------------------------
+57) Relatório consolidado (Artifact) atualizado com os gráficos 18 e 19
+--------------------------------------------------------------------------------
+Adicionado o gráfico 18 (mesma estrutura do 16, por média, seção 55) logo
+  depois do gráfico 16 na seção de validação cruzada por pico, com
+  parágrafo explicando a mistura de pontos verde/cinza. Adicionado o
+  gráfico 19 (prova de saturação do host, seção 56) na seção do mecanismo
+  do limite, depois do callout do gráfico 15, amarrando de volta ao
+  argumento estrutural da seção 01 (MAX_INSTANCES×INSTANCE_MAX_CONCURRENT_REQUESTS=8
+  = nproc). Mesmo link do Artifact (seção 44/51/53). Nenhum código do
+  simulador alterado.
