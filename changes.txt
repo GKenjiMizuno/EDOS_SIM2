@@ -2287,3 +2287,473 @@ Adicionado o gráfico 18 (mesma estrutura do 16, por média, seção 55) logo
   argumento estrutural da seção 01 (MAX_INSTANCES×INSTANCE_MAX_CONCURRENT_REQUESTS=8
   = nproc). Mesmo link do Artifact (seção 44/51/53). Nenhum código do
   simulador alterado.
+
+--------------------------------------------------------------------------------
+58) Lote de 6 tarefas combinado com o usuário -- 4 rápidas (feitas) + 2
+    lotes grandes de Docker (disparados em background)
+--------------------------------------------------------------------------------
+Tarefa 1 -- gráfico 14: "erro"->"timeout" + porcentagem
+  Alterado plot_wu_calibration_instances_pow2.py: título de cada painel
+  agora mostra "N timeouts (X.X%)" em vez de "N erros" -- taxa calculada
+  como errors/(total_requests+errors) do attack_summary_log, mesma
+  convenção usada no resto da sessão. PNG regenerado.
+
+Tarefa 2 -- novo gráfico: pico só ANTES do primeiro escalonamento
+  Criado plot_graph4_pico_pre_escalonamento.py: usa o mesmo dado do
+  gráfico 16, mas corta cada repetição na linha do 1º SCALE_UP (inclusive)
+  em vez de usar o pico do run inteiro -- percebido que o pico do run
+  inteiro às vezes vem de um SEGUNDO evento de escalonamento tardio (ex.:
+  agg200 rep1 escalou em t=5s [pico 65%] E de novo em t=170s [pico 71.6%,
+  o maior dos dois]), então "pico do run inteiro" nem sempre é "pico que
+  causou o PRIMEIRO SCALE_UP". Salvo
+  graficos_apresentacao/20_pico_pre_escalonamento_1_instancia.png.
+  Resultado: valores um pouco mais baixos e com desvio um pouco menor que
+  o gráfico 16 em 200-300 agregado (ex.: 250 cai de 72.8%±7.7 pra
+  66.2%±4.7), como esperado ao isolar só a janela de 1 instância.
+
+Tarefa 3 -- gráfico 17: barra de cor invertida + nº máximo de instâncias
+  Alterado plot_grid_heatmap.py: cbar.ax.invert_yaxis() (maior calor
+  embaixo da barra, menor em cima -- não muda o mapeamento cor<->valor,
+  só a orientação visual da legenda) + cada célula ganhou uma 3ª linha de
+  anotação "máx N inst." (maior nº de instâncias visto entre as
+  repetições daquela célula, calculado direto dos CSVs brutos, não
+  estava no resumo). PNG regenerado -- revela, por ex., que em 512
+  agregado "1 cliente" só chegou a 2 instâncias enquanto "4/8 clientes"
+  chegaram a 3 -- consistente com menos clientes = menos RPS alcançado =
+  menos pressão de escalonamento (seção 46).
+
+Tarefa 4 -- novo heatmap estilo 17, com dado de ataque (wu_calibration,
+  já existente, nenhum experimento novo)
+  Criado plot_grid_heatmap_ataque.py: linhas=rps/atacante, colunas=WU,
+  cor=CPU média (janelas de ataque), cada célula anota CPU%, RPS agregado
+  (rps×4 atacantes), taxa de timeout, e nº máximo de instâncias. Salvo
+  graficos_apresentacao/21_grid_heatmap_ataque.png. Só 1 amostra/célula
+  (mesma limitação do wu_calibration original) -- rotulado como
+  descritivo, não teste de invariância (diferente do 17, aqui rps E WU
+  contribuem pra severidade, não dá pra esperar linha uniforme).
+
+Tarefa 5 -- ajuste de código + ataque isolado (sem tráfego normal)
+  Alterado normal_traffic.py: start_http_traffic() agora retorna sem
+  iniciar nenhuma thread se rps_per_worker_override<=0 ou
+  num_clients_override<=0, em vez de cair no fallback de
+  normal_http_request_worker (sleep_duration=1.0s fixo), que ainda gerava
+  ~1 req/s por cliente mesmo com --normal-rps 0 -- esse fallback existe
+  faz tempo pra evitar ZeroDivisionError, mas nunca tinha sido usado pra
+  desligar tráfego normal de propósito antes. Testado isoladamente
+  (--normal-rps 0, --duration 15) -- confirmado "[Normal_Injector] ...
+  tráfego normal desligado de propósito, não iniciado", nenhuma thread
+  criada. Artefatos do teste apagados depois de conferidos.
+  Criado run_ataque_isolado.py (9 execuções: rps=1/5/10 × WU=100k/200k/400k,
+  --normal-rps 0, mesmos parâmetros de rps/WU/duração do gráfico 14) e
+  plot_ataque_isolado.py (mesma estrutura do gráfico 14, lendo
+  experiment_results/ataque_isolado/, salva
+  graficos_apresentacao/22_ataque_isolado_instancias.png) -- pra comparar
+  lado a lado com o gráfico 14 (que sempre teve 40 agregado de tráfego
+  normal padrão junto, sem ninguém ter pedido isso).
+
+Tarefa 6a -- completar a série do gráfico 16/18/20 pra 10 repetições/ponto
+  Criado run_graph4_completar_150_350.py: +5 repetições nos 6 pontos já
+  existentes (40/100/200/300/400: rep1-5 -> rep1-10; 250: rep1-8 ->
+  rep1-13) e 2 pontos novos, 150 e 350, com 10 repetições cada (rep1-10).
+  Mesma metodologia/diretório/convenção de nome de run_graph4_refined.py.
+  45 execuções novas. AGGREGATE_TARGETS atualizado em
+  plot_graph4_reproducibilidade_refinada.py,
+  plot_graph4_reproducibilidade_media_scaleup.py e
+  plot_graph4_pico_pre_escalonamento.py para incluir 150 e 350.
+
+Tarefa 6b -- série nova em potência de 2 (base 20)
+  Criado run_graph4_pow2_base20.py: 20, 80, 160, 320, 640 (10 repetições
+  cada, 50 execuções novas) -- "40" reaproveitado da tarefa 6a (mesmo
+  arquivo/convenção, decisão do usuário), não roda de novo. Criado
+  plot_graph4_pow2_base20.py: mesma estrutura do gráfico 16 (pico por
+  repetição, colorido por SCALE_UP real), eixo X em escala log2,
+  aggregate targets [20,40,80,160,320,640]. Salvo
+  graficos_apresentacao/23_curva_capacidade_pow2_base20.png.
+
+Encadeamento: criado run_all_pipeline_v2.py -- roda em sequência
+  run_ataque_isolado.py -> plot_ataque_isolado.py ->
+  run_graph4_completar_150_350.py -> replot dos 3 gráficos 16/18/20 ->
+  run_graph4_pow2_base20.py -> plot_graph4_pow2_base20.py, parando tudo se
+  qualquer etapa falhar. Total: 9+45+50=104 execuções novas, ~7-8h
+  estimadas. Disparado em background (run_in_background nativo) logo após
+  este registro.
+
+Verificado:
+  - python3 -m py_compile em todos os arquivos novos/alterados desta seção
+    -- sem erro.
+  - Tarefas 1-4 rodadas de ponta a ponta (dado já em disco, sem Docker) --
+    4 PNGs inspecionados visualmente.
+  - Ajuste de normal_traffic.py testado isoladamente antes de disparar o
+    lote grande (ver acima).
+  - Lote de Docker (tarefas 5/6a/6b) ainda rodando no momento deste
+    registro -- resultado a conferir quando o pipeline terminar.
+
+--------------------------------------------------------------------------------
+59) Pipeline v2 (seção 58) concluído -- 104/104 execuções, sem falha
+--------------------------------------------------------------------------------
+PIPELINE_COMPLETO. Tarefa 5 (9 execuções, ~28min), tarefa 6a (50
+  execuções -- corrigindo a seção 58: são 6 pontos×5 + 2×10 = 50, não 45
+  como escrito lá por engano) e tarefa 6b (50 execuções) rodaram sem
+  nenhuma falha. ~5h40 no total (20:37 a 02:17).
+
+Resultado gráfico 16 (agora com 40/100/150/200/250/300/350/400, 9-13
+  reps/ponto): zona de transição fica bem mais resolvida --
+  40:0/10, 100:0/10, 150:2/10, 200:3/10, 250:11/12, 300:10/10, 350:9/9,
+  400:10/10 repetições escalando. 150 confirma um novo ponto intermediário
+  genuíno na zona de transição (antes só tínhamos 100 e 200 nessa região).
+
+Resultado gráfico 23 (pow2 base 20, novo): 20/40/80 -- 0/10 escala; 160 --
+  2/10 (mesma zona de transição); 320 -- 10/10 escala, desvio alto
+  (89.8%±13.8); 640 -- 7/7 válidas escalam, desvio muito alto
+  (97.6%±17.0), com 3 de 10 repetições excluídas por soluço transitório
+  (30% de taxa nesse ponto -- mais uma reprodução do fenômeno, dessa vez
+  no extremo superior da faixa testada).
+
+Resultado tarefa 5 (ataque isolado, sem tráfego normal) -- ACHADO NÃO
+  ESPERADO, precisa de mais dado antes de concluir algo: comparando com o
+  wu_calibration original (mesmos rps/WU, mas COM 40 agregado de tráfego
+  normal padrão):
+    rps=5  WU=400000: isolado=1.133 timeouts (42.3%) vs combinado=71 erros
+    rps=10 WU=200000: isolado=845 timeouts (15.4%) vs combinado=1.747 erros
+    rps=10 WU=400000: isolado=5.349 timeouts (97.8%) vs combinado=5.035 erros
+  Não é uma direção consistente (às vezes isolado piora bastante, às vezes
+  melhora) -- e como AMBOS os lados dessa comparação são de 1 amostra só
+  (wu_calibration original nunca teve repetição, e ataque_isolado também
+  rodou só 1 rep por célula, mesma convenção), não dá pra distinguir ainda
+  se isso é um efeito real de "tráfego normal muda a dinâmica do ataque"
+  ou só a mesma variância de amostra única (ou até soluço transitório) já
+  documentada exaustivamente nesta sessão. Fica como hipótese em aberto,
+  não como conclusão -- precisaria de repetições dos dois lados pra
+  confirmar.
+
+Verificado:
+  - Todos os 3 scripts de replot (16/18/20) e o plot da tarefa 6b rodaram
+    sem erro, tabelas impressas conferidas linha a linha.
+  - graficos_apresentacao/16, /18, /20, /22, /23 inspecionados
+    visualmente.
+  - Contagem de arquivos finais em experiment_results/normal_baseline/
+    conferida por agregado -- bate exatamente com o planejado (10 cada,
+    13 em 250).
+
+--------------------------------------------------------------------------------
+60) Investigação do "isolado pior que combinado" (não resolvida, mas
+    esclarecida) + plot_normal_referencia.py (novo, painel único)
+--------------------------------------------------------------------------------
+Usuário notou (corretamente) que "isolado" ter comportamento pior que
+  "combinado" é contraintuitivo -- isolado tem, em tese, MENOS carga total
+  (só ataque, sem o tráfego normal extra por cima). Investigado a fundo:
+
+  - Comparando CPU do HOST (não só contagem de erro) célula a célula:
+    rps=5/WU=400k -- isolado fica saturado (host>=90%) em 17/36 janelas
+    (47%) contra só 1/28 (4%) no combinado, mesmo com a média geral de
+    host quase idêntica (67.3% vs 67.4%) -- a diferença é a FORMA da
+    curva (isolado trava no topo por muito mais tempo), não o nível médio.
+    Em rps=10/WU=400k a direção INVERTE (combinado mais saturado: 64% vs
+    56% das janelas). Em rps=10/WU=200k não dá pra comparar CPU do host --
+    o arquivo original do wu_calibration é de antes da coluna existir.
+  - Não foi encontrado nenhum mecanismo técnico plausível pelo qual
+    REMOVER tráfego normal (WU=10, ~40.000x mais leve que WU=400.000)
+    pioraria o ataque -- tráfego normal não disputa de forma relevante os
+    2 slots de processamento por container. A ausência de mecanismo é, em
+    si, evidência a favor da hipótese alternativa (abaixo), não de um
+    efeito causal real.
+  - Achado decisivo: os dois lados da comparação foram coletados com
+    **15 dias de diferença** (wu_calibration original: 19/ago;
+    ataque_isolado: 02/set) -- exatamente o tipo de intervalo em que este
+    projeto já documentou (RESUMO_MADRUGADA_12_08.txt, seção 3.2) variação
+    de ambiente WSL2/Docker sessão a sessão, sem relação com o parâmetro
+    testado. O próprio gráfico 23 (coletado nesta mesma sessão) mostra
+    desvio de até ±17pp e até 30% de soluço em cargas comparáveis, mesmo
+    SEM trocar o dia da coleta.
+  - CONCLUSÃO (não fechada): o padrão observado é real e mensurável nesse
+    par específico, mas atribuir a causa a "ausência de tráfego normal" em
+    vez de "sessões diferentes, 15 dias de intervalo" não tem sustentação
+    -- falta o experimento de desempate (combinado vs. isolado, MESMA
+    sessão, com repetições) para decidir. Proposto ao usuário, ainda não
+    executado.
+
+Criado: plot_normal_referencia.py -- painel único (não uma grade 3x3,
+  porque tráfego normal isolado não tem eixo rps/WU de ataque pra variar:
+  é um cenário fixo, HTTP_NORMAL_RPS_PER_CLIENT=10 × HTTP_NORMAL_NUM_CLIENTS=4
+  = 40 agregado, NORMAL_WORK_UNITS=10), mesmo estilo visual dos gráficos
+  14/22 (CPU + nº de instâncias), usando rep1 de
+  experiment_results/normal_baseline/metrics_normal_agg40_WU10_refined_rep1.csv
+  (dado já existente, nenhum experimento novo). Salvo
+  graficos_apresentacao/24_normal_referencia_instancias.png -- pedido do
+  usuário de ter o "terceiro" cenário (normal) no mesmo estilo visual dos
+  outros dois (combinado=14, isolado=22), pra comparação completa dos 3.
+
+Verificado:
+  - python3 -m py_compile plot_normal_referencia.py -- sem erro.
+  - Rodado 2x (1ª vez com legenda cortada embaixo da figura, corrigido
+    aumentando a altura da figura e ajustando bbox_to_anchor/tight_layout,
+    mesmo tipo de fix da seção 48) -- PNG final inspecionado, achatado e
+    baixo o tempo todo, como esperado (0 timeouts, nunca escala).
+
+--------------------------------------------------------------------------------
+61) plot_comparacao_completa.py (novo) -- figura única com os 3 cenários
+--------------------------------------------------------------------------------
+Pedido do usuário: juntar normal (24)/combinado (14)/isolado (22) numa
+  figura só. Criado plot_comparacao_completa.py -- painel único do normal
+  no topo (GridSpec, sem repetir 3x já que não tem eixo rps/WU) + grade de
+  18 painéis abaixo (3 rps × 3 WU × 2 condições), cada par
+  COMBINADO/ISOLADO do mesmo rps/WU empilhado verticalmente pra comparação
+  direta. Reaproveita os 3 conjuntos de dados já existentes, nenhum
+  experimento novo. Salvo graficos_apresentacao/25_comparacao_completa_instancias.png.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta -- aviso de tight_layout com eixos "off"
+    (decorativos, pra preencher os cantos do topo) não afeta o resultado
+    visual, PNG inspecionado, os 19 painéis renderizam corretamente.
+
+--------------------------------------------------------------------------------
+62) Experimento de desempate combinado × isolado (seção 60) -- disparado
+--------------------------------------------------------------------------------
+Pedido do usuário: investigar a fundo a discrepância da seção 60 rodando
+  combinado e isolado NA MESMA SESSÃO, com repetições, pra separar efeito
+  real de deriva de sessão/ambiente (as coletas comparadas antes tinham 15
+  dias de diferença).
+
+Criado:
+  - run_desempate_combinado_isolado.py: rps={5,10} × WU={100k,200k,400k}
+    (rps=1 excluído -- já mostrou comportamento trivial idêntico nos dois
+    lados antes, não justifica o tempo de Docker) × 5 repetições ×
+    2 condições (combinado: --normal-rps 10, default; isolado:
+    --normal-rps 0) -- 60 execuções. Ordem INTERCALADA por repetição
+    (combinado rep1, isolado rep1, combinado rep2, isolado rep2, ...)
+    dentro de cada célula, pra controlar também deriva de curto prazo
+    dentro da própria sessão, não só entre sessões. Salva em
+    experiment_results/desempate_combinado_isolado/.
+  - plot_desempate_combinado_isolado.py: por célula, média±desvio de (a)
+    taxa de timeout e (b) fração de janelas com CPU do host ≥90%, gráfico
+    de barras com barra de erro lado a lado (combinado vs isolado) pras
+    duas métricas -- se as barras de erro se sobrepõem, a diferença é
+    compatível com ruído; se ficarem separadas mesmo na mesma sessão, é
+    evidência de efeito real. Salva
+    graficos_apresentacao/26_desempate_combinado_isolado.png e
+    experiment_results/desempate_combinado_isolado/resumo_desempate.csv.
+  - run_all_desempate.py: encadeia os dois scripts acima, para se
+    qualquer etapa falhar.
+
+Verificado:
+  - python3 -m py_compile nos 3 scripts -- sem erro.
+  - Disparado em background (run_in_background nativo) logo após este
+    registro -- 60 execuções, ~3-3.5h estimadas. Resultado a conferir
+    quando terminar.
+
+--------------------------------------------------------------------------------
+63) Desempate combinado × isolado (seção 62) concluído -- VEREDITO: a
+    discrepância da seção 60 NÃO se repete na mesma sessão
+--------------------------------------------------------------------------------
+60/60 execuções sem falha (~3h09, 09:22 a 12:32). Resultado
+  (resumo_desempate.csv, gráfico 26):
+
+    rps=5  WU=100k:  combinado=0.15%±0.11  isolado=0.21%±0.15  -- iguais
+    rps=5  WU=200k:  combinado=0.10%±0.12  isolado=0.13%±0.11  -- iguais
+    rps=5  WU=400k:  combinado=34.1%±8.2   isolado=9.3%±19.2   -- ver abaixo
+    rps=10 WU=100k:  combinado=0.02%±0.05  isolado=0.05%±0.05  -- iguais
+    rps=10 WU=200k:  combinado=24.5%±5.1   isolado=23.6%±3.5   -- iguais
+    rps=10 WU=400k:  combinado=97.3%±0.3   isolado=96.8%±0.4   -- iguais
+
+  4 das 6 células ficam estatisticamente indistinguíveis (barras de erro
+  totalmente sobrepostas) -- inclusive rps=10/WU=200k, que na comparação
+  original (sessões de 15 dias de diferença) tinha mostrado 1.747 vs 845
+  erros (2x), e agora dá 24.5% vs 23.6% (praticamente igual) com dado da
+  mesma sessão.
+
+  A única célula com diferença de médias (rps=5/WU=400k) na verdade
+  INVERTEU de direção em relação à comparação original: antes isolado
+  tinha MAIS erro (42.3% vs 2.6%); agora, com repetição, é o COMBINADO que
+  tem mais erro na média (34.1% vs 9.3%) -- e o isolado tem desvio-padrão
+  (19.2) quase do tamanho da própria média, sinal claro de que essa célula
+  específica está numa zona de transição instável (mesmo fenômeno já
+  documentado pra 150-250 agregado no tráfego normal, seção 59/63) --
+  varia muito de repetição pra repetição independente da condição, não é
+  um efeito estável de "ter ou não tráfego normal".
+
+  CONCLUSÃO FECHADA: a discrepância observada na seção 60 era mesmo
+  deriva de sessão/ambiente (15 dias de intervalo entre as coletas
+  originais), não um efeito causal real da presença/ausência de tráfego
+  normal -- confirmado experimentalmente, não só por falta de mecanismo
+  plausível. Reforça a lição geral desta sessão inteira: comparações de
+  amostra única, ainda mais entre datas diferentes, não são confiáveis
+  neste simulador -- repetição na MESMA sessão é necessária pra qualquer
+  conclusão causal.
+
+Verificado:
+  - python3 plot_desempate_combinado_isolado.py rodado sem erro (dentro
+    do pipeline), tabela e gráfico inspecionados.
+  - graficos_apresentacao/26_desempate_combinado_isolado.png confirma
+    visualmente: barras de erro sobrepostas em 5 das 6 células (a 6ª,
+    rps=5/WU=400k, tem barra do isolado gigante, consistente com zona de
+    transição instável, não com efeito sistemático).
+
+--------------------------------------------------------------------------------
+64) "Isolado não diminui a CPU depois de escalar" -- checado e refutado
+    com repetição; plot_comparacao_completa_v2.py (novo, gráfico 27, NÃO
+    substitui o 25)
+--------------------------------------------------------------------------------
+Usuário notou que, no gráfico 25 (amostra única antiga), a curva do
+  isolado em rps=5/WU=400k parecia nunca cair depois de escalar pra 4
+  instâncias, enquanto a do combinado caía -- contraintuitivo, já que mais
+  instância deveria sempre reduzir CPU.
+
+Checado com as 5 repetições do desempate (seção 62/63): comparando CPU
+  média na fase de rampa (2-3 instâncias, t<=65s) vs. fase estável (4
+  instâncias, t>65s), a CPU cai da rampa pra fase estável em TODAS as 10
+  repetições (5 combinado + 5 isolado) -- sem exceção. O padrão "isolado
+  não cai" do gráfico 25 era específico daquela ÚNICA amostra antiga (a
+  mesma de 15 dias atrás), não uma característica real da condição
+  isolado -- mais uma confirmação de que amostra única engana mesmo numa
+  série temporal, não só em contagem de erro.
+
+Criado (não sobrescreve plot_comparacao_completa.py / gráfico 25):
+  plot_comparacao_completa_v2.py -- mesma estrutura da v1, mas pras
+  células cobertas pelo desempate (rps=5 e rps=10, os 3 WU) plota as 5
+  repetições sobrepostas (linhas finas, alpha reduzido) em vez de 1 linha
+  só, com o timeout no título como média±desvio (n=5) em vez de valor
+  único. rps=1 (não coberto pelo desempate) e o painel de normal
+  continuam com amostra única (rotulado explicitamente "amostra única" no
+  título, pra não confundir com as células com repetição). Salvo
+  graficos_apresentacao/27_comparacao_completa_v2.png.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco, sem Docker) -- PNG
+    inspecionado: nas células rps=5/10, as 5 linhas de cada condição
+    aparecem espalhadas de forma parecida nos dois lados (combinado e
+    isolado), sem o padrão "uma condição sempre no topo" que a amostra
+    única antiga sugeria -- confirma visualmente a checagem numérica
+    acima.
+
+--------------------------------------------------------------------------------
+65) plot_comparacao_completa_v2.py (mesmo gráfico 27, atualizado in-place)
+    -- 1 repetição representativa em vez de 5 linhas sobrepostas
+--------------------------------------------------------------------------------
+Pedido do usuário: a versão com as 5 linhas sobrepostas ficou poluída --
+  trocar por 1 linha só por painel nas células rps=5/10, escolhida por
+  critério objetivo (não a melhor nem a pior, a mais "típica"). Dessa vez
+  o usuário pediu "atualize" (não "crie um novo") -- interpretado como
+  atualizar o gráfico 27 em vez de criar um 28, diferente do padrão
+  anterior desta sessão.
+
+Alterado: plot_comparacao_completa_v2.py -- para cada célula com desempate,
+  calcula a taxa de timeout das 5 repetições, acha a MEDIANA, e escolhe
+  pra plotar a repetição cujo valor fica mais perto dela (critério
+  objetivo, não escolha visual). Título de cada painel agora mostra
+  "repN (mais próx. da mediana)" além da média±desvio das 5 (mantém o
+  contexto estatístico mesmo mostrando só 1 linha). Removida a função
+  plot_multi() (não usada mais) e o import de glob (não usado mais).
+  Sobrescreve graficos_apresentacao/27_comparacao_completa_v2.png (mesmo
+  arquivo, atualizado -- gráfico 25 continua intocado).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta -- PNG inspecionado, painéis limpos (1 linha
+    cada), rep escolhida varia por célula (não é sempre a mesma rep),
+    consistente com o critério de mediana por célula.
+
+--------------------------------------------------------------------------------
+66) Completando rps=1 no desempate (30 execuções) -- disparado
+--------------------------------------------------------------------------------
+Usuário notou a assimetria (rps=1 sem repetição, rps=5/10 com 5) e pediu
+  pra completar. Criado run_desempate_rps1.py -- mesmo padrão de
+  run_desempate_combinado_isolado.py (seção 62), só rps=1, 3 WU, 5
+  repetições x 2 condições = 30 execuções, salvando no MESMO diretório
+  (experiment_results/desempate_combinado_isolado/) pra somar ao dado já
+  existente. Atualizado RPS_VALUES em plot_desempate_combinado_isolado.py
+  (de [5,10] para [1,5,10]) e DESEMPATE_RPS em
+  plot_comparacao_completa_v2.py (de {5,10} para {1,5,10}), pra esses 2
+  scripts passarem a tratar rps=1 como célula com repetição também.
+  Criado run_all_desempate_rps1.py encadeando os 3 (execução + os 2
+  replots).
+
+Verificado:
+  - python3 -m py_compile nos 4 arquivos -- sem erro.
+  - Disparado em background (run_in_background nativo) -- 30 execuções,
+    ~1h35-1h40 estimadas. Resultado a conferir quando terminar.
+
+--------------------------------------------------------------------------------
+67) Seção 66 concluída -- desempate agora completo nas 9 células (rps=1/5/10)
+--------------------------------------------------------------------------------
+30/30 execuções sem falha (~1h32, 13:15 a 14:47). rps=1 confirma o que já
+  se esperava: combinado e isolado praticamente idênticos e desprezíveis
+  nos 3 WU (0-0.5% de timeout, desvios pequenos, barras de erro totalmente
+  sobrepostas) -- decisão original de pular rps=1 por "comportamento
+  trivial" (seção 62) se confirma corretamente, não escondia nenhuma
+  diferença real. Tabela completa (9 células) e
+  graficos_apresentacao/26_desempate_combinado_isolado.png e
+  27_comparacao_completa_v2.png regenerados com as 9 células, todas agora
+  com n=5 (nenhuma mais como "amostra única").
+
+Verificado:
+  - Tabela resumo_desempate.csv conferida linha a linha.
+  - Gráficos 26 e 27 inspecionados -- rps=1 aparece com barras/painéis
+    consistentes com o resto do desempate, sem mais assimetria.
+
+--------------------------------------------------------------------------------
+68) Discussão sobre remoção de outlier por quartis (IQR) -- decisão: NÃO usar
+--------------------------------------------------------------------------------
+Usuário perguntou se dava pra usar quartis (IQR/Tukey) pra eliminar
+  outliers automaticamente, já que vários gráficos desta sessão mostraram
+  alta variância. Testado ao vivo com dado real (picos de CPU das 10
+  repetições de agregado=150, gráfico 16/20): a regra de IQR
+  (Q1-1.5×IQR, Q3+1.5×IQR) marcaria como outlier exatamente as 2
+  repetições que dispararam SCALE_UP de verdade -- ou seja, apagaria o
+  sinal que PROVA que esse ponto está na zona de transição, um dos
+  achados centrais da investigação.
+
+Explicado ao usuário: o dataset tem 2 tipos de "outlier" com causas
+  diferentes, que IQR não distingue (só olha dispersão numérica, não
+  causa): (1) variância bimodal real perto do limiar de 60% -- dois
+  comportamentos genuínos (escala/não escala), não ruído gaussiano; IQR
+  marca a minoria como outlier e apaga sinal real; (2) o soluço
+  transitório -- esse sim é ruído de verdade, mas já é excluído por
+  critério MECÂNICO (linhas de log faltando, duração além do esperado,
+  zero requisições completadas) em vez de desvio estatístico, o que é
+  mais defensável e já está implementado em vários scripts desta sessão.
+
+DECISÃO (não aplicada, guardada para o futuro -- ver memória
+  feedback_no_iqr_outliers.md): manter o critério de exclusão mecânico já
+  usado, nunca trocar por corte estatístico (IQR/z-score) em cima da
+  própria métrica. IQR só seria aceitável como ferramenta de TRIAGEM
+  (levantar candidatos pra investigar manualmente), nunca como regra de
+  exclusão automática.
+
+--------------------------------------------------------------------------------
+69) plot_grid_heatmap_isolado.py (novo, gráfico 28) -- completa o trio de
+    heatmaps (normal/ataque isolado/combinado)
+--------------------------------------------------------------------------------
+Usuário pediu um heatmap estilo 21 (ataque), mas para ataque ISOLADO (sem
+  tráfego normal) -- pra ter os 3 grids completos: 17=só tráfego normal
+  (clientes×RPS), 21=combinado (ataque+40 agregado normal, wu_calibration,
+  1 amostra/célula), 28=NOVO, só ataque.
+
+Fonte escolhida (decisão minha, não perguntada -- justificada abaixo):
+  experiment_results/desempate_combinado_isolado/ (seção 62/66, condição
+  "isolado"), que já tem 5 REPETIÇÕES por célula nas 9 combinações
+  (rps=1/5/10 × WU=100k/200k/400k) -- MELHOR que a amostra única de
+  experiment_results/ataque_isolado/ (tarefa 5 original, seção 58), que
+  também existia mas só tinha 1 amostra/célula. Escolhido o dado com
+  repetição, consistente com a linha desta sessão inteira de preferir
+  repetição a amostra única sempre que ambas existem.
+
+Criado: plot_grid_heatmap_isolado.py -- mesma estrutura visual de
+  plot_grid_heatmap_ataque.py (linhas=rps/atacante, colunas=WU, cor=CPU
+  média), mas cada célula mostra média±desvio das 5 repetições (não 1
+  valor só), RPS agregado, taxa média de timeout, e nº máximo de
+  instâncias observado entre as repetições. Salvo
+  graficos_apresentacao/28_grid_heatmap_isolado.png.
+
+Resultado: rps=1 fica leve em todos os WU (8.3-31.5%, quase sem timeout);
+  rps=5/WU=400k já mostra desvio grande (115.6%±28.9, zona de transição
+  instável, mesmo padrão já visto no desempate); rps=10/WU=400k satura
+  quase por completo (195.2%±0.6, 96.8% timeout, desvio baixíssimo --
+  célula "sempre colapsa", sem ambiguidade).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado 2x (1ª vez com título cortado na borda da figura, corrigido
+    reduzindo fontsize e deixando fig.tight_layout() sem rect customizado)
+    -- PNG final inspecionado, título e 9 células legíveis.

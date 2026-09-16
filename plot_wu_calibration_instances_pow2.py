@@ -49,15 +49,21 @@ for i, rps in enumerate(RPS_VALUES):
         ax2.set_ylim(0, 5)
         ax2.set_yticks([1, 2, 3, 4])
 
-        # Total de erros dessa combinação, pro leitor relacionar visual -> número.
+        # Total de timeouts dessa combinação, pro leitor relacionar visual -> número.
+        # Chamados "timeout" (não "erro" genérico) porque é exatamente isso que
+        # requests.exceptions.RequestException captura aqui: o cliente desistiu
+        # depois de 2s sem resposta -- ver changes.txt §31/40 sobre a mecânica.
         summary_path = os.path.join(WU_DIR, f"attack_summary_log_{rps}_4_WU{wu}.csv")
-        errs = 0
+        timeouts, ok, rate = 0, 0, 0.0
         if os.path.exists(summary_path):
             sdf = pd.read_csv(summary_path)
-            errs = int(sdf["errors"].dropna().sum())
+            sdf = sdf[sdf["total_requests"].notna()]
+            timeouts = int(sdf["errors"].sum())
+            ok = int(sdf["total_requests"].sum())
+            rate = 100.0 * timeouts / (ok + timeouts) if (ok + timeouts) > 0 else 0.0
 
-        ax.set_title(f"rps/atacante={rps}, WU={wu:,}".replace(",", ".") + f" -- {errs} erros",
-                     fontsize=10, color=color if errs > 200 else "#333")
+        ax.set_title(f"rps/atacante={rps}, WU={wu:,}".replace(",", ".") + f" -- {timeouts} timeouts ({rate:.1f}%)",
+                     fontsize=10, color=color if timeouts > 200 else "#333")
 
         if i == len(RPS_VALUES) - 1:
             ax.set_xlabel("tempo (s)", fontsize=9)

@@ -1,3 +1,4 @@
+import glob
 import os
 
 import matplotlib
@@ -27,11 +28,22 @@ df = pd.read_csv(os.path.join(GRID_DIR, "resumo_clients_rps_grid.csv"))
 # depois pro imshow ficar com 16 no topo), coluna=clientes.
 matrix = np.full((len(AGGREGATE_TARGETS), len(CLIENT_COUNTS)), np.nan)
 n_matrix = np.full((len(AGGREGATE_TARGETS), len(CLIENT_COUNTS)), 0)
+max_inst_matrix = np.full((len(AGGREGATE_TARGETS), len(CLIENT_COUNTS)), 0)
 for _, row in df.iterrows():
     i = AGGREGATE_TARGETS.index(int(row["target_aggregate"]))
     j = CLIENT_COUNTS.index(int(row["clients"]))
     matrix[i, j] = row["cpu_container_mean"]
     n_matrix[i, j] = row["n"]
+
+    # Nº máximo de instâncias que essa célula chegou a escalar, olhando
+    # direto nos CSVs brutos (não está no resumo) -- maior valor de
+    # num_instances entre todas as repetições daquela célula.
+    agg, clients = int(row["target_aggregate"]), int(row["clients"])
+    files = glob.glob(os.path.join(GRID_DIR, f"metrics_agg{agg}_clients{clients}_WU10_rep*.csv"))
+    max_inst = 0
+    for f in files:
+        max_inst = max(max_inst, pd.read_csv(f)["num_instances"].max())
+    max_inst_matrix[i, j] = max_inst
 
 fig, ax = plt.subplots(figsize=(9, 8))
 im = ax.imshow(matrix, cmap="YlOrRd", aspect="auto", origin="upper")
@@ -54,13 +66,17 @@ for i in range(len(AGGREGATE_TARGETS)):
         n = n_matrix[i, j]
         rps_per_client = AGGREGATE_TARGETS[i] / CLIENT_COUNTS[j]
         rps_str = f"{rps_per_client:g} rps/cli"
+        max_inst = int(max_inst_matrix[i, j])
         color = "white" if val > np.nanmax(matrix) * 0.6 else "black"
-        label = f"{val:.1f}%\n{rps_str}"
+        label = f"{val:.1f}%\n{rps_str}\nmáx {max_inst} inst."
         if n != 5:
-            label += f"\n(n={n})"
-        ax.text(j, i, label, ha="center", va="center", color=color, fontsize=8.5)
+            label += f" (n={n})"
+        ax.text(j, i, label, ha="center", va="center", color=color, fontsize=8)
 
 cbar = fig.colorbar(im, ax=ax, label="CPU média do container (%)")
+# Barra de cor invertida: maior calor embaixo, menor em cima -- pedido do
+# usuário (não muda o mapeamento cor<->valor, só a orientação da barra).
+cbar.ax.invert_yaxis()
 
 ax.set_title(
     "Grid clientes×RPS -- CPU média por célula\n"

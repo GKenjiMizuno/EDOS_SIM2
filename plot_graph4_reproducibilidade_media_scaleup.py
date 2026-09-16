@@ -29,7 +29,7 @@ RED = "#d03b3b"
 GREEN = "#1baf7a"
 GRAY = "#888888"
 
-AGGREGATE_TARGETS = [40, 100, 200, 250, 300, 400]
+AGGREGATE_TARGETS = [40, 100, 150, 200, 250, 300, 350, 400]
 
 
 def is_fully_empty(summary_path, num_clients=4):

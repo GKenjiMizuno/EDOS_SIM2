@@ -147,7 +147,15 @@ def start_http_traffic(target_urls, rps_per_worker_override, num_clients_overrid
         num_attackers_override (int): The total number of attacker threads to launch.
     """
     global traffic_active, client_threads
-    
+
+    if rps_per_worker_override <= 0 or num_clients_override <= 0:
+        # Antes, rps=0 caía no fallback de normal_http_request_worker
+        # (sleep_duration=1.0s fixo), o que ainda gerava ~1 req/s por
+        # cliente em vez de desligar de vez o tráfego normal -- usado
+        # para isolar ataque puro (changes.txt, tarefa "só-ataque").
+        print(f"[Normal_Injector] rps_per_worker={rps_per_worker_override} ou "
+              f"num_clients={num_clients_override} <= 0 -- tráfego normal desligado de propósito, não iniciado.")
+        return
     if not target_urls:
         print("[Normal_Injector] No target URLs provided. Attack not started.")
         return
