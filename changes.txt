@@ -2757,3 +2757,277 @@ Verificado:
   - Rodado 2x (1ª vez com título cortado na borda da figura, corrigido
     reduzindo fontsize e deixando fig.tight_layout() sem rect customizado)
     -- PNG final inspecionado, título e 9 células legíveis.
+
+--------------------------------------------------------------------------------
+70) Fechando o cenário COMBINADO com repetição -- gráficos 29 e 30 (novos,
+    não substituem 14/21)
+--------------------------------------------------------------------------------
+Pedido do usuário: aplicar ao cenário COMBINADO (ataque + 40 agregado de
+  tráfego normal padrão) o mesmo tratamento já dado ao isolado (gráficos
+  22/28 com 5 repetições) -- hoje só existe em amostra única
+  (wu_calibration original, gráficos 14/21). Confirmado antes de agir:
+  experiment_results/desempate_combinado_isolado/ (seção 62/66) já tem 5
+  repetições de "combinado" nas 9 células (mesma definição -- 40 agregado
+  de tráfego normal, condição "combinado" do desempate) -- NENHUM
+  experimento novo foi necessário, só leitura do dado já coletado.
+
+Criado:
+  - plot_combinado_repetido_instancias.py: mesma estrutura do gráfico 22
+    (série temporal, grade 3x3, CPU+instâncias), lendo
+    experiment_results/desempate_combinado_isolado/ condição "combinado".
+    Mesmo critério do gráfico 27/29-isolado: por célula, escolhe a
+    repetição mais próxima da MEDIANA das 5 (não sobrepõe todas, não é a
+    melhor/pior), com timeout no título como média±desvio (n=5). Salvo
+    graficos_apresentacao/29_combinado_repetido_instancias.png.
+  - plot_grid_heatmap_combinado.py: mesma estrutura do gráfico 28
+    (heatmap, média±desvio por célula, RPS agregado, timeout, máx.
+    instâncias), lendo a mesma fonte. Salvo
+    graficos_apresentacao/30_grid_heatmap_combinado.png. Nota: escrito à
+    mão em vez de copiado com sed a partir de plot_grid_heatmap_isolado.py
+    -- uma tentativa inicial com `sed 's/isolado/combinado/g'` trocou
+    também o nome do diretório de dados (desempate_combinado_isolado ->
+    desempate_combinado_combinado, inexistente) e teria falhado
+    silenciosamente se não tivesse sido conferida antes de rodar.
+
+Resultado (agora com trio completo 17/28/30, todos com repetição):
+    rps=1  WU=100k-400k: 16.2%-40.1%, quase sem timeout
+    rps=5  WU=400k: 143.1%±28.7, 34.1% timeout -- zona de transição instável
+    rps=10 WU=200k: 153.0%±15.7, 24.5% timeout -- zona de transição instável
+    rps=10 WU=400k: 192.4%±1.4, 97.3% timeout -- colapso consistente, desvio baixo
+  Comparando com o par isolado (gráfico 28, seção 69): os valores de CPU
+  ficam sistematicamente um pouco mais altos no combinado (esperado, é
+  ataque + tráfego normal extra), mas o PADRÃO de onde fica a zona de
+  transição instável (WU=400k a partir de rps=5) é o mesmo nos dois --
+  consistente com a conclusão já fechada na seção 63 (presença de
+  tráfego normal não muda o comportamento qualitativo do ataque).
+
+Verificado:
+  - python3 -m py_compile nos 2 scripts -- sem erro.
+  - Rodados de ponta a ponta (dado já em disco, sem Docker) -- os 2 PNGs
+    inspecionados visualmente, painéis limpos e legíveis.
+
+--------------------------------------------------------------------------------
+71) EntCusumZV3.py -- auditoria e correção dos 3 detectores (Entropia,
+    Z-score, CUSUM); início da análise estatística formal (plano combinado
+    com o usuário)
+--------------------------------------------------------------------------------
+Contexto: usuário pediu para auditar EntCusumZV3.py (o detector de burst
+  por entropia de Shannon + Z-score + CUSUM sobre janela deslizante) antes
+  de usá-lo pra análise em escala, e montar um plano organizado.
+
+Achados da auditoria:
+  1. BUG REAL no CUSUM: o laço `for rtt in janela['rtt']: cusum_atual =
+     max(0, cusum_atual + ...)` reprocessava a janela inteira a cada
+     avanço do laço principal -- com overlap_percent=50 (padrão), cada
+     amostra aparece em 2 janelas consecutivas, então era somada 2x no
+     acumulador. Isso inflava o CUSUM e tornava sua taxa de crescimento
+     dependente de overlap_percent (parâmetro que deveria só controlar
+     granularidade da janela, não sensibilidade de detecção).
+  2. Entropia calculada mas NUNCA usada na decisão final (só Z ou CUSUM
+     decidem 'DDoS Burst') -- coluna diagnóstica, não bug, mas decisão
+     implícita nunca declarada. Limiar dela (delta_entropia_threshold=1.5)
+     hardcoded, diferente de z_threshold/baseline_ratio (parâmetros).
+  3. Faixa dos bins do histograma de entropia recalculada a cada janela a
+     partir do próprio min/max da janela -- torna a entropia não
+     comparável entre janelas diferentes.
+  4. Função hardcoded para colunas 'timestamp'/'rtt' -- não dava pra
+     reusar pra analisar CPU (simulation_metrics.csv usa
+     'elapsed_time_s'/'average_cpu_percent').
+
+Decisões combinadas com o usuário (AskUserQuestion): aplicar as 3
+  correções técnicas; manter entropia só como diagnóstico (não entrar na
+  decisão de burst, por enquanto -- evita piorar taxa de falso-positivo
+  sem medir cada sinal isoladamente primeiro).
+
+Alterado em EntCusumZV3.py (confirmado antes: 'Status Burst', 'Média RTT',
+  'Janela (MM:SS.s)' são nomes de coluna lidos literalmente por
+  generate_presentation_graphs.py, wedos_graphs.py,
+  wedos_ent_cusum_report.py -- mantidos idênticos com os defaults):
+  - CUSUM precomputado 1x por amostra bruta em ordem temporal (array
+    `_cusum_running` no df), ANTES do laço de janelas -- cada janela só
+    LÊ o valor já acumulado na última amostra dentro dela, não reprocessa.
+  - Faixa do histograma de entropia fixada no min/max do ARQUIVO INTEIRO
+    (não da janela individual, e não só do baseline -- usar só baseline
+    faria np.histogram descartar silenciosamente picos de RTT/CPU fora da
+    faixa "normal" durante o ataque, distorcendo a entropia bem no
+    momento que mais interessa medir).
+  - Função generalizada: novos parâmetros time_col='timestamp',
+    value_col='rtt', value_label='RTT', value_unit='ms',
+    min_samples_per_window=10 (defaults idênticos ao comportamento
+    anterior) -- permite reusar para CPU passando
+    time_col='elapsed_time_s', value_col='average_cpu_percent' (ou
+    'host_cpu_percent'), com janela maior (~50-60s) e
+    min_samples_per_window menor, já que CPU tem só 1 amostra a cada
+    ~5s (MONITOR_INTERVAL_SECONDS) contra uma linha por requisição do RTT.
+  - Função agora RETORNA df_res (antes só salvava em disco) -- permite uso
+    em lote/scoring sem reabrir o xlsx logo em seguida.
+
+Achado adicional durante o teste (antes de rodar em escala): rtt_log.csv
+  na verdade MISTURA RTT de tráfego normal E de ataque no mesmo arquivo
+  (traffic_injectorV0.py importa e grava no mesmo `rtt_measurements_total`
+  de normal_traffic.py) -- bom pra realismo (é o que um detector real
+  veria, misturado), mas revelou um problema estrutural pro cenário
+  ISOLADO (--normal-rps 0, sem tráfego normal): como nada roda antes do
+  ataque começar nesse cenário, o PRIMEIRO timestamp do arquivo já é do
+  próprio ataque -- e como EntCusumZV3 computa "tempo relativo" a partir
+  do primeiro timestamp do PRÓPRIO ARQUIVO (não do início real da
+  simulação), a janela que deveria ser "baseline pré-ataque" (tempo_rel <
+  ATTACK_START_TIME_SECONDS) acaba sendo, na verdade, já os primeiros
+  segundos do ataque -- contaminando a baseline (ex.: baseline
+  "pré-ataque" medida em 1071ms de RTT, quando deveria ser baixa) e
+  inflando o piso de burst a ponto de nunca mais ser cruzado. Confirmado
+  lado a lado: mesma célula (rps=10/WU=400000), isolado deu 0 bursts
+  detectados, combinado deu 6/7 -- com o mesmo detector corrigido.
+  DECISÃO (combinada com o usuário): análise de RTT restrita a cenários
+  com tráfego contínuo desde t=0 (combinado, normal_baseline,
+  clients_rps_grid) -- isolado fica de fora da análise de RTT (não é
+  bug a corrigir, é limitação estrutural do próprio dado: não existe RTT
+  "de antes" quando não há tráfego nenhum antes do ataque). CPU
+  (simulation_metrics.csv) não sofre desse problema, pois é gravada a
+  cada tick independente de haver tráfego.
+
+Criado -- Fase 2+4 do plano (TPR no cenário combinado, 5 reps/célula,
+  dado já existente do experimento de desempate seção 62/66):
+  - run_burst_detection_combinado.py: roda o detector corrigido sobre as
+    9 células x 5 repetições de experiment_results/desempate_combinado_isolado/
+    (condição "combinado"), calcula taxa de detecção dentro da janela real
+    de ataque (proxy de TPR) e fora dela (proxy de FPR, versão inicial).
+  - rescore_deteccao_combinado.py: reprocessa o resultado (lê os .xlsx já
+    salvos, não roda o detector de novo) com uma métrica mais honesta --
+    achado ao inspecionar o resultado bruto: quase toda repetição tinha 1
+    "falso positivo" pré-ataque que na verdade não era falso positivo
+    nenhum -- cada janela do detector tem window_seconds=20s de largura e
+    desliza só stride_seconds=10s (overlap 50%), e o "tempo" reportado é a
+    MÉDIA do tempo_rel das amostras dentro da janela, não o início dela --
+    então uma janela cujo centro reportado cai a t=17s já fisicamente
+    contém uma fração real de tráfego de ataque (que começa em t=20s).
+    Reclassificado em 3 categorias (dentro do ataque / zona de transição
+    de ±window_seconds das bordas / falso positivo real fora da
+    transição) em vez de 2. Achado adicional: a métrica de "falso
+    positivo real" ficou estruturalmente vazia (NaN) em quase toda
+    célula -- não por erro, mas porque janela de ataque [20,160] + margem
+    de ±20s cobre [0,20]∪[140,180], ou seja, a simulação inteira de 180s
+    já está dentro do ataque ou da vizinhança imediata dele; não sobra
+    nenhum trecho "seguramente livre de contaminação" nesse dataset pra
+    medir FPR de verdade -- por isso o gráfico final ficou só com o
+    painel de TPR (removido o painel de FPR vazio), com a contagem de
+    "janelas na cauda pós-ataque" anotada como contexto (efeito de
+    recuperação lenta, não erro do detector). Salvo
+    graficos_apresentacao/31_deteccao_combinado_tpr_fpr.png e
+    experiment_results/desempate_combinado_isolado/resumo_deteccao_combinado_v2.csv.
+
+  Resultado TPR (cenário combinado, 5 reps/célula):
+    rps=1  WU=100k/200k: 0% (esperado -- CPU nunca cruza o piso de burst,
+      ataque leve demais nesses WU)
+    rps=1  WU=400k: 24%±33 (zona de transição, consistente com o resto da
+      sessão -- às vezes escala/colapsa, às vezes não)
+    rps=5  WU=100k: 8%±9 (ataque fraco, quase não detectável -- esperado)
+    rps=5  WU=200k/400k, rps=10 (todos WU): 98-100% -- detecção quase
+      perfeita nos cenários onde o sistema realmente colapsa.
+
+Criado -- Fase 3 do plano (FPR de verdade, tráfego 100% normal sem
+  ataque, dado já existente do grid clients_rps_grid seção 38-42):
+  - run_burst_detection_clients_grid.py: roda o detector corrigido sobre
+    os 160 rtt_log_*.csv de experiment_results/clients_rps_grid/, cruza
+    com o critério MECÂNICO de detecção de soluço já usado em
+    plot_clients_rps_invariance.py (menos linhas de worker-stop no
+    normal_traffic_summary_log do que clientes configurados) -- pergunta
+    central: o detector confunde o soluço transitório (não é ataque) com
+    um burst real? Salvo
+    graficos_apresentacao/32_falso_positivo_soluco.png e
+    experiment_results/clients_rps_grid/resumo_deteccao_clients_grid.csv.
+
+  Resultado (achado forte, favorável ao detector):
+    execuções LIMPAS (151 de 160): 0% tiveram qualquer alarme falso --
+      especificidade perfeita em tráfego saudável.
+    execuções COM SOLUÇO (9 de 160): só 11.1% (1 de 9) disparou algum
+      alarme -- na maioria dos casos (8/9) nem o soluço engana o
+      detector.
+
+Verificado:
+  - python3 -m py_compile em EntCusumZV3.py e nos 4 scripts novos -- sem
+    erro.
+  - Teste dirigido (2-3 casos conhecidos, isolado vs combinado da mesma
+    célula) rodado ANTES da análise em escala, revelou o problema de
+    baseline do isolado a tempo de ajustar o escopo, em vez de rodar tudo
+    e descobrir depois.
+  - run_burst_detection_combinado.py (45 execuções do detector, sem
+    Docker) e run_burst_detection_clients_grid.py (160 execuções do
+    detector, ~2min35 de processamento) rodados de ponta a ponta, sem
+    erro -- CSVs e PNGs finais inspecionados.
+  - Pendente (próxima etapa combinada com o usuário): Fase 5 (re-rodar
+    sobre wedos_grid/combined_sweep, o dataset original do achado "burst
+    não detectado" citado no CLAUDE.md) e Fase 6 (consolidação final).
+
+--------------------------------------------------------------------------------
+72) Fase 5+6 do plano de análise estatística concluídas -- detecção por
+    métodos estatísticos consolidada
+--------------------------------------------------------------------------------
+Criado run_burst_detection_wedos_final.py -- re-roda o detector CORRIGIDO
+  (seção 71) sobre TODOS os 106 rtt_log_*.csv de
+  experiment_results/wedos_grid/ (82) e experiment_results/combined_sweep/
+  (24), o dataset original do achado documentado no CLAUDE.md ("W-EDoS
+  attack overlaid on normal traffic... completely undetected"). Para cada
+  execução: lê o SCALE_UP real e a janela real de ataque direto do
+  simulation_metrics.csv (coluna 'label'=='attack' -- mais confiável que
+  confiar em config.ATTACK_START_TIME_SECONDS/PULSE_DURATION hardcoded,
+  que já mudaram entre sessões), compara o nº de bursts do detector NOVO
+  com o nº já salvo em disco pelo detector ANTIGO (com o bug do CUSUM,
+  rtt_bursts_*.xlsx pré-existentes). Salvo
+  experiment_results/resumo_deteccao_wedos_combined_final.csv e
+  graficos_apresentacao/33_deteccao_wedos_antes_depois.png.
+
+ACHADO PRINCIPAL DA FASE 5 (resultado limpo e decisivo): das 106
+  execuções comparadas, a correção do bug do CUSUM não mudou o nº de
+  bursts detectados em NENHUMA delas (0 diferenças, conferido célula a
+  célula). Investigada a causa: inspecionando um caso concreto
+  (S3_atk1pct_wu300000_stage1a_rep1, SCALE_UP real mas 0 bursts nos dois
+  detectores) -- o Z-score dispara 'Sim' em quase toda janela (valores de
+  6-23, bem acima do limiar 3.5), ou seja, o "(Z OR CUSUM)" da decisão já
+  estava satisfeito de sobra; o que bloqueia 'DDoS Burst' é o OUTRO termo
+  do AND -- a Média RTT da janela (34-50ms) nunca ultrapassa o piso de
+  burst (baseline×1.8). CONCLUSÃO: o "burst não detectado" documentado no
+  CLAUDE.md NÃO era causado pelo bug do CUSUM -- é um limite estrutural
+  genuíno do critério combinado (RTT médio > piso E (Z OU CUSUM)): quando
+  o ataque é diluído o suficiente pra não elevar a MÉDIA da janela acima
+  do piso (efeito de diluição do W-EDoS furtivo, já documentado como
+  característica esperada, não bug, em changes.txt §27), nenhuma correção
+  de CUSUM resolve, porque o "AND" com o piso de RTT bloqueia a decisão
+  independente do CUSUM estar certo. Resultado final:
+    Detector ANTIGO (com bug): 37/77 execuções com SCALE_UP real
+      completamente perdidas (0 bursts).
+    Detector NOVO (corrigido): 37/77 -- EXATAMENTE igual.
+  Isso reforça (com mais rigor metodológico, detector agora auditado e
+  corrigido) que a furtividade do W-EDoS diluído em tráfego normal é um
+  limite estrutural do detector clássico baseado em média de RTT por
+  janela -- não um artefato de implementação -- fortalecendo, não
+  enfraquecendo, o achado central da tese.
+
+Fase 6 -- consolidação final da análise estatística (CUSUM/Entropia/
+  Z-score), resumo dos 3 resultados obtidos nas seções 71-72:
+  1. TPR no cenário combinado (gráfico 31, desempate, 5 reps/célula):
+     98-100% de detecção nos cenários que realmente colapsam (rps=5-10,
+     WU=200k-400k); 0-24% nos cenários leves demais pra cruzar o piso de
+     burst (esperado, não é falha).
+  2. FPR em tráfego 100% limpo (gráfico 32, clients_rps_grid, 160
+     execuções): 0% de alarme falso em 151 execuções saudáveis; só 11%
+     (1/9) das execuções com soluço transitório engana o detector.
+  3. Robustez do achado de furtividade (gráfico 33, wedos_grid/
+     combined_sweep, 106 execuções, antes×depois da correção): 37/77
+     execuções com SCALE_UP real continuam completamente invisíveis ao
+     detector mesmo corrigido -- não é bug, é o efeito de diluição do
+     RTT médio já conhecido.
+  EntCusumZV3.py está, portanto, CONSOLIDADO: auditado, com o bug real
+  corrigido, testado em 3 datasets diferentes (311 execuções no total
+  entre as 3 fases, nenhuma nova no Docker) cobrindo os 3 ângulos
+  relevantes (sensibilidade a ataque real, especificidade contra tráfego
+  limpo/soluço, e validação do achado de furtividade documentado). Pronto
+  para uso como baseline de comparação e/ou fonte de features no dataset
+  de ML (próxima etapa, combinada com o usuário).
+
+Verificado:
+  - python3 -m py_compile run_burst_detection_wedos_final.py -- sem erro.
+  - Rodado de ponta a ponta (106 execuções do detector, ~1min20, sem
+    Docker) -- CSV e PNG finais inspecionados; diferença antigo×novo
+    conferida numericamente (0 linhas diferentes) antes de reportar a
+    conclusão, não só por inspeção visual do gráfico.
