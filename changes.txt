@@ -3031,3 +3031,1030 @@ Verificado:
     Docker) -- CSV e PNG finais inspecionados; diferença antigo×novo
     conferida numericamente (0 linhas diferentes) antes de reportar a
     conclusão, não só por inspeção visual do gráfico.
+
+--------------------------------------------------------------------------------
+73) plot_wedos_antes_depois_v2.py (novo, gráfico 34) -- gráfico 33 tinha
+    77 barras ilegíveis, refeito como heatmap agregado
+--------------------------------------------------------------------------------
+Usuário pediu para melhorar a apresentação dos resultados de detecção
+  estatística antes de seguir pra ML. Achado: o gráfico 33
+  (run_burst_detection_wedos_final.py) tinha 77 barras individuais no
+  eixo X, rótulos em fontsize=6, ilegível numa apresentação -- problema
+  de FORMA (não de cor), corrigido agregando por cenário em vez de
+  reduzir fonte.
+
+Criado plot_wedos_antes_depois_v2.py -- lê o mesmo CSV já calculado
+  (resumo_deteccao_wedos_combined_final.csv, nenhum reprocessamento do
+  detector), agrupa por (cenário de fundo S1-S4) × (intensidade do ataque
+  1%/5%/10%, extraída do nome do cenário via regex) -- mesmo estilo visual
+  dos heatmaps 21/28/30. Cada célula mostra % de ataques com SCALE_UP real
+  detectados, com anotação explícita "idêntico ao antigo" célula a célula
+  (não só um resumo geral no título). Salvo
+  graficos_apresentacao/34_wedos_antes_depois_agregado.png -- NÃO
+  sobrescreve o gráfico 33 original.
+
+Resultado (muito mais legível, e o padrão de furtividade salta aos olhos):
+  intensidade 1% (a coluna furtiva): 0%, 0%, 43%, 17% detectado em
+  S1/S3/S2/S4 respectivamente -- quase sempre vermelho no heatmap.
+  Intensidade 5-10%: 56-100% detectado -- quase sempre verde. O contraste
+  visual entre as colunas é a prova mais direta e imediata do achado
+  central (furtividade é sobre proporção, não sobre o ataque em si).
+
+Nota sobre paleta: tentei rodar o validador de paleta da skill dataviz
+  (scripts/validate_palette.js) mas node não está instalado neste
+  ambiente -- segui com a paleta categórica já usada em 30+ gráficos
+  desta sessão (aprovada implicitamente pelo uso repetido), e para este
+  heatmap especificamente usei RdYlGn (sequencial semântico, vermelho=
+  ruim/verde=bom), apropriado para a natureza "está indo bem ou mal" da
+  métrica (% detectado), não uma paleta categórica.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (dado já em disco) -- PNG inspecionado,
+    12 células legíveis, nenhuma sobreposição de texto.
+
+--------------------------------------------------------------------------------
+74) Relatório consolidado (Artifact) atualizado com a seção completa de
+    detecção por métodos estatísticos
+--------------------------------------------------------------------------------
+Segunda parte do pedido do usuário (seção 73): trazer a investigação
+  inteira do EntCusumZV3.py (seções 71-72, e o gráfico 34 da seção 73)
+  pro Artifact consolidado -- até então essa investigação só existia no
+  histórico de chat, nunca tinha virado parte do documento visual.
+
+Alterado (mesmo Artifact das seções 44/51/53/57/61/65):
+  - Nova seção 09 "Detecção por métodos estatísticos": o que cada método
+    mede (entropia=forma da distribuição, Z-score=mudança brusca,
+    CUSUM=desvio sustentado), resumo da auditoria/correção do
+    EntCusumZV3.py (bug do CUSUM, faixa de entropia, achado do rtt_log
+    misturando normal+ataque que quebra o isolado), os 3 gráficos
+    (31=sensibilidade, 32=especificidade, 34=robustez da furtividade
+    agregada -- não o 33 com as 77 barras ilegíveis), e a interpretação
+    do que isso significa pro TCC.
+  - Seção "Estado atual" (08): removido o item "cenário combinado ainda
+    não executado" (já resolvido, seção 70), substituído por um ponteiro
+    pra nova seção 09.
+  - Seção "Onde investir se der tempo": removido o item do cenário
+    combinado (já feito), adicionado item sobre treinar/comparar ML
+    contra o baseline clássico (próxima etapa combinada com o usuário).
+  - Seção "Base científica para o TCC" (renumerada de 08 para 10):
+    adicionado item sobre o baseline clássico consolidado (311 execuções
+    cobrindo os 3 ângulos) antes de virar comparação para o ML.
+  - Footer atualizado (fontes de dados + changes.txt §36-§73).
+
+Verificado:
+  - As 3 imagens novas (31, 32, 34) embutidas em base64, nenhum marcador
+    "{{IMG_*}}" faltando (checado programaticamente antes de publicar).
+  - Artifact republicado no mesmo link (histórico de versões preservado).
+
+--------------------------------------------------------------------------------
+75) plot_deteccao_por_metodo.py (novo, gráficos 35/36/37) -- sensibilidade
+    de cada método (Entropia/Z-score/CUSUM) ISOLADAMENTE, sem o piso de RTT
+--------------------------------------------------------------------------------
+Ideia do usuário: em vez de só a decisão combinada (Status Burst = piso de
+  RTT E (Z OU CUSUM), gráficos 31/34), fazer um gráfico por método,
+  medindo a sensibilidade de cada um SOZINHO. Viável sem reprocessar nada:
+  os .xlsx já salvos (desempate_combinado_isolado + wedos_grid/
+  combined_sweep, 151 arquivos) já têm as colunas 'Al. Ent.', 'Al. Z',
+  'Al. CUSUM' calculadas separadamente -- só nunca tinham sido usadas
+  isoladamente.
+
+Criado plot_deteccao_por_metodo.py -- para cada um dos 3 sinais, calcula
+  TPR (janelas de ataque real marcadas 'Sim' NAQUELA coluna, sem exigir
+  RTT acima do piso) nos dois datasets já usados (desempate combinado
+  rps×WU, e wedos_grid+combined_sweep agregado por S1-S4×intensidade).
+  Salvo graficos_apresentacao/35_sensibilidade_alent.png,
+  36_sensibilidade_alz.png, 37_sensibilidade_alcusum.png.
+
+ACHADO PRINCIPAL (revisa a interpretação da furtividade -- mais forte, não
+  mais fraco, para o TCC): sem o piso de RTT, Z-score e CUSUM sozinhos
+  detectam MUITO mais que a decisão combinada nos casos furtivos:
+    Entropia sozinha: ~0% em quase toda célula (confirma que sozinha não
+      serve pra decidir nada -- decisão de mantê-la só diagnóstica estava
+      certa).
+    Z-score sozinho: 79-100% em quase toda célula do wedos, INCLUSIVE na
+      coluna de 1% de intensidade (93%/97%/87%/93% em S1-S4) -- onde a
+      decisão combinada (gráfico 34) só dava 0%/0%/43%/17%.
+    CUSUM sozinho: 23-100%, também muito mais sensível que a decisão
+      combinada nos casos furtivos, um pouco mais fraco que Z-score em
+      alguns cenários (S1/1%=29%, S3/1%=23%).
+  CONCLUSÃO: a furtividade do W-EDoS diluído não é porque o sinal
+  estatístico desaparece no RTT -- Z-score e CUSUM continuam captando o
+  desvio bem, mesmo diluído. A "cegueira" documentada nas seções 71-72
+  vem especificamente do PISO DE RTT (média da janela precisa cruzar um
+  valor absoluto antes de qualquer alarme contar) -- um freio conservador
+  demais que descarta sinais que os outros 2 métodos já tinham capturado
+  corretamente. Isso aponta uma melhoria concreta e testável no próprio
+  detector clássico (relaxar/remover o piso), não só "o ML é melhor".
+
+Ressalva (não medida ainda, próximo passo natural se quiser aprofundar):
+  isso é só sensibilidade (TPR) -- falta medir se remover o piso de RTT
+  aumenta o falso-positivo em tráfego limpo (rodar os mesmos sinais
+  isolados contra clients_rps_grid, que já tem o gráfico 32 de FPR com a
+  decisão combinada).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (151 arquivos .xlsx já existentes, ~28s, sem
+    Docker nem reprocessamento do detector) -- 3 PNGs inspecionados
+    visualmente.
+
+================================================================================
+§76. FPR por método individual (sem piso de RTT) contra tráfego 100% limpo
+================================================================================
+Contexto: fechando a ressalva deixada em aberto na §75 -- os sinais
+  individuais (Al. Z / Al. CUSUM, sem o piso de RTT) são muito mais
+  sensíveis que a decisão combinada em cenários furtivos, mas isso tem
+  custo em falso-positivo?
+
+Criado plot_fpr_por_metodo.py -- reaproveita os mesmos 160 .xlsx já
+  salvos em experiment_results/clients_rps_grid/ (tráfego 100% normal,
+  sem nenhum ataque real -- o mesmo dataset do gráfico 32), cruza com o
+  soluço mecânico já identificado (comparação de contagem de linhas de
+  parada de worker em normal_traffic_summary_log_*.csv contra o número
+  de clientes esperado), e mede, para cada método isolado, o % de
+  execuções com pelo menos 1 alarme falso (df[col]=='Sim' em qualquer
+  janela). Nenhum reprocessamento do detector, nenhum experimento novo.
+  Salvo graficos_apresentacao/41_fpr_por_metodo.png (3 painéis:
+  Entropia, Z-score, CUSUM; verde=limpo, vermelho=soluço, mesma
+  convenção de cor do gráfico 32).
+
+RESULTADO:
+                Al. Ent.     Al. Z  Al. CUSUM
+    limpo (n=151)   0.0%     42.4%      19.9%
+    soluço (n=9)     0.0%    100.0%       0.0%
+
+  Comparar com a decisão combinada original (gráfico 32): 0% limpo /
+  11.1% soluço.
+
+INTERPRETAÇÃO:
+  - Entropia sozinha: 0% nos dois grupos -- inerte também para falso
+    positivo, mesmo problema já visto na §75 (não reage a nada).
+  - Z-score sozinho: custo MUITO alto -- 42.4% de falso-positivo em
+    tráfego 100% limpo, e 100% nas runs com soluço (o soluço é quase
+    sempre lido como ataque por esse sinal isolado). Confirma que o
+    piso de RTT não está só bloqueando detecção furtiva (§75) -- ele é
+    o que mantém o Z-score isolado utilizável no dia a dia.
+  - CUSUM sozinho: custo moderado (19.9% limpo), mas com padrão
+    INVERTIDO no soluço (0%, contra 100% do Z-score) -- sugere que o
+    soluço é um salto abrupto/pontual (aciona a comparação janela-a-
+    janela do Z-score) mas não um desvio acumulado sustentado (não
+    aciona o CUSUM). Leitura plausível, não comprovada de forma
+    definitiva -- vale citar no TCC como pista sobre a natureza do
+    soluço, com essa ressalva.
+
+CONCLUSÃO: remover o piso de RTT não é ganho gratuito -- é um trade-off
+  genuíno entre sensibilidade (TPR furtivo, §75) e especificidade (FPR
+  em tráfego limpo, aqui). Isso NUANCIA a conclusão da §75 (o piso
+  continua sendo o gargalo estrutural da cegueira furtiva), mas não a
+  reverte: um meio-termo (piso relaxado, ou regra que exija concordância
+  entre Z-score e CUSUM) é o próximo candidato de design a explorar, se
+  for decidido ir nessa direção -- não implementado, decisão em aberto.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (160 arquivos .xlsx já existentes, sem
+    Docker nem reprocessamento do detector) -- PNG inspecionado
+    visualmente, cores corrigidas para manter a convenção
+    verde=bom/limpo, vermelho=ruim/soluço (mapeamento por categoria via
+    pandas .map, não por posição no eixo x -- o groupby ordena False
+    antes de True, então cor-por-posição teria invertido a convenção).
+
+================================================================================
+§77. Reorganização de graficos_apresentacao/ em subpastas por tema
+================================================================================
+Contexto: 42 PNGs acumulados soltos na raiz de graficos_apresentacao/ ao
+  longo de várias sessões, sem nenhuma estrutura -- difícil de navegar.
+
+Criadas 3 subpastas e movidos os 42 arquivos, por tema (não por número):
+  - 01_curva_capacidade_baseline/ (17 arquivos): caracterização do
+    simulador SEM ataque -- curva de capacidade, calibração de WU,
+    invariância RPS×clientes, prova de saturação do host. Gráficos
+    04(×3 variantes)/05(×3)/11-20/23.
+  - 02_caracterizacao_ataque_wedos/ (15 arquivos): comportamento do
+    simulador SOB ataque -- mapeamento de fronteira de falha, W-EDoS
+    (fase 3 da suíte wedos_*.py), isolado×combinado, desempate. Gráficos
+    01/06-10/21/22/24-30.
+  - 03_deteccao_estatistica/ (10 arquivos): entropia/Z-score/CUSUM,
+    sensibilidade e falso-positivo. Gráficos 02/03/31-37/41.
+  Numeração dos arquivos preservada (só a pasta mudou) -- referência
+  cruzada com este changes.txt continua válida.
+
+Atualizado OUT_DIR em ~30 scripts geradores (plot_*.py,
+  run_burst_detection_*.py, wedos_graphs.py, rescore_deteccao_combinado.py,
+  regenerate_graficos_04_05_media.py) para apontar para a subpasta
+  correta -- para que reruns futuros não voltem a salvar solto na raiz.
+  Caso especial: generate_presentation_graphs.py gera 3 gráficos em 2
+  pastas diferentes (01 -> ataque_wedos, 02/03 -> deteccao_estatistica),
+  então virou OUT_DIR_ATAQUE + OUT_DIR_DETECCAO em vez de um OUT_DIR só;
+  também corrigida a f-string do print final, que ainda referenciava o
+  OUT_DIR antigo (teria quebrado com NameError na próxima execução).
+
+Dois arquivos sem gerador no repo hoje (04_curva_capacidade_reproducibilidade.png
+  e 05_wu_calibration_resumo_atual.png, mencionados só em comentários de
+  outros scripts como "o original que não sobrescrevemos") foram movidos
+  como estão para 01_curva_capacidade_baseline/, sem nenhum OUT_DIR para
+  atualizar.
+
+Não alterado: run_burst_analysis.py (escreve .xlsx dentro de
+  experiment_results/, não em graficos_apresentacao/ -- fora do escopo
+  desta reorganização). O Artifact consolidado já publicado não é afetado
+  (imagens embutidas como base64 no HTML publicado, não referenciam o
+  caminho do arquivo em disco) -- só as legendas em texto (figcaption)
+  ainda citam o caminho antigo (cosmético, não quebra nada).
+
+Verificado:
+  - ls graficos_apresentacao/*.png (raiz) -- vazio, 0 arquivos.
+  - Contagem por pasta: 17 + 15 + 10 = 42, bate com o total original.
+  - python3 -m py_compile em todos os ~30 scripts tocados -- sem erro.
+  - grep confirmando que nenhum script ainda tem
+    OUT_DIR = "graficos_apresentacao" (raiz, sem subpasta).
+
+================================================================================
+§78. Gráfico exploratório: quartis (IQR) sobrepostos ao gráfico 23
+================================================================================
+Contexto: usuário pediu uma demonstração visual de como ficaria o gráfico
+  23 (curva de capacidade pow2 base 20) com quartis desenhados por cima,
+  "só para ver como fica" -- depois de já ter concordado (changes.txt §76
+  e memória feedback_no_iqr_outliers) em não usar IQR como filtro
+  automático.
+
+Criado plot_graph4_pow2_base20_quartis.py -- reaproveita a mesma leitura
+  de dados do gráfico 23 (normal_baseline, mesmo critério de exclusão de
+  runs totalmente vazias), adiciona um boxplot de Tukey (Q1/Q3/mediana/
+  bigodes 1.5xIQR) por agregado, mantém o scatter colorido por SCALE_UP
+  real do gráfico 23, e desenha um anel vermelho em cada ponto que o IQR
+  classificaria como outlier. Não sobrescreve o gráfico 23. Salvo
+  graficos_apresentacao/01_curva_capacidade_baseline/
+  42_curva_capacidade_pow2_base20_quartis.png.
+
+RESULTADO: IQR marcaria 4 outliers no total (de 57 pontos válidos):
+  agg=40 (13.88%, não escalou -- único caso de ruído puro), agg=160
+  (79.05%, escalou=True), agg=320 (127.82%, escalou=True), agg=640
+  (60.03%, escalou=True). 3 dos 4 já tinham SCALE_UP real -- confirma
+  visualmente, com um dataset ainda não testado antes (pow2 base 20),
+  o mesmo padrão da memória feedback_no_iqr_outliers: a "cauda" que o
+  IQR marca como estranha é, na maioria das vezes, a própria distribuição
+  bimodal real perto do limiar de 60%, não erro de medição.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (dados já existentes, nenhum experimento
+    novo) -- PNG inspecionado visualmente.
+
+================================================================================
+§79. Auditoria de robustez + legibilidade da seção de detecção estatística
+================================================================================
+Contexto: usuário pediu para "deixar robusto" e "sem pontas soltas" antes
+  de seguir pra ML -- garantia de que os dados e gráficos da seção de
+  métodos estatísticos (31-37, 41, 45) estão corretos e legíveis.
+
+AUDITORIA -- spot-check independente (recalculado do zero, sem reusar
+  código dos scripts originais):
+  - Gráfico 37 (CUSUM isolado), célula S3/1%: recalculado = 23.2%,
+    gráfico mostra 23% -- BATE.
+  - Gráfico 34 (v2), célula S4/10%: recalculado pela métrica "janela
+    dentro do ataque" = 0.0%, gráfico mostrava 100% -- DIVERGIU.
+    Investigado: não é bug, é que o gráfico 34 usa uma métrica diferente
+    dos gráficos 35-37 (execução inteira: "≥1 alarme em qualquer lugar
+    do run de 180s" vs. janela: "% de janelas dentro do período real de
+    ataque"). As duas são internamente corretas, mas misturar as duas
+    definições de "detectado" na mesma seção sem aviso é uma ponta solta
+    real -- risco de comparação incorreta entre gráficos numa banca.
+
+CORREÇÃO (aprovada pelo usuário via pergunta explícita: "recalcular com
+  a métrica rigorosa"):
+  - run_burst_detection_wedos_final.py: adicionado cálculo de
+    `tpr_antigo` (mesma lógica de `tpr_novo`, já existente, só não
+    salva) a partir do old_df (detector com bug), usando a mesma janela
+    real de ataque. Recolunado no CSV
+    experiment_results/resumo_deteccao_wedos_combined_final.csv.
+  - Criado plot_wedos_antes_depois_v3.py -- gráfico 45, heatmap S1-S4 x
+    intensidade usando tpr_novo/tpr_antigo (métrica por janela, IDÊNTICA
+    à dos gráficos 35-37) em vez da métrica por execução do gráfico 34.
+    Não sobrescreve nem o 33 nem o 34.
+  - RESULTADO: com a métrica rigorosa, a maior diferença antigo×novo em
+    todas as 11 células comparáveis = 0.00 pontos percentuais -- o
+    achado "correção do CUSUM não muda o resultado" (§72) se CONFIRMA
+    de novo, agora numa base metodológica consistente com 35-37.
+
+LEGIBILIDADE -- pedido explícito do usuário: inverter a barra de cor dos
+  heatmaps para o valor mais alto/escuro ficar embaixo (em vez do padrão
+  do matplotlib, que põe o valor mais alto em cima). Aplicado
+  `cbar.ax.invert_yaxis()` em:
+  - rescore_deteccao_combinado.py (gráfico 31)
+  - plot_deteccao_por_metodo.py (gráficos 35, 36, 37 -- 2 colorbars cada)
+  - plot_wedos_antes_depois_v3.py (gráfico 45, já criado com a inversão)
+
+Também fechada a ambiguidade dos eixos S1-S4 apontada em conversa
+  anterior: os heatmaps que usam esse eixo agora mostram
+  "S1 (40 rps normal)" etc. diretamente no rótulo do eixo Y, e os
+  títulos/subtítulos dos painéis "rps/atacante" vs. "S1-S4" deixam
+  explícito que são grandezas diferentes (um é intensidade do próprio
+  atacante, o outro é o nível de fundo de tráfego normal).
+
+Gráfico 34 (v2, métrica por execução) e 33 (original, 77 barras) NÃO
+  foram apagados -- ficam como registro histórico, mas o gráfico 45 é a
+  versão a citar no TCC daqui pra frente por usar a métrica mais
+  rigorosa e consistente com o resto da seção.
+
+Verificado:
+  - python3 -m py_compile em todos os scripts tocados -- sem erro.
+  - Todos os scripts rodados de ponta a ponta, sem Docker, reaproveitando
+    dados já existentes.
+  - PNGs inspecionados visualmente -- colorbars confirmadas invertidas
+    (0 em cima, 100 embaixo) em 31/35/36/37/45.
+
+================================================================================
+§80. Gráfico 36 (e 31, 35, 37): "sem dado" → n_escalou/n_total explícito
+================================================================================
+Contexto: usuário achou confuso o "sem dado" do gráfico 36 misturado com
+  os números de repetição -- pediu pra mostrar quantas repetições do
+  total realmente escalaram em vez de um "sem dado" opaco.
+
+Ao implementar, achada uma inconsistência adicional: o painel esquerdo
+  (desempate rps×WU) dos gráficos 35-37 NÃO filtrava por SCALE_UP real
+  -- media sensibilidade mesmo em células onde o ataque nunca chegou a
+  causar dano de verdade (ex.: rps=1/WU=100.000, 0/5 repetições
+  escalaram, mas a célula mostrava "11% (n=5)" como se fosse um
+  resultado válido). O painel direito (wedos) já filtrava. O mesmo
+  problema existia no gráfico 31 (nunca filtrava por SCALE_UP real).
+
+CORRIGIDO (aprovado pelo usuário em 2 confirmações):
+  - plot_deteccao_por_metodo.py: build_desempate_matrix e
+    build_wedos_matrix agora retornam n_escalou E n_total separados
+    (antes só um "n" ambíguo). draw_heatmap trocou "sem dado" por
+    "X/Y escalaram\n(sem dano real)" nas células sem SCALE_UP real, e
+    toda célula com dado passou a mostrar "Z% (X/Y escalaram)" em vez de
+    "Z% (n=X)". Painel esquerdo agora também filtra por SCALE_UP real,
+    igual ao direito -- os dois painéis respondem à mesma pergunta.
+  - rescore_deteccao_combinado.py (gráfico 31): mesmo tratamento --
+    n_escalou/n_total calculados e anotados, célula rps=1/WU=100k passa
+    de "0%±0 (n=5)" para "0/5 escalaram (sem dano real)". Figura alargada
+    (9x7 -> 10x7.3) e título encurtado/refeito em 2 linhas -- o título
+    antigo estava sendo cortado na borda esquerda com o texto mais longo.
+
+Verificado:
+  - python3 -m py_compile -- sem erro nos 2 scripts.
+  - Rodados de ponta a ponta (dados já existentes, sem Docker).
+  - PNGs de 31, 35, 36, 37 inspecionados visualmente -- anotação nova
+    confirmada em toda célula, título do 31 sem corte.
+
+================================================================================
+§81. Gráfico 46 -- trade-off sensibilidade × falso-positivo (scatter, não heatmap)
+================================================================================
+Contexto: usuário perguntou "por que não trocar o E por OU na decisão
+  combinada" e pediu confirmação de que os testes já cobrem falso-
+  positivo -- pediu um gráfico único mostrando sensibilidade x falso-
+  positivo pras 5 regras discutidas (combinado atual, entropia sozinha,
+  CUSUM sozinho, Z-score sozinho, e a regra nova "Z OU CUSUM" -- a
+  combinação exata proposta pelo usuário, nunca testada como par antes,
+  só cada sinal isoladamente).
+
+Calculado pela primeira vez o TPR/FPR da regra "Z-score OU CUSUM" (sem
+  piso de RTT nenhum) -- não testada antes como combinação, só isolada:
+  TPR médio (1% intensidade, 30 execuções com dano real confirmado) =
+  91.9% (contra 90.7% do Z-score sozinho -- ganho marginal); FPR em
+  tráfego limpo = 49.7% (contra 42.4% do Z-score sozinho -- piora);
+  FPR com soluço = 100%. Confirma que "OU" nunca é estritamente melhor
+  que o mais permissivo dos dois sinais isolados -- só acumula os falso-
+  positivos de ambos.
+
+Criado plot_tradeoff_tpr_fpr.py -- gráfico de dispersão (não heatmap,
+  forma certa pra comparar 2 métricas contínuas entre poucas categorias):
+  eixo X = falso-positivo (tráfego limpo, n=151), eixo Y = sensibilidade
+  (execuções furtivas com dano real, n=30), 1 ponto colorido por regra
+  (5 regras), com um segundo marcador vazado ligado por linha mostrando
+  o FPR nas execuções com soluço (n=9) -- mostra a faixa, não só um
+  número. Zona "ideal" (canto superior-esquerdo) e "ruim" (inferior-
+  direito) sombreadas como referência de leitura. Salvo
+  graficos_apresentacao/03_deteccao_estatistica/
+  46_tradeoff_sensibilidade_fpr.png.
+
+Ajustes de legibilidade durante a criação: rótulos de método com posição
+  manual (dx, dy, alinhamento) por ponto -- o posicionamento automático
+  colidia nos 2 pares de pontos mais próximos (Z-score x Z OU CUSUM no
+  topo; Combinado atual x Entropia embaixo); subtítulo reduzido pra não
+  cortar na borda direita da figura; legenda reposicionada pra não
+  encostar no texto "zona ruim".
+
+RESUMO (os 5 pontos do gráfico):
+  Combinado atual:  TPR=2.2%   FPR_limpo=0.0%   FPR_soluço=11.1%
+  Entropia sozinha: TPR=0.0%   FPR_limpo=0.0%   FPR_soluço=0.0%
+  CUSUM sozinho:    TPR=36.8%  FPR_limpo=19.9%  FPR_soluço=0.0%
+  Z-score sozinho:  TPR=90.7%  FPR_limpo=42.4%  FPR_soluço=100.0%
+  Z OU CUSUM:       TPR=91.9%  FPR_limpo=49.7%  FPR_soluço=100.0%
+
+CONCLUSÃO visual: nenhuma das 5 regras booleanas fica na "zona ideal"
+  (canto superior-esquerdo) -- é sempre um trade-off ao longo de uma
+  curva, nunca um ganho livre. Reforça, com um gráfico só em vez de
+  vários números soltos em texto, por que uma regra fixa (E ou OU) não
+  resolve o problema e por que ML é o próximo passo natural.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (dados já existentes, sem Docker) -- PNG
+    inspecionado visualmente 3 vezes até resolver as colisões de rótulo.
+
+================================================================================
+§82. Artifact consolidado: seção "Achado 5" -- limitação teórica na prática
+================================================================================
+Contexto: usuário pediu pra formalizar, no relatório consolidado, a
+  explicação teórica de por que Z-score/CUSUM/entropia se comportam como
+  se comportam sob diluição -- não só o "o quê" (achados 3-4), mas o
+  "por quê" (fórmula exata + dados reais de execução).
+
+Adicionado "Achado 5" na seção 09 do report_template.html:
+  - Tabela com as 19 janelas reais de S3_atk1pct_wu300000 (Média RTT,
+    Entropia, Δ Ent., Max Z, Al.Z, CUSUM, Al.CUSUM) -- mostra Status
+    Burst "Normal" nas 19/19, mesmo com Z disparando em 17/19.
+  - Parágrafos explicando cada método a partir da fórmula exata do
+    código (não uma descrição aproximada): Z-score é o MÁXIMO por
+    amostra individual contra a janela anterior (não comparação de
+    médias); CUSUM reseta a zero via max(0, ...) sempre que a soma
+    tentaria ficar negativa; Entropia mede forma da distribuição via
+    histograma de 10 bins, não valor típico.
+  - Tabela de síntese (método x pressuposição teórica x por que a
+    diluição quebra) -- 4 linhas, uma por método incluindo o piso.
+  - Callout com a frase-síntese: a furtividade não é falha de
+    implementação, é exploração direta da pressuposição estatística de
+    cada método.
+  - Item novo na lista "O que isso significa para o TCC": "a limitação
+    é teórica, não de engenharia".
+
+Republicado o Artifact (mesma URL,
+  https://claude.ai/code/artifact/0814988f-4e82-4140-b1c2-1edc25328e7b).
+  Ao reconstruir o HTML, corrigido um bug latente: o mapa IMG_XX ainda
+  apontava pros caminhos antigos (graficos_apresentacao/XX_...png, raiz)
+  de antes da reorganização em subpastas (§77) -- se republicasse sem
+  perceber, os embeds de imagem teriam falhado silenciosamente (arquivo
+  não encontrado). Corrigido pros caminhos atuais em
+  01_curva_capacidade_baseline/ e 03_deteccao_estatistica/.
+
+Verificado:
+  - Script de rebuild rodou sem "MISSING MAPPING" nem placeholder
+    remanescente.
+  - HTML final ~2.64MB, dentro do limite do Artifact.
+  - Publicação confirmada na mesma URL (updated, não um artifact novo).
+
+================================================================================
+§83. Ajustes nos gráficos 20, 25 e 30 (pedido do usuário)
+================================================================================
+Contexto: usuário pediu três ajustes pontuais nos gráficos do relatório
+  consolidado, cada um verificado com diagnóstico antes de editar.
+
+Gráfico 20 (plot_graph4_pico_pre_escalonamento.py):
+  - Fonte de dados trocada de normal_baseline (só RPS agregado) para
+    clients_rps_grid (mesmo dataset do gráfico 17 -- RPS agregado x nº de
+    clientes), a pedido do usuário. Mantido o estilo scatter+errorbar
+    original, agora com 5 linhas (uma por nº de clientes 1/2/4/8/16) em vez
+    de uma só.
+  - Outliers removidos via IQR (quartis, 1.5x, dentro de cada célula
+    agregado x clientes, n~5 reps) -- a pedido EXPLÍCITO do usuário, mesmo
+    após eu rodar um teste ao vivo nesse dataset específico (terceiro teste
+    de IQR neste projeto, ver feedback_no_iqr_outliers na memória) que
+    confirmou o mesmo padrão dos dois testes anteriores: o IQR não distingue
+    "segundo modo real de comportamento perto do limiar" de ruído. Nesse
+    teste, 11 pontos foram flagados como outlier e 3 deles eram execuções
+    que REALMENTE dispararam SCALE_UP (agg=512, clients=2/4/8, na zona-limite
+    do limiar de 60%: 76.4%, 99.0%, 72.0%). Esses 3 pontos foram removidos do
+    gráfico por decisão do usuário -- documentado em código (comentário +
+    nota visual em caixa amarela no próprio gráfico) e aqui, para não passar
+    despercebido numa leitura futura. A decisão geral registrada em
+    feedback_no_iqr_outliers (não usar IQR por padrão no projeto) continua
+    valendo para os outros gráficos -- esta foi uma exceção pontual pedida
+    para o gráfico 20 especificamente.
+
+Gráfico 25 (plot_comparacao_completa.py):
+  - Adicionado rótulo "nº de instâncias" no eixo direito (twinx) de cada
+    painel, que antes só tinha os ticks numéricos sem indicar o que
+    representavam.
+  - Adicionada linha de limiar SCALE_DOWN (config.CPU_THRESHOLD_SCALE_DOWN,
+    25%) em todos os painéis, ao lado da linha de limiar SCALE_UP (60%) já
+    existente. Ambas na legenda da figura.
+  - Diagnóstico pedido (RPS=1, WU=400.000, por que o pico final não
+    escalonou): o pico em t=135s (CPU=64.2%, acima do limiar de 60%) caiu
+    dentro do cooldown de 20s (config.SCALE_COOLDOWN_SECONDS) contado a
+    partir do SCALE_DOWN em t=125s (cooldown ativo até t=145s) -- o
+    autoscaler ignora a decisão nesse intervalo mesmo com CPU acima do
+    limiar. Não é bug nem dado ruim, é o mecanismo de cooldown funcionando
+    como desenhado (evitar flapping), só que "custando" esse SCALE_UP
+    específico. Não alterei o gráfico para marcar isso visualmente (não foi
+    pedido), só documentando a explicação aqui.
+
+Gráfico 30 (plot_grid_heatmap_combinado.py):
+  - Diagnóstico pedido (RPS/atacante batendo com 1%/5%/10%): confirmado que
+    NÃO batem, mas não é bug -- são duas convenções diferentes que
+    reaproveitam por coincidência os números 1/5/10. Este gráfico vem de
+    experiment_results/desempate_combinado_isolado/ (run_desempate_
+    combinado_isolado.py + run_desempate_rps1.py), onde "1/5/10" é o valor
+    literal de --rps por atacante (4 atacantes fixos, 40 agregado normal
+    fixo) -- diferente da convenção 1%/5%/10% do wedos_grid/combined_sweep,
+    onde é fração do agregado normal do cenário S1-S4.
+  - Adicionada a % real do agregado normal (40, fixo neste dataset) em cada
+    célula, ao lado do rótulo "rps agregado" já existente: rps=1 -> 10% do
+    normal, rps=5 -> 50%, rps=10 -> 100%. Deixa a diferença de convenção
+    explícita direto no gráfico, sem precisar decorar o contexto.
+
+Verificado:
+  - python3 -m py_compile -- sem erro nos 3 scripts.
+  - Rodados de ponta a ponta (dados já existentes, sem Docker) -- 3 PNGs
+    inspecionados visualmente.
+
+================================================================================
+§84. Novo experimento: grid atacantes×intensidade limitado a 25% (triagem)
+================================================================================
+Contexto: usuário pediu um gráfico novo relacionando intensidade do ataque
+  com o tráfego legítimo, variando número de atacantes e RPS, com o teto
+  explícito de a intensidade agregada do ataque nunca passar de 25% do
+  agregado de tráfego normal. Desenho do grid definido em conjunto com o
+  usuário (perguntas feitas, respostas aplicadas):
+    - Cenários: S1-S4 (40/100/200/300 agregado normal) -- S4 incluído por
+      pedido explícito, mesmo sendo conhecido por já estar acima do teto de
+      capacidade do simulador sem ataque nenhum (~205-210 agregado, WU=10)
+      -- resultado de S4 vai precisar de nota de cautela na análise.
+    - Atacantes: {1, 2, 4}.
+    - Intensidade: {1, 5, 10, 15, 20, 25}% do agregado normal do cenário.
+    - WU fixo em 200.000 -- não fazia parte do que foi pedido pra variar;
+      usei o mesmo valor intermediário de referência de outros gráficos do
+      projeto (desempate_combinado_isolado, comparação completa) por não
+      ter sido especificado. Avisei o usuário antes de rodar.
+    - 1 repetição por célula (triagem, estilo stage1a do wedos_combined_grid)
+      -- decisão do usuário, dado o custo de tempo do grid completo com 5
+      reps (~20h+ de Docker). Total: 4 cenários x 3 atacantes x 6
+      intensidades x 1 rep = 72 execuções, 180s cada (~3,6h de simulação +
+      overhead de Docker).
+
+Criado run_atacantes_intensidade_grid.py (não altera nenhum script
+  existente -- mesmo padrão de run_point() do wedos_combined_grid.py, mas
+  com nº de atacantes como dimensão variável em vez de fixo). Salva em
+  experiment_results/atacantes_intensidade_grid/, convenção de nome
+  metrics_{cenario}_atk{pct}pct_att{atacantes}_wu{WU}_rep{rep}.csv.
+
+Disparado em background (nohup, PID inicial 75952) -- ainda não tem
+  gráfico correspondente; será criado depois que os dados existirem.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - docker ps e getcap do tcpdump confirmados OK antes de disparar.
+  - Primeira execução do grid (S1, 1 atacante, 1%) iniciou e logou
+    corretamente.
+
+================================================================================
+§85. Artifact "Atlas W-EDoS" — gráficos selecionados para a monografia
+================================================================================
+Contexto: usuário pediu ajuda pra organizar os gráficos mais relevantes do
+  projeto, com dados de origem, para apoiar a redação da monografia.
+
+Publicado Artifact HTML (não um arquivo local -- vive em claude.ai):
+  https://claude.ai/code/artifact/81e0cc22-e025-4eb7-9e57-b7bd5a5e5a8a
+
+Conteúdo: 13 gráficos selecionados dos mais de 40 do projeto (organizados
+  nas mesmas 3 seções de graficos_apresentacao/), cada um com "o que
+  mostra" (extraído dos comentários reais de cada script, não resumo
+  genérico), script gerador + pasta de dados, e uma sugestão de legenda
+  pronta pra adaptar no texto. Seleção: 04, 17, 20, 19 (capacidade) / 06,
+  07, 25, 30 (caracterização do ataque) / 31, 41, 45, 46, 47 (detecção).
+  Inclui link de volta pro relatório consolidado
+  (.../artifact/0814988f-4e82-4140-b1c2-1edc25328e7b) pra narrativa
+  completa, e uma nota avisando que os gráficos 06 e 45 usam populações
+  de execuções diferentes (usar o 47 pra comparação rigorosa entre
+  efeito e detecção).
+
+Não foi criado nenhum arquivo local novo além do HTML de origem em
+  /tmp (scratchpad, não faz parte do repositório) -- o Artifact publicado
+  é a entrega.
+
+================================================================================
+§86. Gráfico 48: atacantes × intensidade (teto 25%) — experimento concluído
+================================================================================
+Contexto: continuação do §84/85 -- as 72 execuções do grid novo terminaram
+  (4 cenários S1-S4 x 3 contagens de atacantes x 6 intensidades x 1 rep,
+  WU=200.000 fixo, ~3h43min de simulação real).
+
+Criado plot_atacantes_intensidade_grid.py -- heatmap por cenário (S1-S4),
+  eixo Y = nº de atacantes (1/2/4), eixo X = intensidade (1/5/10/15/20/25%
+  do agregado normal), cor = pico de CPU, ▲ = SCALE_UP disparado, "% to"
+  anotado quando taxa de timeout > 0.5%. Salvo em
+  graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  48_atacantes_intensidade_grid.png.
+
+Achados da triagem (1 rep, olhar com cautela antes de repetir):
+  - S1 (40 agregado): único cenário onde a maioria das células fica limpa
+    (sem timeout); SCALE_UP começa a aparecer a partir de ~10% de
+    intensidade, mais cedo com menos atacantes concentrando mais RPS
+    cada.
+  - S2 (100 agregado): SCALE_UP em quase todas as células a partir de 1%;
+    timeout ainda baixo (<3%) na maioria, só sobe visivelmente em
+    combinações com mais atacantes.
+  - S3 e S4: já mostram timeout de 30-100% em várias células a partir de
+    ~10-15% de intensidade -- essas duas confirmam a instabilidade de
+    baseline conhecida (S4 já documentada; S3 também aparenta estar perto
+    do limite mesmo antes do teto de 25%). Resultados de S3/S4 nesse teste
+    precisam ser lidos com essa ressalva.
+  - Efeito do nº de atacantes isoladamente é ruidoso com 1 rep só (ex.:
+    S1/1 atacante tem 15%=46% < 10%=63%, não-monotônico) -- não dá pra
+    tirar conclusão forte sobre "mais atacantes = mais furtivo" sem
+    repetir.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados reais das 72 execuções, sem
+    nenhum arquivo faltando.
+  - PNG inspecionado visualmente.
+
+Próximo passo (não feito, decisão do usuário): se os achados acima
+  justificarem, repetir com mais reps (a triagem de 1 rep já indica que
+  S3/S4 são instáveis mesmo com pouco ataque, então repetições ali
+  importam mais do que em S1/S2).
+
+================================================================================
+§87. Lote 2 do grid atacantes×intensidade: S5-S8 (20/80/160/320 agregado)
+================================================================================
+Contexto: usuário pediu mais 4 pontos de RPS agregado normal para o grid
+  atacantes×intensidade (gráfico 48), com o objetivo de ter mais resolução
+  ao longo da curva (S1-S4 = 40/100/200/300 já rodados). Confirmado com o
+  usuário: soma aos 4 cenários existentes (8 no total), não substitui.
+
+Alterado run_atacantes_intensidade_grid.py: NORMAL_SCENARIOS trocado para
+  {"S5":20,"S6":80,"S7":160,"S8":320} (lote 2) -- mesmo arquivo, mesmo
+  RESULTS_DIR (experiment_results/atacantes_intensidade_grid/), sem risco
+  de colisão de nome já que o nome do arquivo inclui o cenário. Comentário
+  do topo do arquivo atualizado explicando os 2 lotes.
+
+Alterado plot_atacantes_intensidade_grid.py: NORMAL_SCENARIOS agora lista
+  os 8 cenários (S1-S8); layout do heatmap mudou de 1x4 para 2x4 painéis
+  (grid de eixos com os painéis extras desligados se sobrarem, embora
+  8/4=2 encha exatamente as 2 linhas).
+
+S8=320 já está acima do teto de capacidade medido do simulador (~205-210
+  agregado, WU=10) -- mesma ressalva de instabilidade de baseline já
+  documentada para S4=300 (§84/86): ler os resultados de S8 com cautela.
+
+Disparado em background (nohup, PID 85184) -- 72 execuções novas
+  (4 cenários x 3 atacantes x 6 intensidades x 1 rep, WU=200.000, ~3,6h +
+  overhead). Log em scratchpad/atacantes_intensidade_grid_s5s8.log.
+
+Verificado:
+  - python3 -m py_compile nos 2 scripts -- sem erro.
+  - docker ps OK antes de disparar.
+  - Primeira execução do lote (S5, 1 atacante, 1%) iniciou e logou
+    corretamente.
+
+================================================================================
+§88. Gráfico 48 regenerado com 8 cenários (S1-S8)
+================================================================================
+Contexto: continuação do §87 -- lote 2 (S5-S8: 20/80/160/320 agregado)
+  terminou (72/72 execuções). Gráfico 48 regenerado com plot_
+  atacantes_intensidade_grid.py já ajustado pro layout 2x4.
+
+Achados novos (mesma ressalva de 1 rep só):
+  - S5 (20 agregado, o mais leve de todos): ÚNICO cenário que nunca
+    escala em nenhuma célula, nem em 25% de intensidade com 1 atacante --
+    fica sempre abaixo do limiar de 60%. Complementa bem o extremo "leve"
+    da curva, que antes começava em S1=40 (que já escala a partir de 10%).
+  - S6 (80 agregado): comportamento intermediário entre S1 e S2, como
+    esperado pela posição entre os dois na curva de RPS.
+  - S7 (160 agregado): já bem instável a partir de ~15-20% de intensidade
+    (timeout de até 95%), parecido com S3.
+  - S8 (320 agregado, o mais pesado): o cenário mais instável de todos --
+    até com 1 atacante e só 5% de intensidade já aparece timeout de
+    13-100% em várias células. Mais extremo que S4 (300), coerente com
+    estar ainda mais acima do teto de capacidade (~205-210 agregado).
+  - Com os 8 pontos, fica mais visível uma progressão contínua: a partir
+    de ~80-100 agregado (S2/S6) o ataque já força SCALE_UP na maioria das
+    células mesmo em baixa intensidade; a partir de ~160-200 (S3/S7) o
+    sistema já entra em timeout significativo mesmo sem muito ataque.
+
+Verificado:
+  - Rodado de ponta a ponta sobre as 144 execuções totais (72+72), sem
+    nenhum arquivo faltando.
+  - PNG (2x4, 8 painéis) inspecionado visualmente -- layout limpo, sem
+    sobreposição de texto.
+
+================================================================================
+§89. plot_host_saturacao_grid48.py (novo) -- gráfico 49, prova de
+  saturação do host aplicada às 144 células do grid 48 -- refuta a
+  hipótese de "saturação de CPU" para a maior parte da grade
+================================================================================
+Contexto: usuário perguntou o que causa a instabilidade/timeout nos
+  cenários de RPS agregado mais alto do gráfico 48 (S3/S4/S7/S8, acima ou
+  perto do teto de capacidade ~205-210 agregado). Expliquei o mecanismo já
+  documentado (gráfico 19, seção 56): saturação real dos 8 núcleos do host
+  (MAX_INSTANCES=4 x INSTANCE_MAX_CONCURRENT_REQUESTS=2 = nproc=8) faz
+  requisições não terminarem dentro do timeout de 2s do cliente. Usuário
+  pediu prova equivalente aplicada ao gráfico 48 inteiro (opção B: grade
+  completa, não só células pontuais).
+
+Criado plot_host_saturacao_grid48.py: mesma estrutura de grid do gráfico
+  48 (S1-S8 x atacantes x intensidade, mesmos CSVs de
+  experiment_results/atacantes_intensidade_grid/, sem novo Docker). Cor da
+  célula = % do tempo do run (excluindo t=0) com host_cpu_percent >= 95%
+  (mesmo critério "gruda no teto" do gráfico 19). Anotação = pico de
+  host_cpu_percent do run + % de timeout (mesmo cálculo do gráfico 48) +
+  ▲ de SCALE_UP. Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  49_host_saturacao_grid48.png. Não sobrescreve nem altera o gráfico 48
+  nem nenhum script existente.
+
+ACHADO PRINCIPAL (contradiz a explicação dada ao usuário nesta mesma
+  conversa, baseada no gráfico 19): a saturação real do host (>=95%
+  sustentado) só aparece em UMA região da grade inteira -- S8, 4
+  atacantes, intensidade 20-25% (63% e 20% do tempo saturado,
+  respectivamente). Em TODO o resto da grade, incluindo células com
+  timeout de 90-100%, o pico de host_cpu_percent fica na faixa de 40-70%,
+  longe de saturar os 8 núcleos. Exemplo mais gritante: S4/1 atacante/15%
+  de intensidade -- pico de host_cpu_percent de apenas 42,42%, com 100%
+  de timeout (nenhuma requisição completou). Mesmo padrão em S3, S4, S7 e
+  na maior parte de S8.
+
+Interpretação: o gráfico 19 usava WU=400.000 (custo por requisição bem
+  mais pesado); o grid 48 usa WU=200.000. Nessa faixa mais leve de custo
+  por requisição, o colapso de timeout NÃO é explicado por saturação de
+  CPU do host -- outro mecanismo domina (hipóteses ainda não testadas,
+  discutidas com o usuário: esgotamento de concorrência por instância via
+  fila do ProcessPoolExecutor com INSTANCE_MAX_CONCURRENT_REQUESTS=2 mesmo
+  sem CPU média alta; esgotamento de portas/keep-alive já documentado em
+  sessão anterior; ou janela de timeout concentrada logo no início do
+  ataque, antes do SCALE_UP completar, diluída pela média de todo o run de
+  180s). Nenhuma dessas hipóteses foi investigada ainda -- próximo passo
+  pendente de decisão do usuário.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre as 144 execuções já em disco (nenhum
+    arquivo faltando, coluna host_cpu_percent presente em todos -- coleta
+    já era posterior à seção 37).
+  - PNG (2x4, 8 painéis) inspecionado visualmente.
+
+================================================================================
+§90. analyze_fila_processpool.py (novo) -- teste da hipótese de fila/backlog
+  na célula S4/1 atacante/15% -- hipótese REFUTADA para as requisições
+  bem-sucedidas
+================================================================================
+Contexto: usuário pediu para investigar primeiro a hipótese de fila do
+  ProcessPoolExecutor (levantada na seção 89) como causa do timeout de
+  100% em S4/1 atacante/15% sem saturação de host CPU (pico 42%).
+
+Antes de criar o script, inspeção manual dos CSVs brutos já achou evidência
+  indireta forte a favor de ALGUM tipo de backlog: attack_summary_log dessa
+  célula mostra 0 sucessos em ambas as janelas do ataque (416 + 4784 erros,
+  100% de falha); normal_traffic_summary_log mostra só 1 das 4 threads de
+  cliente concluindo seu resumo final (as outras 3 não aparecem no
+  arquivo) -- consistente com threads presas no loop de drenagem de
+  pending_futures (`.result(timeout=3)` por future) quando esse loop não
+  termina a tempo do `join(timeout=0.1)` do processo principal, sinal de
+  fila grande nesse ponto.
+
+Criado analyze_fila_processpool.py: reconstrói, a partir de rtt_log.csv
+  (só requisições BEM-SUCEDIDAS -- início = timestamp-rtt, fim = timestamp),
+  o nº de requisições simultaneamente "em voo" via varredura de eventos, e
+  compara com a capacidade dinâmica do servidor (num_instances x
+  INSTANCE_MAX_CONCURRENT_REQUESTS, de metrics.csv) e com o limite do
+  _send_pool do cliente (HTTP_NORMAL_MAX_CONCURRENT_SENDS=64, config.py).
+  Plota concorrência reconstruída + RTT ao longo do tempo (2 painéis).
+  Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  50_fila_processpool_S4_att1_15pct.png. Só leitura de dados já em disco,
+  nenhum Docker novo, nenhum arquivo do simulador alterado.
+
+RESULTADO (refuta a hipótese, para a população que sucede): a concorrência
+  reconstruída tem um pico de 28 logo no início (t~0-10s, warmup) e depois
+  fica quase sempre abaixo de 15 pelo resto do run inteiro (180s) -- nunca
+  chega perto do limite do _send_pool (64) nem sobe de forma sustentada
+  acima da capacidade do servidor. O RTT das 22.444 requisições
+  bem-sucedidas fica estável em ~40-60ms do início ao fim, SEM nenhuma
+  tendência de subida (nenhum "creep" em direção ao timeout de 2000ms) --
+  nem durante nem depois da janela de ataque (t=20-160s). Ou seja: entre as
+  requisições que dão certo, não há sinal nenhum de fila crescendo.
+
+Limitação importante do método: rtt_log só registra requisições
+  bem-sucedidas -- as que falham/timeout (100% do ataque, ~52% do tráfego
+  normal nessa célula) não têm timestamp/duração registrados em lugar
+  nenhum, então esse método não pode ver diretamente o que acontece com
+  elas. A leitura mais provável, dado o padrão observado (sucesso rápido
+  e estável OU falha total, sem meio-termo/degradação gradual), é que o
+  mecanismo de falha é mais parecido com uma rejeição binária/imediata no
+  nível de conexão (ex.: conexão recusada/resetada, esgotamento de portas)
+  do que com uma fila de computação crescendo aos poucos -- oposto do que
+  a hipótese desta seção previa.
+
+Próximo passo sugerido ao usuário (não decidido ainda): investigar
+  traffic_capture.csv (captura tcpdump já existente dessa mesma célula)
+  procurando sinais no nível TCP -- pacotes RST, contagem de portas de
+  origem únicas ao longo do tempo (mecanismo de esgotamento de portas/
+  keep-alive já mencionado em sessão anterior, ver [[project_ml_dataset_plan]]
+  na memória) -- para testar a hipótese de rejeição de conexão em vez de
+  fila de computação.
+
+================================================================================
+§91. analyze_port_churn.py (novo) -- teste de port churn na mesma célula --
+  sinal sugestivo, mas com problema de confiabilidade da captura; hipótese
+  refinada para saturação do _send_pool do CLIENTE (não do servidor)
+================================================================================
+Contexto: usuário pediu para seguir com a investigação de port
+  churn/esgotamento de portas (próximo passo sugerido na seção 90). Antes
+  de rodar, checado tcpdump_sniffer.py: o tcpdump roda com a flag -q (modo
+  quieto) -- flags TCP (SYN/RST/FIN) NÃO são capturadas em
+  traffic_capture.csv, só IP:porta e tamanho. Contagem de RST direta não é
+  possível com os dados já coletados; port churn (portas de origem únicas
+  por janela / total de pacotes cliente->servidor por janela) é o proxy
+  disponível.
+
+Criado analyze_port_churn.py: filtra traffic_capture.csv por pacotes
+  cliente->servidor (dst_port numa das portas publicadas das instâncias,
+  STARTING_HOST_PORT..+MAX_INSTANCES-1), agrupa em janelas de 5s (mesmo
+  passo do MONITOR_INTERVAL_SECONDS) e calcula portas_unicas/pacotes por
+  janela. Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  51_port_churn_S4_att1_15pct.png. Mesma célula da seção 90, só leitura de
+  dados já em disco.
+
+RESULTADO: a razão portas_únicas/pacotes sobe de forma bastante
+  consistente ao longo do run -- de ~0,07-0,16 nos primeiros 20s para
+  ~0,40-0,55 nos últimos 20-30s (quase 4x). Á primeira vista, sinal a
+  favor da hipótese de esgotamento de keep-alive crescendo com o tempo.
+
+RESSALVA IMPORTANTE que descarta conclusão forte: o volume total de
+  pacotes cliente->servidor capturados nessa célula (10.810) é
+  implausivelmente baixo -- menor até que o número de requisições
+  BEM-SUCEDIDAS sozinho (22.444, da seção 90), que já exigiria pelo menos
+  22.444 pacotes GET só do lado cliente->servidor, sem contar as
+  requisições que falharam. Além disso, o total de pacotes por janela de
+  5s CAI de forma constante ao longo do run (de ~500-568 no início para
+  ~150-200 no final), o que não é coerente com uma carga de ataque+normal
+  configurada para ficar constante o run inteiro -- é assinatura de o
+  tcpdump (rodando via subprocess + leitura linha a linha em Python,
+  tcpdump_sniffer.py) estar perdendo cada vez mais pacotes conforme a
+  carga sobe, não de queda real de tráfego na rede. Ou seja: a tendência
+  de subida do port churn pode ser um sinal real, mas também pode ser
+  (parcial ou totalmente) artefato de captura cada vez mais incompleta --
+  os dados atuais não permitem distinguir as duas coisas com confiança.
+
+Hipótese refinada (não testada ainda, raciocínio a partir do padrão
+  observado nas seções 90+91 combinadas): o gargalo pode estar no
+  _send_pool do PRÓPRIO CLIENTE (ThreadPoolExecutor com
+  HTTP_NORMAL_MAX_CONCURRENT_SENDS/HTTP_ATTACK_MAX_CONCURRENT_SENDS=64,
+  fila interna sem limite de tamanho, config.py), não no
+  ProcessPoolExecutor do servidor nem na CPU do host: se uma fração das
+  tentativas de conexão passa a demorar até travar no timeout de 2s (por
+  algum motivo ainda não identificado -- ex.: limite de conexões
+  aceitas/backlog do socket do servidor, esgotamento de portas efêmeras no
+  loopback, ou outro fator), essas tentativas ocupam uma thread do
+  _send_pool por até 2s cada; com throughput alto o bastante, as 64
+  threads do pool ficam dominadas por tentativas fadadas a falhar,
+  reduzindo o número de tentativas NOVAS que conseguem ser despachadas por
+  segundo -- o que explicaria ao mesmo tempo: (a) baixa concorrência
+  reconstruída entre sucessos (seção 90, porque sucessos são raros e
+  rápidos, não competem por muito tempo), (b) queda no volume de pacotes
+  capturados ao longo do tempo (throughput real caindo, não só artefato de
+  captura), e (c) threads de tráfego normal não conseguindo drenar
+  pending_futures a tempo de logar o resumo final (seção 90).
+
+Próximo passo sugerido ao usuário (não decidido, requer mudança de código
+  + novo Docker para validar com precisão): instrumentar
+  traffic_injectorV0.py/normal_traffic.py para logar periodicamente
+  `_send_pool._work_queue.qsize()` e/ou nº de threads ocupadas -- mede o
+  gargalo diretamente, sem depender da confiabilidade da captura tcpdump.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados já em disco dessa célula.
+  - PNG (2 painéis) inspecionado visualmente.
+  - Números citados (10.810 pacotes c2s, queda de ~500 para ~150-200
+    pacotes/janela, razão subindo de ~0,1 para ~0,5) conferidos no
+    console/tabela impressa, não é leitura visual aproximada.
+
+================================================================================
+§92. Causa raiz encontrada (sem código novo): autoscaler baseado em CPU fica
+  preso/oscila em nº de instâncias insuficiente -- explica o colapso sem
+  precisar de fila, port churn ou saturação de host CPU
+================================================================================
+Contexto: antes de implementar a instrumentação do _send_pool combinada na
+  seção 91, reexaminei a série completa de num_instances/decision de
+  metrics_S4_atk15pct_att1_wu200000_rep1.csv (mesma célula das seções
+  90-91) e de mais 3 células (S4/S3/S7 atk20pct att1) para checar se a
+  resposta já estava nos dados existentes antes de gastar Docker/código
+  novo.
+
+Achado (célula S4/1 atacante/15%, a mais gritante):
+  t=20s: 2 instâncias, CPU média=15,86%, NO_ACTION
+  t=25s: SCALE_DOWN (CPU=21,93% < CPU_THRESHOLD_SCALE_DOWN=25%) -- cai de
+    2 para 1 instância
+  t=25s a t=180s (155 dos 180s do run, 86% do tempo): PRESO em 1 instância
+    só -- CPU média oscila entre 15% e 56% pelo resto do run, nunca mais
+    cruza os 60% de CPU_THRESHOLD_SCALE_UP, então nenhum SCALE_UP novo é
+    disparado.
+
+Com 1 instância só tentando atender ~345 req/s de demanda combinada (300
+  normal + 45 de ataque a 15%) contra o teto estrutural por instância de
+  ~150 req/s JÁ DOCUMENTADO em config.py (comentário de
+  INSTANCE_MAX_CONCURRENT_REQUESTS, sessão 12/08: aumentar o pool de
+  processos de 2->4->8 workers não melhora a taxa de erro -- suspeita
+  registrada na época era contenção de GIL ou o thread único de
+  gerenciamento de resultados do ProcessPoolExecutor, nunca confirmada com
+  certeza), o resultado é exatamente o observado: colapso quase total de
+  throughput SEM precisar de CPU alta, porque esse gargalo específico não
+  consome CPU proporcionalmente -- ele derruba requisições sem aquecer os
+  núcleos.
+
+Checagem de generalização (S3/1 atacante/20%, 97% timeout, pico CPU 50%):
+  padrão mais complexo mas mesma raiz -- o autoscaler fica OSCILANDO o run
+  inteiro (SCALE_UP -> CPU despenca porque a carga foi dividida
+  corretamente entre mais instâncias -> SCALE_DOWN por "ociosidade" ->
+  sobrecarrega nas instâncias restantes -> SCALE_UP de novo), repete esse
+  ciclo pelo menos 4 vezes (t=25/55/75/100/120/145) e termina preso em 1
+  instância nos últimos 30s também. S4/S7 atk20pct_att1 (checados só a
+  trajetória, não os timeouts) mostram comportamento mais estável (chegam
+  a 3-4 instâncias e ficam lá) -- ou seja, o padrão de "preso/oscila em
+  poucas instâncias" NÃO acontece em toda célula do grid, mas explica bem
+  as piores (S3/S4 em faixas específicas de intensidade).
+
+Interpretação: CPU% é uma métrica CEGA para esse tipo de colapso -- quando
+  a demanda ultrapassa o teto estrutural por instância, o sintoma não é
+  CPU alta, é menos trabalho realmente concluído, o que a métrica lê como
+  "tenho capacidade sobrando" e reage reduzindo capacidade ainda mais
+  (SCALE_DOWN no pior momento possível) ou entra em oscilação (sobe,
+  CPU cai por divisão de carga, desce de novo, sobrecarrega, repete). Essa
+  é uma explicação mais completa e melhor sustentada pelos dados do que as
+  hipóteses de fila (seção 90, refutada) ou port churn (seção 91,
+  inconclusiva) -- e é relevante para o tema central da monografia (o
+  autoscaler é vulnerável a um modo de falha que a métrica de CPU não
+  consegue nem detectar nem corrigir).
+
+Decisão: NÃO implementada a instrumentação do _send_pool combinada na
+  seção 91 (sendpool_logger.py) -- ficou desnecessária, a causa já estava
+  determinável nos dados existentes (coluna decision/num_instances de
+  metrics.csv, já coletada desde o início do grid). Nenhum arquivo do
+  simulador foi alterado nesta seção.
+
+Verificado:
+  - Números de CPU/decision/num_instances lidos diretamente dos CSVs
+    (cut/column no console), não é leitura visual de gráfico.
+  - Checado em 4 células (S4_atk15pct_att1, S3/S4/S7_atk20pct_att1) antes
+    de generalizar -- explicitamente registrado que o padrão não é
+    universal em toda a grade, só nas células mais afetadas.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados já em disco dessa célula (nenhum
+    arquivo faltando).
+  - PNG (2 painéis) inspecionado visualmente.
+  - Números citados acima (pico=28, 0% de eventos acima de 64) conferidos
+    no console, não é leitura visual aproximada do gráfico.
+  - Tabela de valores brutos (sat_pct, peak_host_cpu, timeout_pct por
+    célula) inspecionada no console para as linhas S3/S4 antes de reportar
+    o achado ao usuário -- confirma os números citados acima célula a
+    célula, não é leitura visual aproximada do heatmap.
+
+================================================================================
+§93. plot_cpu_vs_carga_paradoxo.py (novo) -- gráfico 52, pico de CPU x carga
+  ofertada colorido por timeout -- sustenta pra banca o padrão
+  "mais carga = pico de CPU menor" nas células que colapsam
+================================================================================
+Contexto: usuário perguntou como responder à banca/orientador sobre por
+  que, em cenários com mais RPS agregado ou mais intensidade, o pico de
+  CPU do gráfico 48 às vezes é MENOR do que em cenários mais leves.
+  Expliquei que pico de CPU mede trabalho concluído, não carga ofertada --
+  sob colapso (seção 92), a maior parte do tráfego em excesso falha antes
+  de virar trabalho de CPU. Usuário pediu um gráfico pra sustentar esse
+  argumento visualmente.
+
+Criado plot_cpu_vs_carga_paradoxo.py: junta as 144 células do grid 48 num
+  scatter único -- eixo X = carga total ofertada (rps agregado normal +
+  rps agregado de ataque), eixo Y = pico de average_cpu_percent (container,
+  mesma métrica de cor do gráfico 48 original), cor = % de timeout, contorno
+  preto nos pontos com timeout > 50% (colapso). Linhas de referência nos
+  limiares de SCALE_UP (60%) e SCALE_DOWN (25%). Salvo
+  graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  52_cpu_vs_carga_paradoxo.png. Só leitura de dados já em disco.
+
+ACHADO MAIS FORTE (melhor que o gráfico em si -- comparação isolando
+  exatamente a variável certa): carga_ofertada = agg + agg*pct/100 não
+  depende do nº de atacantes, então células com o MESMO agregado e MESMA
+  intensidade mas atacantes diferentes têm carga ofertada IDÊNTICA.
+  Exemplo (S4, 15% de intensidade, carga=345 rps em todos os 3 casos):
+    1 atacante:  pico CPU=76,21%   timeout=100,0%   <- colapsa
+    2 atacantes: pico CPU=216,74%  timeout=15,4%    <- funciona bem
+    4 atacantes: pico CPU=212,31%  timeout=28,5%    <- funciona razoável
+  Com carga total IDÊNTICA, o caso de 1 atacante colapsa (autoscaler cai
+  na armadilha de SCALE_DOWN da seção 92) enquanto 2 e 4 atacantes -- MESMA
+  carga, só distribuída diferente -- processam de verdade e mostram pico de
+  CPU quase 3x maior. Prova direta e isolada de que o pico de CPU baixo não
+  vem de "menos carga", vem de menos trabalho sendo concluído por causa da
+  decisão errada do autoscaler -- a mesma carga, com sorte de timing
+  diferente, produz resultados opostos.
+
+Ressalva anotada: o "pico de CPU" usado aqui (e no gráfico 48 original) é
+  o máximo de average_cpu_percent sobre o run inteiro (180s) -- no caso
+  S4/1 atacante/15%, esse pico de 76,21% vem na verdade do transiente
+  inicial (t=10s, ainda com 2 instâncias, ANTES do SCALE_DOWN fatal em
+  t=25s), não do período de colapso em si (que fica na faixa de 15-56%,
+  seção 92). Ou seja, mesmo o "pico" reportado já está subestimando o
+  quanto a métrica fica cega DURANTE o colapso propriamente dito -- se
+  olhássemos só a janela pós-colapso, o contraste seria ainda maior.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre as 144 células já em disco.
+  - PNG inspecionado visualmente.
+  - Tabela completa impressa no console conferida para a faixa
+    carga_ofertada=300-350 (região de S4/S8) antes de reportar o exemplo
+    acima -- números exatos, não leitura aproximada do gráfico.

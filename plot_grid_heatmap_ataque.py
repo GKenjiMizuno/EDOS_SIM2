@@ -21,7 +21,7 @@ import pandas as pd
 # de hipótese.
 
 WU_DIR = "experiment_results/wu_calibration"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]

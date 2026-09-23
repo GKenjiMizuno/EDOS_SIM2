@@ -15,7 +15,7 @@ import pandas as pd
 # -- combinado com o usuário.
 
 GRID_DIR = "experiment_results/clients_rps_grid"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 AGGREGATE_TARGETS = [16, 32, 64, 128, 256, 512]

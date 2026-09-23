@@ -27,7 +27,7 @@ GRID_DIR = "experiment_results/wedos_grid"
 FAILURE_DIR = "experiment_results/wedos_failure"
 NB_DIR = "experiment_results/normal_baseline"
 WC_DIR = "experiment_results/wu_calibration"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

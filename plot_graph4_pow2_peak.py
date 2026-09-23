@@ -25,7 +25,7 @@ import pandas as pd
 # real (ver changes.txt sobre pico vs média).
 
 GRID_DIR = "experiment_results/clients_rps_grid"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

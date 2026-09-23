@@ -16,7 +16,7 @@ import pandas as pd
 # discussão completa que motivou este gráfico.
 
 WU_DIR = "experiment_results/wu_calibration"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]

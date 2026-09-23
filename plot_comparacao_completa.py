@@ -7,6 +7,8 @@ import pandas as pd
 from matplotlib.gridspec import GridSpec
 from matplotlib.lines import Line2D
 
+import config
+
 # Figura única comparando os 3 cenários no mesmo estilo visual (CPU + nº
 # de instâncias): NORMAL isolado (painel único, topo, sem grade -- não
 # tem eixo rps/WU de ataque pra variar), COMBINADO (ataque + 40 agregado
@@ -17,7 +19,7 @@ from matplotlib.lines import Line2D
 WU_CAL_DIR = "experiment_results/wu_calibration"
 ISOLADO_DIR = "experiment_results/ataque_isolado"
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]
@@ -33,7 +35,8 @@ def plot_panel(ax, df, color, title, has_attack_window=True):
             ax.axvspan(attack_rows["elapsed_time_s"].min(), attack_rows["elapsed_time_s"].max(),
                        color="#d03b3b", alpha=0.06, zorder=0)
     ax.plot(df["elapsed_time_s"], df["average_cpu_percent"], color=color, linewidth=1.6, zorder=3)
-    ax.axhline(60, color=color, linestyle=":", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axhline(config.CPU_THRESHOLD_SCALE_UP, color=color, linestyle=":", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axhline(config.CPU_THRESHOLD_SCALE_DOWN, color=INSTANCE_COLOR, linestyle=":", linewidth=0.8, alpha=0.5, zorder=1)
 
     ax2 = ax.twinx()
     ax2.step(df["elapsed_time_s"], df["num_instances"], where="post",
@@ -41,6 +44,7 @@ def plot_panel(ax, df, color, title, has_attack_window=True):
     ax2.set_ylim(0, 5)
     ax2.set_yticks([1, 2, 3, 4])
     ax2.tick_params(labelsize=7, colors=INSTANCE_COLOR)
+    ax2.set_ylabel("nº de instâncias", fontsize=7, color=INSTANCE_COLOR)
 
     ax.set_ylim(0, 260)
     ax.set_title(title, fontsize=8.5)
@@ -107,7 +111,10 @@ legend_elems = [
     Line2D([0], [0], color=WU_COLOR[400000], lw=2, label="CPU média -- WU=400.000"),
     Line2D([0], [0], color="#7a3fd6", lw=2, label="CPU média -- normal isolado (referência)"),
     Line2D([0], [0], color=INSTANCE_COLOR, lw=1.1, ls="--", label="nº de instâncias (eixo direito)"),
-    Line2D([0], [0], color="#888", lw=0.8, ls=":", label="limiar SCALE_UP (60%)"),
+    Line2D([0], [0], color="#888", lw=0.8, ls=":",
+           label=f"limiar SCALE_UP ({config.CPU_THRESHOLD_SCALE_UP:.0f}%)"),
+    Line2D([0], [0], color=INSTANCE_COLOR, lw=0.8, ls=":",
+           label=f"limiar SCALE_DOWN ({config.CPU_THRESHOLD_SCALE_DOWN:.0f}%)"),
     Line2D([0], [0], color="#d03b3b", lw=6, alpha=0.15, label="janela de ataque"),
 ]
 fig.legend(handles=legend_elems, loc="lower center", ncol=3, fontsize=9, bbox_to_anchor=(0.5, 0.002))

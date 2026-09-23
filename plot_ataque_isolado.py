@@ -11,7 +11,7 @@ import pandas as pd
 # teve 40 agregado de tráfego normal padrão junto sem ninguém ter pedido.
 
 WU_DIR = "experiment_results/ataque_isolado"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]

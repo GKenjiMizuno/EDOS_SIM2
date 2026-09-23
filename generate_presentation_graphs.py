@@ -18,8 +18,14 @@ import config
 # só lê os CSVs/XLSX já gerados e desenha.
 
 COMBINED_DIR = "experiment_results/combined_sweep"
-OUT_DIR = "graficos_apresentacao"
-os.makedirs(OUT_DIR, exist_ok=True)
+# Gráfico 01 (varredura combinada, sem detecção) fica em caracterização de
+# ataque; 02/03 (detecção estatística em ação) ficam em detecção estatística
+# -- pastas diferentes, por isso dois OUT_DIR em vez de um só (ver reorg
+# changes.txt).
+OUT_DIR_ATAQUE = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
+OUT_DIR_DETECCAO = "graficos_apresentacao/03_deteccao_estatistica"
+os.makedirs(OUT_DIR_ATAQUE, exist_ok=True)
+os.makedirs(OUT_DIR_DETECCAO, exist_ok=True)
 
 BLUE = "#2a78d6"
 GREEN = "#1baf7a"
@@ -81,7 +87,7 @@ def plot_tabela5(grid):
     fig.subplots_adjust(top=0.80, right=0.85)
     cax = fig.add_axes([0.89, 0.15, 0.02, 0.55])
     fig.colorbar(im, cax=cax, label="janelas com burst (de ~18 por execução)")
-    caminho = os.path.join(OUT_DIR, "01_tabela5_heatmap.png")
+    caminho = os.path.join(OUT_DIR_ATAQUE, "01_tabela5_heatmap.png")
     fig.savefig(caminho, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[OK] {caminho}")
@@ -187,7 +193,7 @@ def plot_deteccao(cenario, pct, wu):
 
     axes[-1].set_xlabel("Tempo desde o início da simulação (s)")
     fig.tight_layout()
-    caminho = os.path.join(OUT_DIR, f"02_deteccao_{prefixo}.png")
+    caminho = os.path.join(OUT_DIR_DETECCAO, f"02_deteccao_{prefixo}.png")
     fig.savefig(caminho, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[OK] {caminho}")
@@ -213,7 +219,7 @@ def plot_resumo_bursts(grid):
     axes[1].legend(title="Intensidade", fontsize=8)
     fig.suptitle("Resumo da varredura combinada por cenário e intensidade", fontsize=12)
     fig.tight_layout()
-    caminho = os.path.join(OUT_DIR, "03_resumo_bursts_por_cenario.png")
+    caminho = os.path.join(OUT_DIR_DETECCAO, "03_resumo_bursts_por_cenario.png")
     fig.savefig(caminho, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[OK] {caminho}")
@@ -225,4 +231,4 @@ if __name__ == "__main__":
     plot_resumo_bursts(grid)
     # Exemplo representativo: forte detecção real, sem falhas de requisição.
     plot_deteccao("S2", 10, 500000)
-    print(f"\nGráficos salvos em {OUT_DIR}/")
+    print(f"\nGráficos salvos em {OUT_DIR_ATAQUE}/ e {OUT_DIR_DETECCAO}/")

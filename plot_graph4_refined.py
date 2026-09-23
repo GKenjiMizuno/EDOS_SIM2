@@ -20,7 +20,7 @@ import pandas as pd
 # como argumento de apoio -- sem testes de hipótese formais.
 
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

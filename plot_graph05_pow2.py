@@ -15,7 +15,7 @@ import pandas as pd
 # WU=400000 que faltam em experiment_results/wu_calibration/).
 
 WU_DIR = "experiment_results/wu_calibration"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

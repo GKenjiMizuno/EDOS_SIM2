@@ -25,7 +25,7 @@ from EntCusumZV3 import analisar_bursts_tunavel
 # normal_traffic_summary_log do que clientes configurados).
 
 GRID_DIR = "experiment_results/clients_rps_grid"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/03_deteccao_estatistica"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 

@@ -1,0 +1,6 @@
+num_clients,rps_per_worker,planned_total_rps,num_targets,total_requests,elapsed_time_s,real_rps,errors
+4,10.0,40.0,1,,,,
+,10.0,,,1711,180.057,9.503,0
+,10.0,,,1767,180.067,9.813,0
+,10.0,,,1824,180.067,10.13,0
+,10.0,,,1779,180.094,9.878,0

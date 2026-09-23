@@ -20,7 +20,7 @@ import pandas as pd
 # instâncias observado entre as 5 repetições.
 
 DESEMPATE_DIR = "experiment_results/desempate_combinado_isolado"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]

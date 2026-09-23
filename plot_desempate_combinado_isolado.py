@@ -16,7 +16,7 @@ import pandas as pd
 # é evidência de um efeito real da presença de tráfego normal.
 
 RESULTS_DIR = "experiment_results/desempate_combinado_isolado"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]

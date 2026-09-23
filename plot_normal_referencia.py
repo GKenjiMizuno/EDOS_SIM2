@@ -16,7 +16,7 @@ import pandas as pd
 # duas grades -- 10 repetições estão disponíveis se quiser trocar.
 
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

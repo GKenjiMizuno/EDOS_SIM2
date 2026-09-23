@@ -22,13 +22,14 @@ import pandas as pd
 # observado entre as 5 repetições.
 
 DESEMPATE_DIR = "experiment_results/desempate_combinado_isolado"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/02_caracterizacao_ataque_wedos"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]
 WU_VALUES = [100000, 200000, 400000]
 NUM_ATTACKERS = 4
 NUM_REPS = 5
+NORMAL_AGGREGATE_REFERENCIA = 40  # combinado = ataque + 40 agregado normal (fixo, não é S1-S4)
 
 cpu_mean_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), np.nan)
 cpu_std_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), np.nan)
@@ -72,15 +73,23 @@ ax.set_yticklabels([f"{r} rps/atacante" for r in RPS_VALUES])
 ax.set_xlabel("work units por requisição de ataque")
 ax.set_ylabel("RPS por atacante (4 atacantes fixos)")
 
+# Nota: "1/5/10 rps/atacante" aqui é o valor literal de --rps (não uma
+# porcentagem -- diferente da convenção 1%/5%/10% usada no wedos_grid /
+# combined_sweep, que expressa intensidade como fração do agregado normal
+# do cenário S1-S4). Esse grid usa 40 agregado normal fixo sempre, então a
+# % real desse agregado é anotada abaixo do rótulo rps/atacante em cada
+# célula, pra não confundir as duas convenções.
+
 for i, rps in enumerate(RPS_VALUES):
     for j, wu in enumerate(WU_VALUES):
         cpu_mean = cpu_mean_matrix[i, j]
         cpu_std = cpu_std_matrix[i, j]
         agregado = rps * NUM_ATTACKERS
+        pct_real = 100.0 * agregado / NORMAL_AGGREGATE_REFERENCIA
         timeout_rate = timeout_rate_matrix[i, j]
         max_inst = int(max_inst_matrix[i, j])
         color = "white" if cpu_mean > np.nanmax(cpu_mean_matrix) * 0.6 else "black"
-        label = (f"{cpu_mean:.1f}%±{cpu_std:.1f}\n{agregado} rps agregado\n"
+        label = (f"{cpu_mean:.1f}%±{cpu_std:.1f}\n{agregado} rps agregado ({pct_real:.0f}% do normal)\n"
                   f"{timeout_rate:.1f}% timeout\nmáx {max_inst} inst. (n=5)")
         ax.text(j, i, label, ha="center", va="center", color=color, fontsize=8)
 

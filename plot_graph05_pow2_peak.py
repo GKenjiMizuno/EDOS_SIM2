@@ -16,7 +16,7 @@ import pandas as pd
 # estatística robusta feita com múltiplas repetições.
 
 WU_DIR = "experiment_results/wu_calibration"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/01_curva_capacidade_baseline"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

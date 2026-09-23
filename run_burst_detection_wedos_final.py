@@ -26,7 +26,7 @@ from EntCusumZV3 import analisar_bursts_tunavel
 # (ground truth independente do detector de RTT).
 
 DIRS = ["experiment_results/wedos_grid", "experiment_results/combined_sweep"]
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/03_deteccao_estatistica"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 
@@ -60,10 +60,17 @@ for results_dir in DIRS:
 
         # Resultado ANTIGO (detector com o bug do CUSUM, já em disco)
         n_bursts_antigo = None
+        tpr_antigo = float("nan")
         if os.path.exists(old_xlsx_path):
             try:
                 old_df = pd.read_excel(old_xlsx_path)
                 n_bursts_antigo = int((old_df["Status Burst"] == "DDoS Burst").sum())
+                if attack_start_real is not None:
+                    tempos_antigo = old_df["Janela (MM:SS.s)"].apply(mmss_para_seg)
+                    dentro_antigo = (tempos_antigo >= attack_start_real) & (tempos_antigo <= attack_end_real)
+                    is_burst_antigo = old_df["Status Burst"] == "DDoS Burst"
+                    if dentro_antigo.sum() > 0:
+                        tpr_antigo = 100.0 * (is_burst_antigo & dentro_antigo).sum() / dentro_antigo.sum()
             except Exception as e:
                 print(f"[WARNING] Não consegui ler {old_xlsx_path}: {e}")
 
@@ -87,7 +94,7 @@ for results_dir in DIRS:
             origem=os.path.basename(results_dir), cenario=suffix,
             escalou_real=escalou_real,
             n_bursts_antigo=n_bursts_antigo, n_bursts_novo=n_bursts_novo,
-            tpr_novo=tpr_novo,
+            tpr_antigo=tpr_antigo, tpr_novo=tpr_novo,
         ))
 
 df = pd.DataFrame(rows)

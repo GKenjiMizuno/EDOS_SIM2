@@ -35,7 +35,7 @@ import config
 #     com o ataque.
 
 DESEMPATE_DIR = "experiment_results/desempate_combinado_isolado"
-OUT_DIR = "graficos_apresentacao"
+OUT_DIR = "graficos_apresentacao/03_deteccao_estatistica"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]
@@ -56,12 +56,20 @@ rows = []
 for rps in RPS_VALUES:
     for wu in WU_VALUES:
         tpr_vals, fp_real_vals, fp_transicao_vals = [], [], []
+        n_escalou, n_total = 0, 0
         for rep in range(1, NUM_REPS + 1):
             suffix = f"combinado_rps{rps}_att4_WU{wu}_rep{rep}"
             xlsx_path = os.path.join(DESEMPATE_DIR, f"rtt_bursts_{suffix}.xlsx")
+            metrics_path = os.path.join(DESEMPATE_DIR, f"metrics_{suffix}.csv")
             if not os.path.exists(xlsx_path):
                 print(f"[WARNING] Faltando {xlsx_path}")
                 continue
+            n_total += 1
+            if os.path.exists(metrics_path):
+                metrics = pd.read_csv(metrics_path)
+                if not (metrics["decision"] == "SCALE_UP").any():
+                    continue  # sem dano real -- não entra na média de TPR
+            n_escalou += 1
 
             df_res = pd.read_excel(xlsx_path)
             tempos = df_res["Janela (MM:SS.s)"].apply(mmss_para_seg)
@@ -83,13 +91,14 @@ for rps in RPS_VALUES:
             fp_real_vals.append(fp_real)
             fp_transicao_vals.append(fp_transicao_n)
 
-        if tpr_vals:
-            rows.append(dict(
-                rps=rps, wu=wu, n=len(tpr_vals),
-                tpr_mean=np.nanmean(tpr_vals), tpr_std=np.nanstd(tpr_vals, ddof=1) if len(tpr_vals) > 1 else 0.0,
-                fp_real_mean=np.nanmean(fp_real_vals), fp_real_std=np.nanstd(fp_real_vals, ddof=1) if len(fp_real_vals) > 1 else 0.0,
-                fp_transicao_total=sum(fp_transicao_vals),
-            ))
+        rows.append(dict(
+            rps=rps, wu=wu, n=len(tpr_vals), n_escalou=n_escalou, n_total=n_total,
+            tpr_mean=np.nanmean(tpr_vals) if tpr_vals else float("nan"),
+            tpr_std=np.nanstd(tpr_vals, ddof=1) if len(tpr_vals) > 1 else 0.0,
+            fp_real_mean=np.nanmean(fp_real_vals) if fp_real_vals else float("nan"),
+            fp_real_std=np.nanstd(fp_real_vals, ddof=1) if len(fp_real_vals) > 1 else 0.0,
+            fp_transicao_total=sum(fp_transicao_vals),
+        ))
 
 df = pd.DataFrame(rows)
 pd.set_option("display.width", 160)
@@ -108,17 +117,21 @@ print(f"Salvo: {csv_out}")
 # qualquer contaminação" nesse dataset para medir falso positivo de
 # verdade -- isso exige dado SEM ataque nenhum (normal_baseline ou
 # clients_rps_grid), próximo passo natural (ver changes.txt).
-fig, ax = plt.subplots(figsize=(9, 7))
+fig, ax = plt.subplots(figsize=(10, 7.3))
 
 matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), np.nan)
 std_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), np.nan)
 transicao_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), 0)
+n_escalou_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), 0)
+n_total_matrix = np.full((len(RPS_VALUES), len(WU_VALUES)), 0)
 for _, row in df.iterrows():
     i = RPS_VALUES.index(int(row["rps"]))
     j = WU_VALUES.index(int(row["wu"]))
     matrix[i, j] = row["tpr_mean"]
     std_matrix[i, j] = row["tpr_std"]
     transicao_matrix[i, j] = row["fp_transicao_total"]
+    n_escalou_matrix[i, j] = row["n_escalou"]
+    n_total_matrix[i, j] = row["n_total"]
 
 im = ax.imshow(matrix, cmap="YlGn", aspect="auto", origin="upper", vmin=0, vmax=100)
 ax.set_xticks(range(len(WU_VALUES)))
@@ -130,20 +143,25 @@ ax.set_ylabel("RPS por atacante (4 atacantes fixos)")
 for i in range(len(RPS_VALUES)):
     for j in range(len(WU_VALUES)):
         val, std = matrix[i, j], std_matrix[i, j]
+        n_escalou = int(n_escalou_matrix[i, j])
+        n_total = int(n_total_matrix[i, j])
         if np.isnan(val):
+            label = f"{n_escalou}/{n_total} escalaram\n(sem dano real)" if n_total else "sem dado\n(execução ausente)"
+            ax.text(j, i, label, ha="center", va="center", color="#999", fontsize=8.5)
             continue
         n_trans = int(transicao_matrix[i, j])
         color = "white" if val > 55 else "black"
-        label = f"{val:.0f}%±{std:.0f} (n=5)"
+        label = f"{val:.0f}%±{std:.0f}\n({n_escalou}/{n_total} escalaram)"
         if n_trans:
-            label += f"\n+{n_trans} na cauda\npós-ataque"
-        ax.text(j, i, label, ha="center", va="center", color=color, fontsize=9.5)
-fig.colorbar(im, ax=ax, label="% de janelas de ataque detectadas")
+            label += f"\n+{n_trans} na cauda pós-ataque"
+        ax.text(j, i, label, ha="center", va="center", color=color, fontsize=9)
+cbar = fig.colorbar(im, ax=ax, label="% de janelas de ataque detectadas")
+cbar.ax.invert_yaxis()
 
 fig.suptitle(
-    "Detecção de burst (CUSUM/Z-score corrigidos) -- cenário COMBINADO, 5 repetições/célula\n"
-    "Taxa de detecção dentro da janela de ataque real (proxy de TPR)",
-    fontsize=12.5,
+    "Detecção de burst (CUSUM/Z-score corrigidos) -- cenário COMBINADO\n"
+    "Taxa de detecção dentro da janela de ataque real -- só execuções com SCALE_UP real (proxy de TPR)",
+    fontsize=11.5,
 )
 fig.tight_layout()
 out_path = os.path.join(OUT_DIR, "31_deteccao_combinado_tpr_fpr.png")
