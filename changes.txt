@@ -4058,3 +4058,209 @@ Verificado:
   - Tabela completa impressa no console conferida para a faixa
     carga_ofertada=300-350 (região de S4/S8) antes de reportar o exemplo
     acima -- números exatos, não leitura aproximada do gráfico.
+
+================================================================================
+§94. plot_atacantes_intensidade_grid_pow2.py (novo) -- gráfico 53, recorte
+  do gráfico 48 só com os 4 cenários em progressão de potência de 2
+================================================================================
+Contexto: usuário pediu um gráfico igual ao 48, mas só com os cenários de
+  40/80/160/320 rps agregado normal (S1/S6/S7/S8) -- progressão limpa de
+  potência de 2, em vez dos 8 cenários completos.
+
+Criado plot_atacantes_intensidade_grid_pow2.py: mesma lógica e dados de
+  plot_atacantes_intensidade_grid.py (experiment_results/
+  atacantes_intensidade_grid/, sem novo Docker), filtrado para
+  NORMAL_SCENARIOS = {S1:40, S6:80, S7:160, S8:320}, layout 1x4 em vez de
+  2x4. Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  53_atacantes_intensidade_grid_pow2.png. Não sobrescreve o gráfico 48 nem
+  altera nenhum script existente.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados já em disco (nenhum arquivo
+    faltando).
+  - PNG (1x4 painéis) inspecionado visualmente.
+
+================================================================================
+§95. plot_atacantes_intensidade_grid_pow2_media.py (novo) -- gráfico 54,
+  mesmo recorte do gráfico 53 mas com CPU MÉDIA em vez de PICO
+================================================================================
+Contexto: depois de diagnosticar (turno anterior) que a não-monotonicidade
+  em células como S1/2 atacantes/10% (pico 76%) vs. 15% (pico 60%) vem de
+  ruído de amostragem (pico é sensível a uma única rajada aleatória cair
+  bem num dos ~36 ticks de 5s do run, com só 1 repetição) -- mesmo
+  raciocínio já usado no gráfico 18 vs 16 (seção 55 antiga) -- usuário
+  pediu o mesmo recorte de potência de 2 (gráfico 53) trocando pico por
+  média.
+
+Criado plot_atacantes_intensidade_grid_pow2_media.py: cópia estrutural de
+  plot_atacantes_intensidade_grid_pow2.py trocando
+  df["average_cpu_percent"].max() por .mean() (dilui rajadas pontuais,
+  usa os ~36 ticks do run inteiro em vez do maior valor isolado). O
+  marcador ▲ de SCALE_UP continua vindo da coluna decision de verdade (se
+  escalou em ALGUM tick do run), não do valor mostrado na célula -- então
+  uma célula pode mostrar CPU média baixa e ainda ter ▲ (o pico que
+  disparou o escalonamento aconteceu, só não domina mais a média).
+  Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  54_atacantes_intensidade_grid_pow2_media.png. Não sobrescreve o gráfico
+  53 nem altera nenhum script existente.
+
+Resultado (confirma o diagnóstico do turno anterior): em S1, a progressão
+  vira monotônica com a média -- 1 atacante: 9/15/20/27/35/49%,
+  2 atacantes: 9/16/22/31/34/40%, ambas crescentes com a intensidade, sem
+  o mergulho de 76%->60% que aparecia por pico. Confirma que aquele
+  "problema" era mesmo ruído de amostragem do pico, não um efeito real.
+
+  Em S7/S8 (cenários pesados, já sob o mecanismo de colapso do autoscaler
+  documentado nas seções 90-93), a média sobe bem alto em algumas células
+  mesmo com timeout alto (ex.: S8/4 atacantes/20% -- média=156%,
+  timeout=47%) -- diferente do caso específico S4/1 atacante/15% (seção
+  92), aqui a média fica alta porque parte do run teve período saudável
+  com CPU real alta antes/depois do trecho colapsado, e a média do run
+  inteiro absorve os dois períodos. Ou seja, nem toda célula de colapso
+  vai mostrar CPU baixa por média -- depende de quanto tempo do run
+  ficou saudável vs. colapsado, reforçando que só olhar um resumo por
+  célula (pico OU média) não basta pra diagnosticar cada caso -- é preciso
+  olhar a série temporal (como fizemos manualmente pras seções 92/94).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados já em disco.
+  - PNG (1x4 painéis) inspecionado visualmente.
+
+================================================================================
+§96. run_atacantes_intensidade_grid_pow2_reps.py (novo) -- disparo de 4
+  repetições extras (rep2-rep5) para S1/S6/S7/S8, pra ter média±desvio de
+  verdade em vez de amostra única
+================================================================================
+Contexto: usuário pediu repetições extras depois do diagnóstico de ruído
+  de amostragem no pico de CPU (seções 94/95) -- quer 4 reps novas (rep2-5,
+  somando 5 no total com o rep1 já existente) só nos 4 cenários de potência
+  de 2 (S1/S6/S7/S8 = 40/80/160/320 agregado), confirmado com o usuário via
+  pergunta explícita (não os 8 cenários completos).
+
+Criado run_atacantes_intensidade_grid_pow2_reps.py: mesma lógica/parâmetros
+  de run_atacantes_intensidade_grid.py (mesma RESULTS_DIR =
+  experiment_results/atacantes_intensidade_grid/, mesma convenção de nome
+  -- o nome já inclui o número da repetição, então rep2-5 não colidem com
+  os rep1 já coletados, nenhum arquivo existente é sobrescrito), só que
+  gerando REPS=[2,3,4,5] em vez de regerar rep1. 288 execuções novas (4
+  cenários x 3 atacantes x 6 intensidades x 4 reps), 180s cada.
+
+Disparado em background (nohup, PID 6677) -- confirmado container
+  target_instance_1 ativo logo após o disparo. Log em
+  scratchpad/atacantes_intensidade_grid_pow2_reps.log. ~14-15h de
+  simulação + overhead de Docker esperado.
+
+Próximo passo (pendente, depois que terminar): script novo de plot que lê
+  as 5 repetições por célula (rep1-5) e calcula média±desvio-padrão da CPU
+  média de cada run, anotando quantas das 5 repetições dispararam
+  SCALE_UP (n/5) -- mesmo padrão de reprodutibilidade já usado nos
+  gráficos 16-18 do projeto.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - docker ps confirmado OK antes de disparar.
+  - Primeira execução (S1, 1 atacante, 1%, rep2) iniciou e logou
+    corretamente; container target_instance_1 confirmado "Up" via docker ps
+    ~20s depois do disparo.
+
+================================================================================
+§97. plot_atacantes_intensidade_heatmap_att4.py (novo) -- gráfico 55,
+  heatmap único (não painéis por cenário) juntando os 8 cenários x 6
+  intensidades, filtrado só em 4 atacantes, CPU média
+================================================================================
+Contexto: usuário pediu um recorte diferente dos gráficos 48/53/54 (que são
+  painéis separados por cenário) -- um heatmap ÚNICO com linhas = cenário
+  (todos os 8, S1-S8) e colunas = intensidade (%), filtrado só na condição
+  de 4 atacantes, mostrando CPU média (mesma métrica do gráfico 54).
+
+Criado plot_atacantes_intensidade_heatmap_att4.py: lê os mesmos dados de
+  experiment_results/atacantes_intensidade_grid/ (rep1, só sufixo
+  "_att4_"), linhas ordenadas por rps agregado normal crescente (S5 20 ->
+  S1 40 -> S6 80 -> S2 100 -> S7 160 -> S3 200 -> S4 300 -> S8 320, não a
+  ordem de criação original), colunas = 1/5/10/15/20/25%. Mesma anotação
+  de ▲ SCALE_UP e "% to" timeout dos gráficos anteriores. Salvo
+  graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  55_atacantes_intensidade_heatmap_att4_media.png. Não sobrescreve nenhum
+  gráfico existente. Não interfere com as 288 execuções da seção 96 (só lê
+  arquivos "_rep1", que não são tocados por aquele disparo).
+
+Resultado: progressão visualmente limpa nos dois eixos -- CPU média sobe
+  tanto descendo nas linhas (mais rps agregado normal) quanto da esquerda
+  pra direita (mais intensidade), com S8/20-25% e S4/20-25% no topo da
+  escala (139-156%). Facilita ver de uma vez só onde o SCALE_UP passa a
+  disparar (a partir de ~S6/80 agregado em quase toda intensidade) e onde
+  o timeout começa a aparecer de forma consistente (a partir de ~S3/S7,
+  160-200 agregado).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre os dados já em disco (nenhum arquivo
+    faltando).
+  - PNG inspecionado visualmente.
+
+================================================================================
+§98. Disparo da seção 96 concluído -- 288/288 execuções
+================================================================================
+As 288 execuções extras (rep2-rep5, S1/S6/S7/S8) disparadas na seção 96
+  terminaram com sucesso -- log confirma "todas as 288 execuções
+  concluídas", ~14h50min de duração total (dentro da estimativa de 14-15h).
+
+Verificado:
+  - Contagem de arquivos: 288 arquivos metrics_*_rep{2,3,4,5}.csv novos em
+    experiment_results/atacantes_intensidade_grid/ (S1/S6/S7/S8 apenas),
+    batendo exatamente com o esperado (4 cenários x 3 atacantes x 6
+    intensidades x 4 reps).
+  - Nenhum arquivo rep1 pré-existente foi sobrescrito (confirmado por
+    contagem separada).
+
+Próximo passo (pendente): script de plot que consolida rep1-5 por célula
+  (média ± desvio-padrão da CPU média, fração de reps que dispararam
+  SCALE_UP) -- combinar com o gráfico 55 (heatmap único att4) ou refazer os
+  gráficos 53/54 com 5 reps em vez de 1.
+
+================================================================================
+§99. plot_atacantes_intensidade_grid_pow2_reprodutibilidade.py (novo) --
+  gráfico 56, consolidação das 5 repetições (rep1-5) de S1/S6/S7/S8
+================================================================================
+Contexto: seção 98 (288 execuções extras) concluída -- usuário pediu o
+  gráfico consolidado prometido, juntando rep1 (original) com rep2-5
+  (novas) por célula.
+
+Criado plot_atacantes_intensidade_grid_pow2_reprodutibilidade.py: mesma
+  estrutura de painéis do gráfico 53/54 (1x4, S1/S6/S7/S8, linhas =
+  atacantes, colunas = intensidade), célula = média ± desvio-padrão da CPU
+  média de cada run sobre as 5 repetições, "n/5 escalou" (quantas
+  repetições dispararam SCALE_UP em algum tick) e timeout médio (%) sobre
+  as 5 reps. Salvo graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  56_atacantes_intensidade_grid_pow2_reprodutibilidade.png. Não sobrescreve
+  os gráficos 53/54/55.
+
+Resultado 1 -- confirma o diagnóstico de ruído de amostragem: em S1, a
+  progressão fica monotônica em CPU média nas 3 linhas de atacantes (ex.:
+  1 atacante: 9/14/21/28/33/39%, sempre crescente) -- a não-monotonicidade
+  vista com 1 rep (76% em 10% vs 60% em 15%, discutida antes) não se
+  sustenta com 5 reps, confirmando que era ruído, não efeito real.
+
+Resultado 2 -- quantifica de forma robusta a instabilidade nos cenários
+  pesados (achado mais forte que o esperado): em S7/S8, o desvio-padrão da
+  CPU média entre as 5 repetições é ALTO em várias células (ex.: S7/2
+  atacantes/20% = 96±18%, S7/2 atacantes/25% = 97±20%, S8/2 atacantes/20%
+  = 89±30%, S8/4 atacantes/25% = 127±42%) -- variação de run pra run
+  grande o bastante pra não ser desprezível. Além disso, "n/5 escalou"
+  nem sempre é 5/5 nessas células (ex.: S8/2 atacantes/20% = 4/5, S8/4
+  atacantes/1% e /5% = 4/5) -- ou seja, com dados reais de repetição,
+  confirma-se empiricamente (não só por inspeção manual de 1 caso, como
+  antes) que a decisão de SCALE_UP é genuinamente instável/sensível a
+  timing perto da fronteira de capacidade -- a mesma mecânica da seção 92,
+  agora quantificada estatisticamente em vez de demonstrada num único
+  exemplo.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre as 360 execuções usadas (72 células --
+    4 cenários x 3 atacantes x 6 intensidades -- x 5 reps: 72 rep1 já
+    existentes + 288 rep2-5 novas da seção 96/98), nenhum arquivo
+    faltando.
+  - PNG (1x4 painéis) inspecionado visualmente.
