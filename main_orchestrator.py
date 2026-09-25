@@ -128,8 +128,12 @@ def main():
     traffic_injectorV0.attack_active = False 
     traffic_injectorV0.attacker_threads = [] 
 
-    # --- Variáveis para a lógica de reinício do injetor ---
-    previous_num_instances_for_injector_logic = len(active_containers) # Estado para lógica de reinício do injetor
+    # --- Variáveis de estado do injetor ---
+    # previous_num_instances_for_injector_logic foi removida: com o load balancer
+    # client-side (load_balancer.py), não é mais preciso detectar "mudou o número
+    # de instâncias?" pra decidir se reinicia o injetor -- update_targets() é
+    # chamado toda iteração, incondicionalmente, sem custo de parar/recriar
+    # worker nenhum. Ver changes.txt.
     attack_has_started = False  # Se o injetor foi iniciado pelo menos uma vez
     normal_traffic_has_started = False
 
@@ -292,17 +296,23 @@ def main():
                     print(f"[Orchestrator] Error reloading or getting port for container {c_obj.name} for traffic injection: {e_port}")
 
 
-        print(f"[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: {num_instances_after_scaling}, Prev Injector Logic Instances: {previous_num_instances_for_injector_logic}, Attack Started Flag: {attack_has_started}, Normal Traffic Started Flag: {normal_traffic_has_started}")
+        print(f"[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: {num_instances_after_scaling}, Attack Started Flag: {attack_has_started}, Normal Traffic Started Flag: {normal_traffic_has_started}")
         print(f"[DEBUG Orchestrator] URLs derived for injector (if active): {target_urls_for_injector}")
 
         if config.ATTACK_DURATION_SECONDS == 0:
-                print(f"[Orchestrator] Starting/Restarting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
+                print(f"[Orchestrator] Starting Normal Traffic (if not already active). Target URLs for this call: {target_urls_for_injector}")
                 normal_traffic.start_http_traffic(
                         target_urls_for_injector,
                         config.HTTP_NORMAL_RPS_PER_CLIENT,
                         config.HTTP_NORMAL_NUM_CLIENTS
                     )
                 normal_traffic_has_started = True
+                # Chamado toda iteração, incondicionalmente -- barato (só
+                # atualiza o load balancer, não reinicia worker nenhum, ver
+                # load_balancer.py). É isso que faz uma instância nova do
+                # autoscaler passar a receber tráfego normal de verdade em vez
+                # de ficar ociosa o run inteiro (ver changes.txt).
+                normal_traffic.update_targets(target_urls_for_injector)
 
         elif config.ATTACK_DURATION_SECONDS > 0:
             sniffer.set_label("benign")
@@ -313,12 +323,10 @@ def main():
 
             print(f"[DEBUG Orchestrator] Should attack be active now? {should_attack_be_active_now} (window: {attack_start_time}s-{attack_end}s)")
 
-            needs_injector_start_or_restart = False
-
             #------------------COMEÇAR AQUI A LOGICA DE TRAFEGO NORMAL --------------------------
 
             if not should_attack_be_active_now and not normal_traffic_has_started:
-                print(f"[Orchestrator] Starting/Restarting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
+                print(f"[Orchestrator] Starting Normal Traffic. Target URLs for this call: {target_urls_for_injector}")
                 normal_traffic.start_http_traffic(
                         target_urls_for_injector,
                         config.HTTP_NORMAL_RPS_PER_CLIENT,
@@ -326,58 +334,69 @@ def main():
                     )
                 normal_traffic_has_started = True
 
-            
-            #if should_attack_be_active_now:
-                #print(f"[Orchestrator] Stopping Normal traffic...")
-                #normal_traffic.stop_http_traffic()
-                #normal_traffic_has_started = False
-
+            # Atualiza o load balancer do tráfego normal toda iteração em que já
+            # estiver ativo (inclusive durante a janela de ataque -- tráfego
+            # normal nunca para, ver changes.txt) -- sem parar/recriar worker.
+            # Só atualiza se a lista vier não-vazia: um hiccup transitório do
+            # Docker (reload() falhando pra todos os containers numa única
+            # iteração, sem mudança real de topologia -- ver changes.txt)
+            # não pode zerar os alvos do load balancer, senão os workers
+            # ficam girando em espera silenciosamente até o próximo alvo
+            # válido, mascarando o hiccup como "sem tráfego configurado" no
+            # normal_traffic_summary_log.csv. Se a lista realmente ficou vazia
+            # (todas as instâncias caíram de verdade, não só um glitch de
+            # leitura), os workers continuam tentando os últimos alvos
+            # conhecidos e os erros de conexão aparecem no log -- visível,
+            # em vez de silenciosamente escondido.
+            if normal_traffic_has_started:
+                if target_urls_for_injector:
+                    normal_traffic.update_targets(target_urls_for_injector)
+                else:
+                    print("[Orchestrator] Warning: target_urls_for_injector veio vazio nesta iteração "
+                          "(possível hiccup transitório do Docker) -- mantendo os últimos alvos "
+                          "conhecidos do tráfego normal em vez de zerar.")
 
             if should_attack_be_active_now:
                 if not attack_has_started: # Se o ataque deve começar e ainda não começou
-                    needs_injector_start_or_restart = True
-                    print("[DEBUG Orchestrator] Condition: Needs to START attack (was not started and in attack window).")
-                # Se o ataque já começou E o número de instâncias mudou E temos alvos
-                elif attack_has_started and previous_num_instances_for_injector_logic != num_instances_after_scaling and target_urls_for_injector:
-                    needs_injector_start_or_restart = True
-                    print(f"[DEBUG Orchestrator] Condition: Needs to RESTART attack (num instances changed from {previous_num_instances_for_injector_logic} to {num_instances_after_scaling} AND attack was active).")
-
-
-
-            if needs_injector_start_or_restart:
-                if attack_has_started: # Se já estava rodando, pare primeiro
-                    print("[Orchestrator] Attack active and restart needed. Stopping current traffic injector...")
-                    traffic_injectorV0.stop_http_flood()
-                    print("[DEBUG Orchestrator] Called stop_http_flood. Sleeping for 1s...")
-                    time.sleep(1) # Pausa para as threads do injetor pararem
-                    print("[DEBUG Orchestrator] Resuming after sleep.")
-                
-                if target_urls_for_injector: # Somente inicie/reinicie se houver alvos
-                    print(f"[Orchestrator] Starting/Restarting HTTP flood. Target URLs for this call: {target_urls_for_injector}")
-                    traffic_injectorV0.start_http_flood(
-                        target_urls_for_injector,
-                        config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
-                        config.HTTP_ATTACK_NUM_ATTACKERS
-                    )
-                    sniffer.set_label("attack")
-                    attack_has_started = True # Marcar que o ataque (re)começou
-                    print(f"[DEBUG Orchestrator] attack_has_started flag set to TRUE.")
+                    if target_urls_for_injector: # Somente inicie se houver alvos
+                        print(f"[Orchestrator] Starting HTTP flood. Target URLs for this call: {target_urls_for_injector}")
+                        traffic_injectorV0.start_http_flood(
+                            target_urls_for_injector,
+                            config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER,
+                            config.HTTP_ATTACK_NUM_ATTACKERS
+                        )
+                        sniffer.set_label("attack")
+                        attack_has_started = True
+                        print(f"[DEBUG Orchestrator] attack_has_started flag set to TRUE.")
+                    else:
+                        print("[Orchestrator] Attack should start, but no valid target URLs yet. Deferring to next iteration.")
                 else:
-                    print("[Orchestrator] Attack start/restart requested, but no valid target URLs. Injector not started/restarted.")
-                    if attack_has_started: # Se estava ativo mas agora não tem alvos
-                        print("[DEBUG Orchestrator] Attack was active but now no targets. Signaling stop and setting flag to False.")
-                        traffic_injectorV0.stop_http_flood() # Parar se estava ativo e agora não tem alvos
-                        attack_has_started = False
-            elif not should_attack_be_active_now and attack_has_started: # Se o período de ataque terminou
+                    # Ataque já rodando: só atualiza o load balancer com a lista
+                    # de instâncias atual -- substitui o antigo padrão
+                    # stop_http_flood() -> sleep(1) -> start_http_flood(), que
+                    # deixava ~1s sem tráfego de ataque nenhum toda vez que a
+                    # topologia mudava (ver changes.txt).
+                    # Mesma proteção do tráfego normal acima: só atualiza se a
+                    # lista vier não-vazia. Um hiccup transitório do Docker não
+                    # pode zerar os alvos do ataque -- isso pararia os workers
+                    # silenciosamente (sem stop_http_flood(), sem log, sem
+                    # attack_has_started=False) e o rótulo 'attack' continuaria
+                    # sendo gravado numa janela sem nenhum pacote de ataque de
+                    # verdade saindo. Mantém os últimos alvos conhecidos em vez
+                    # de zerar -- se as instâncias realmente caíram, os erros de
+                    # conexão aparecem no log, em vez de ficarem escondidos.
+                    sniffer.set_label("attack")
+                    if target_urls_for_injector:
+                        traffic_injectorV0.update_targets(target_urls_for_injector)
+                    else:
+                        print("[Orchestrator] Warning: target_urls_for_injector veio vazio nesta "
+                              "iteração (possível hiccup transitório do Docker) -- mantendo os "
+                              "últimos alvos conhecidos do ataque em vez de zerar.")
+            elif attack_has_started: # Se o período de ataque terminou
                 print("[Orchestrator] Attack duration ended or outside schedule. Stopping HTTP flood.")
                 traffic_injectorV0.stop_http_flood()
                 attack_has_started = False
                 print("[DEBUG Orchestrator] attack_has_started flag set to FALSE (attack period ended).")
-
-
-        # Atualizar o número de instâncias para a lógica do injetor na PRÓXIMA iteração
-        previous_num_instances_for_injector_logic = num_instances_after_scaling
-        print(f"[DEBUG Orchestrator] End of Iteration. previous_num_instances_for_injector_logic updated to: {previous_num_instances_for_injector_logic}")
 
         # 5. Registrar métricas no CSV
         host_cpu_percent = host_stats.get_host_cpu_percent()

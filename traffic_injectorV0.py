@@ -6,6 +6,7 @@ import random
 import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_ATTACK_NUM_ATTACKERS
 import statistics
 import attack_summary_logger
+import load_balancer
 from normal_traffic import rtt_measurements_total
 from concurrent.futures import ThreadPoolExecutor
 
@@ -14,6 +15,10 @@ attack_active = False
 threads = []
 rtt_measurements = []
 rtt_lock = threading.Lock()
+
+# Balanceamento client-side (ver load_balancer.py), instância própria (não
+# compartilha índice de rotação com normal_traffic.py).
+_load_balancer = load_balancer.LoadBalancer("Attack")
 
 # Pool compartilhado que efetivamente envia as requisições (open-loop):
 # o ritmo de disparo das threads de ataque não espera essa pool terminar.
@@ -43,25 +48,37 @@ def _send_one(session, target_url, counters, counters_lock):
             counters["err"] += 1
 
 
-def http_request_worker(target_url, rps_per_worker):
+def http_request_worker(rps_per_worker):
     """
-    Worker thread function. Dispara requisições para target_url no ritmo de rps_per_worker,
-    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop), com
-    intervalos entre disparos sorteados de uma distribuição exponencial (processo de
-    Poisson de taxa rps_per_worker) em vez de um intervalo fixo.
+    Worker thread function. Dispara requisições no ritmo de rps_per_worker, sem esperar a
+    resposta de uma requisição antes de agendar a próxima (open-loop), com intervalos entre
+    disparos sorteados de uma distribuição exponencial (processo de Poisson de taxa
+    rps_per_worker) em vez de um intervalo fixo.
+
+    O destino de CADA requisição é decidido na hora via load balancer (get_next_target()),
+    não fixado na criação da thread -- ver load_balancer.py e changes.txt. Isso também
+    elimina o buraco de ~1s sem tráfego que existia toda vez que o orquestrador reiniciava
+    o injetor (stop -> sleep(1) -> start) quando o número de instâncias mudava: agora o
+    worker nunca para, só passa a mandar pra URL nova no próximo envio.
     """
     global attack_active
     session = requests.Session() # Use session for potential connection pooling
     mean_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
     worker_start_time = time.monotonic()
 
-    print(f"  [Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
+    print(f"  [Injector Worker {threading.get_ident()}] Started. RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
 
     counters = {"ok": 0, "err": 0}
     counters_lock = threading.Lock()
     pending_futures = []
 
     while attack_active:
+        base_url = _load_balancer.get_next_target()
+        if base_url is None:
+            time.sleep(0.1)
+            continue
+        target_url = f"{base_url}?work={config.ATTACK_WORK_UNITS}&sleep={config.ATTACK_SLEEP}"
+
         try:
             future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
         except RuntimeError:
@@ -146,9 +163,9 @@ def start_http_flood(target_urls, rps_per_worker_override, num_attackers_overrid
         print(f"[Injector] Clearing {len(attacker_threads)} existing attacker threads before starting new ones.")
     attacker_threads.clear()
 
-    num_targets = len(target_urls)
-    
-    print(f"[Injector] Starting HTTP flood with {num_attackers_override} attackers, ~{rps_per_worker_override * num_attackers_override} RPS total, across {num_targets} targets: {', '.join(target_urls)}")
+    _load_balancer.update_targets(target_urls)
+
+    print(f"[Injector] Starting HTTP flood with {num_attackers_override} attackers, ~{rps_per_worker_override * num_attackers_override} RPS total, across {len(target_urls)} targets: {', '.join(target_urls)}")
 
     attack_summary_logger.log_attack_start(
         target_urls=target_urls,
@@ -157,22 +174,28 @@ def start_http_flood(target_urls, rps_per_worker_override, num_attackers_overrid
     )
 
     for i in range(num_attackers_override):
-        # Distribuição Round Robin dos workers pelas URLs de destino
-        if num_targets == 0:
-            print("[Injector] No targets available for worker assignment. Breaking loop.")
-            break
-        target_url_for_this_worker = target_urls[i % num_targets] + f"?work={config.ATTACK_WORK_UNITS}&sleep={config.ATTACK_SLEEP}"
-        
+        # Não há mais round-robin aqui -- cada worker consulta o load balancer
+        # (get_next_target()) a cada envio, não fica preso a uma URL fixa.
         thread = threading.Thread(
             target=http_request_worker,
-            args=(target_url_for_this_worker, rps_per_worker_override), # Cada thread pode ter uma URL diferente
+            args=(rps_per_worker_override,),
             daemon=True,
             name=f"InjectorWorker-{i+1}"
         )
         attacker_threads.append(thread)
         thread.start()
-        
+
     print(f"[Injector] All {len(attacker_threads)} attacker threads launched.")
+
+
+def update_targets(target_urls):
+    """
+    Chamado pelo orquestrador a cada iteração do loop, com a lista atual de
+    URLs das instâncias ativas -- substitui o antigo padrão de
+    stop_http_flood() -> sleep(1) -> start_http_flood() (ver changes.txt).
+    Seguro de chamar sempre, mesmo com o ataque inativo.
+    """
+    _load_balancer.update_targets(target_urls)
 
 # Esta é a versão revisada e mais robusta do stop_http_flood
 def stop_http_flood():
@@ -241,17 +264,16 @@ if __name__ == "__main__":
         print("\n[Self-Test] Starting test HTTP flood...")
         config.HTTP_ATTACK_NUM_ATTACKERS = 2 # Sobrescrever para o teste
         config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER = 5 # Sobrescrever para o teste
-        
-        # O self-test pode usar uma URL completa diretamente ou a tupla (host, port)
-        # start_http_flood([("localhost", test_host_port)], duration_seconds=10)
-        start_http_flood([test_target_url], duration_seconds=10) # Inicia por 10s e para automaticamente
 
-        # Se quiséssemos testar start/stop manualmente:
-        # start_http_flood([test_target_url], duration_seconds=0) # Inicia e continua
-        # print("[Self-Test] Flood started. Waiting 10 seconds before manual stop...")
-        # time.sleep(10)
-        # stop_http_flood()
+        start_http_flood([test_target_url], config.HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, config.HTTP_ATTACK_NUM_ATTACKERS)
+        print("[Self-Test] Flood started. Waiting 5 seconds before testing update_targets()...")
+        time.sleep(5)
 
+        print("[Self-Test] Calling update_targets() with the same single target (smoke test)...")
+        update_targets([test_target_url])
+        time.sleep(5)
+
+        stop_http_flood()
         print("[Self-Test] Test HTTP flood completed.")
 
     except Exception as e:

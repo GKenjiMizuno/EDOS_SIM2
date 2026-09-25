@@ -7,6 +7,7 @@ import config # Para obter HTTP_ATTACK_REQUESTS_PER_SECOND_PER_ATTACKER, HTTP_AT
 import statistics
 import csv
 import normal_traffic_summary_logger
+import load_balancer
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -16,6 +17,10 @@ threads = []
 rtt_measurements = []
 rtt_measurements_total = []
 rtt_lock = threading.Lock()
+
+# Balanceamento client-side (ver load_balancer.py) -- plano de controle só,
+# nunca fica no caminho da requisição HTTP em si (não afeta o RTT medido).
+_load_balancer = load_balancer.LoadBalancer("Normal")
 
 # Pool compartilhado que efetivamente envia as requisições (open-loop), no mesmo
 # padrão do injetor de ataque (traffic_injectorV0.py): o ritmo de disparo não
@@ -47,26 +52,39 @@ def _send_one_normal(session, target_url, counters, counters_lock):
             counters["err"] += 1
 
 
-def normal_http_request_worker(target_url, rps_per_worker):
+def normal_http_request_worker(rps_per_worker):
     """
-    Worker thread function. Dispara requisições para target_url no ritmo de rps_per_worker,
-    sem esperar a resposta de uma requisição antes de agendar a próxima (open-loop), com
-    intervalos entre disparos sorteados de uma distribuição exponencial (processo de
-    Poisson de taxa rps_per_worker) em vez de um intervalo fixo — modela clientes
-    independentes, como assumido em Sotelo Monge et al.
+    Worker thread function. Dispara requisições no ritmo de rps_per_worker, sem esperar a
+    resposta de uma requisição antes de agendar a próxima (open-loop), com intervalos entre
+    disparos sorteados de uma distribuição exponencial (processo de Poisson de taxa
+    rps_per_worker) em vez de um intervalo fixo — modela clientes independentes, como
+    assumido em Sotelo Monge et al.
+
+    O destino de CADA requisição é decidido na hora, consultando o load balancer
+    (get_next_target()) -- não é mais fixado na criação da thread. Isso é o que permite a
+    instância nova receber tráfego assim que o orquestrador chamar update_targets(), sem
+    precisar parar/recriar este worker.
     """
     global traffic_active
     session = requests.Session() # Use session for potential connection pooling
     mean_interval = 1.0 / rps_per_worker if rps_per_worker > 0 else 1.0
     worker_start_time = time.monotonic()
 
-    print(f"  [Normal_Injector Worker {threading.get_ident()}] Started. Target: {target_url}, RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
+    print(f"  [Normal_Injector Worker {threading.get_ident()}] Started. RPS: {rps_per_worker:.2f}, Mean interval: {mean_interval:.4f}s (Poisson)")
 
     counters = {"ok": 0, "err": 0}
     counters_lock = threading.Lock()
     pending_futures = []
 
     while traffic_active:
+        base_url = _load_balancer.get_next_target()
+        if base_url is None:
+            # Ainda sem nenhuma instância registrada (ex.: chamado antes do primeiro
+            # update_targets()) -- espera um pouco e tenta de novo, sem contar como erro.
+            time.sleep(0.1)
+            continue
+        target_url = f"{base_url}?work={config.NORMAL_WORK_UNITS}&sleep={config.NORMAL_SLEEP}"
+
         try:
             future = _send_pool.submit(_send_one_normal, session, target_url, counters, counters_lock)
         except RuntimeError:
@@ -169,9 +187,9 @@ def start_http_traffic(target_urls, rps_per_worker_override, num_clients_overrid
         print(f"[Normal_Injector] Clearing {len(client_threads)} existing attacker threads before starting new ones.")
     client_threads.clear()
 
-    num_targets = len(target_urls)
+    _load_balancer.update_targets(target_urls)
 
-    print(f"[Normal_Injector] Starting HTTP flood with {num_clients_override} attackers, ~{rps_per_worker_override * num_clients_override} RPS total, across {num_targets} targets: {', '.join(target_urls)}")
+    print(f"[Normal_Injector] Starting HTTP flood with {num_clients_override} attackers, ~{rps_per_worker_override * num_clients_override} RPS total, across {len(target_urls)} targets: {', '.join(target_urls)}")
 
     normal_traffic_summary_logger.log_traffic_start(
         target_urls=target_urls,
@@ -180,22 +198,33 @@ def start_http_traffic(target_urls, rps_per_worker_override, num_clients_overrid
     )
 
     for i in range(num_clients_override):
-        # Distribuição Round Robin dos workers pelas URLs de destino
-        if num_targets == 0:
-            print("[Normal_Injector] No targets available for worker assignment. Breaking loop.")
-            break
-        target_url_for_this_worker = target_urls[i % num_targets] + f"?work={config.NORMAL_WORK_UNITS}&sleep={config.NORMAL_SLEEP}"
-        
+        # Não há mais round-robin aqui -- cada worker consulta o load balancer
+        # (get_next_target()) a cada envio, não fica preso a uma URL fixa.
         thread = threading.Thread(
             target=normal_http_request_worker,
-            args=(target_url_for_this_worker, rps_per_worker_override), # Cada thread pode ter uma URL diferente
+            args=(rps_per_worker_override,),
             daemon=True,
             name=f"InjectorWorker-{i+1}"
         )
         client_threads.append(thread)
         thread.start()
-        
+
     print(f"[Normal_Injector] All {len(client_threads)} attacker threads launched.")
+
+
+def update_targets(target_urls):
+    """
+    Chamado pelo orquestrador a cada iteração do loop, com a lista atual de
+    URLs das instâncias ativas -- seguro de chamar sempre, mesmo antes de
+    start_http_traffic() ou depois de stop_http_traffic() (só atualiza o
+    estado do load balancer, não depende dos workers estarem rodando).
+    Substitui o antigo comportamento de "decidir a URL uma vez, na
+    criação das threads" (ver changes.txt) -- é isso que faz uma instância
+    nova, criada pelo autoscaler no meio do run, passar a receber tráfego
+    normal de verdade.
+    """
+    _load_balancer.update_targets(target_urls)
+
 
 def stop_http_traffic():
     """
@@ -264,17 +293,19 @@ if __name__ == "__main__":
         print("\n[Self-Test] Starting test HTTP flood...")
         config.HTTP_NORMAL_NUM_CLIENTS = 2 # Sobrescrever para o teste
         config.HTTP_NORMAL_RPS_PER_CLIENT = 5 # Sobrescrever para o teste
-        
-        # O self-test pode usar uma URL completa diretamente ou a tupla (host, port)
-        # start_http_flood([("localhost", test_host_port)], duration_seconds=10)
-        start_http_traffic([test_target_url], duration_seconds=10) # Inicia por 10s e para automaticamente
 
-        # Se quiséssemos testar start/stop manualmente:
-        # start_http_flood([test_target_url], duration_seconds=0) # Inicia e continua
-        # print("[Self-Test] Flood started. Waiting 10 seconds before manual stop...")
-        # time.sleep(10)
-        # stop_http_flood()
+        start_http_traffic([test_target_url], config.HTTP_NORMAL_RPS_PER_CLIENT, config.HTTP_NORMAL_NUM_CLIENTS)
+        print("[Self-Test] Flood started. Waiting 5 seconds before testing update_targets()...")
+        time.sleep(5)
 
+        # Testa o ponto central da mudança: update_targets() com uma lista de alvos
+        # diferente não deve travar nem exigir parar/recriar os workers -- os próximos
+        # envios já devem ir pra URL nova.
+        print("[Self-Test] Calling update_targets() with the same single target (smoke test)...")
+        update_targets([test_target_url])
+        time.sleep(5)
+
+        stop_http_traffic()
         print("[Self-Test] Test HTTP flood completed.")
 
     except Exception as e:

@@ -4401,3 +4401,169 @@ Verificado:
   - Primeira execução (S1, 1%, WU=200000, rep2) iniciou e logou
     corretamente; container target_instance_1 confirmado "Up" ~14s depois
     do disparo.
+
+================================================================================
+§102. load_balancer.py (novo) -- balanceamento client-side, corrige
+  normal_traffic.py nunca redistribuir tráfego pra instâncias novas
+================================================================================
+Contexto: branch develop_loadbalancer, criada a partir de develop_ML depois
+  do merge fast-forward de develop_ML_treino (Fase 1 do plano de ML). Achado
+  desta sessão (discussão com o usuário, não em run_burst_analysis nem
+  script algum): normal_traffic.py decide a URL de cada cliente uma única
+  vez, na criação da thread (round-robin sobre os alvos existentes
+  NAQUELE momento) -- como o simulador sempre começa com MIN_INSTANCES=1,
+  isso colapsa pra "todo cliente normal manda pra instância 1, pro run
+  inteiro", mesmo que o autoscaler suba pra 2-4 instâncias depois. Provado
+  com dados reais de 3 runs de normal_baseline (agg=150/160/200, WU=10):
+  toda vez que SCALE_UP disparava, avg_rtt_ms ficava idêntico antes/depois
+  (ex.: ~33-37ms nos dois casos) enquanto average_cpu_percent caía pela
+  metade (diluído pela instância nova ociosa, não por alívio de carga real)
+  -- artefato que também podia disparar SCALE_DOWN prematuro por sinal
+  falso de alívio. traffic_injectorV0.py (ataque) NÃO tinha esse problema
+  -- o orquestrador já reiniciava o injetor (stop -> sleep(1) -> start) a
+  cada mudança de topologia -- mas esse reinício deixava ~1s sem tráfego de
+  ataque nenhum toda vez que a topologia mudava, também corrigido aqui.
+
+  Duas arquiteturas discutidas com o usuário antes de implementar: (A)
+  balanceamento client-side (load balancer só decide QUAL URL usar antes
+  de cada envio, cliente continua conectando direto no backend -- plano de
+  controle separado do plano de dados) vs (B) proxy de verdade (todo
+  tráfego passa fisicamente pelo load balancer, que repassa pro backend).
+  B foi descartada: adicionaria um salto de rede extra que mudaria o RTT
+  medido (feature central do ML, ao contrário de CPU/num_instances que já
+  são só metadado) -- exigiria recriar o dataset INTEIRO (não só os runs
+  que escalam) pra manter comparabilidade, ao custo de ~61h de máquina.
+  A não tem esse efeito colateral porque o load balancer nunca fica no
+  caminho da requisição HTTP -- get_next_target() é só uma chamada de
+  função em memória, protegida por lock, antes do cronômetro do RTT ligar.
+
+Criado load_balancer.py: classe LoadBalancer com update_targets(target_urls)
+  (chamado pelo orquestrador a cada iteração, barato, idempotente, nunca
+  reinicia worker nenhum) e get_next_target() (chamado por um worker antes
+  de CADA envio, devolve a próxima URL da rotação round-robin). Cada tipo
+  de tráfego tem sua própria instância (rótulos "Normal"/"Attack"), pra não
+  compartilhar índice de rotação entre os dois.
+
+Alterado normal_traffic.py e traffic_injectorV0.py: os workers deixam de
+  receber uma target_url fixa na criação da thread -- normal_http_request_
+  worker()/http_request_worker() agora só recebem rps_per_worker, e
+  consultam _load_balancer.get_next_target() a cada envio, montando a URL
+  completa (com ?work=...&sleep=...) na hora. start_http_traffic()/
+  start_http_flood() perdem o laço de round-robin (não fazem mais
+  atribuição de URL nenhuma) e ganham uma função update_targets() pública,
+  chamada pelo orquestrador. rtt_measurements_total (sink compartilhado
+  entre os dois módulos, que faz rtt_log.csv misturar RTT de ataque e
+  normal -- ver CLAUDE.md) foi preservado sem alteração.
+
+Alterado main_orchestrator.py: removida a variável
+  previous_num_instances_for_injector_logic e toda a lógica de detectar
+  "mudou o número de instâncias?" pra decidir se reinicia o injetor de
+  ataque (stop_http_flood -> sleep(1) -> start_http_flood). Substituída por
+  chamadas incondicionais de update_targets() a cada iteração, pros dois
+  tipos de tráfego (inclusive no branch ATTACK_DURATION_SECONDS==0, usado
+  pelos sweeps de tráfego normal isolado -- normal_baseline/
+  clients_rps_grid -- que é onde o bug original foi encontrado).
+
+Verificado:
+  - python3 -m py_compile nos 4 arquivos -- sem erro.
+  - Self-test de load_balancer.py: round-robin correto (2 e 3 alvos),
+    update_targets() no meio da rotação não quebra nada, 8 threads x 100
+    chamadas concorrentes distribuem igualmente (200/200/200/200) sem
+    corromper o índice.
+  - Self-test de normal_traffic.py e traffic_injectorV0.py (corrigidos
+    nesta sessão -- estavam quebrados antes, chamando start_http_traffic()/
+    start_http_flood() com um parâmetro duration_seconds que não existe
+    na assinatura real; não é um bug introduzido agora, já estava assim):
+    os dois rodam limpo, workers recebem e completam requisições, 0 erros.
+  - Validação end-to-end (fora do self-test, rodando main_orchestrator.py
+    de verdade com limiares de escalonamento reduzidos pra forçar
+    SCALE_UP de forma determinística): tráfego normal isolado (WU=300000,
+    ~80 req/s agregado) -- LoadBalancer:Normal atualiza 1->2->3 alvos
+    conforme escala; docker stats por container confirma instance_2 a
+    113% de CPU quase imediatamente após criada (mesmo nível de
+    instance_1), não ociosa -- oposto direto do comportamento antigo
+    (instância nova ficava ~0% o run inteiro). Combinado normal+ataque
+    (WU=300000 no ataque): CPU final por container ficou equilibrada
+    entre as 3 instâncias (19-29% cada, não diluída nem concentrada), e
+    avg_rtt_ms melhorou de forma monotônica conforme instâncias
+    entravam (62,4 -> 47,0 -> 35,6 -> ... -> ~35ms estável em 3
+    instâncias) -- confirma alívio de carga real, não só metadado mudando.
+    Nenhuma mensagem de "sleeping for 1s" no log (confirma que o buraco
+    de tráfego do ataque também foi eliminado).
+  - traffic_capture.csv ficou vazio nesses testes curtos (tcpdump não
+    teve tempo de capturar nada relevante numa janela tão curta) --
+    não investigado a fundo, não bloqueia esta validação porque a
+    evidência de docker stats + RTT já é direta e suficiente.
+  - Achado incidental (não corrigido, fora de escopo): --attack-duration/
+    --normal-rps/--normal-work-units (e os outros overrides de CLI) só são
+    lidos dentro do bloco `if __name__ == "__main__":` do
+    main_orchestrator.py, não dentro de main() -- então só funcionam
+    quando o script é executado diretamente (python3 main_orchestrator.py
+    ...), não quando main() é chamado programaticamente (como fiz nos
+    scripts de validação desta sessão). Não afeta nenhum dos scripts de
+    sweep existentes (todos invocam via subprocess.run(["python3",
+    "main_orchestrator.py", ...]), então sempre passam pelo bloco
+    __main__ corretamente) -- só relevante pra quem for escrever testes
+    chamando main() direto no futuro.
+
+Pendente (próximo passo, não feito ainda): recolher os ~676-696 runs que
+  tiveram pelo menos 1 SCALE_UP com tráfego normal ativo (ver estimativa
+  na conversa com o usuário, ~35h de máquina) -- substituindo os runs
+  antigos, não somando como reps extras (versões de código diferentes não
+  são estatisticamente intercambiáveis, ver discussão). Aguardando decisão
+  do usuário sobre quando disparar.
+
+================================================================================
+§103. Correção pós-revisão: update_targets() não pode zerar os alvos do
+  load balancer quando target_urls_for_injector vem vazio por hiccup
+================================================================================
+Contexto: `/code-review high` rodado sobre o diff da seção 102 (8 ângulos
+  de revisão em paralelo + verificação 1-voto recall-biased nos achados
+  mais críticos) antes de disparar a recoleta dos ~676 runs. 9 achados
+  reportados; 2 confirmados por verificação independente foram
+  considerados bloqueantes o suficiente pra corrigir antes de rodar uma
+  batelada de ~35h sem supervisão constante (os outros 7 são cleanup/
+  baixa severidade, não bloqueiam -- ver ReportFindings da sessão).
+
+  Achado 1 (main_orchestrator.py, branch "ataque já ativo"): update_targets()
+  era chamado incondicionalmente, sem checar se target_urls_for_injector
+  veio vazio -- regressão real em relação ao código antigo, que tinha um
+  `else` explícito (stop_http_flood() + attack_has_started=False) quando
+  não havia alvos válidos. Gatilho: c_obj.reload() falhando pra TODOS os
+  containers ativos na mesma iteração (hiccup transitório do socket/daemon
+  Docker, sem mudança real no número de instâncias) zera
+  target_urls_for_injector só naquela iteração.
+
+  Achado 2 (mesmo arquivo, branch de tráfego normal): mesmo padrão, sem
+  checagem de lista vazia antes de normal_traffic.update_targets(). Aqui
+  não é regressão de uma proteção antiga (tráfego normal nunca teve
+  mecanismo de restart antes da seção 102) -- é lacuna na capacidade nova.
+
+Alterado main_orchestrator.py: os dois pontos que chamam update_targets()
+  (tráfego normal linha ~340, ataque linha ~357) agora só atualizam o load
+  balancer se target_urls_for_injector vier não-vazio. Se vier vazio,
+  registra um aviso e MANTÉM os últimos alvos conhecidos em vez de zerar --
+  decisão deliberada de não replicar o "parar tudo" do código antigo:
+  zerar os alvos faz os workers ficarem girando em espera silenciosa
+  (mascarando o hiccup como "sem tráfego" nos CSVs de resumo); manter os
+  últimos alvos conhecidos faz um hiccup transitório se autocurar
+  sozinho na próxima iteração, e se as instâncias caíram de verdade (não
+  só um glitch de leitura), os erros de conexão aparecem visíveis no log
+  em vez de ficarem escondidos atrás de um `sleep(0.1)` silencioso.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Revalidação end-to-end (mesmo teste combinado normal+ataque da seção
+    102, forçando escalonamento 1->2->3): comportamento idêntico ao
+    validado antes da correção -- LoadBalancer:Normal e LoadBalancer:Attack
+    atualizam 1->2->3 alvos corretamente, RTT melhora conforme instâncias
+    entram (96,0 -> 63,5 -> 36,7ms), nenhum warning de "veio vazio"
+    apareceu (esperado, já que o gatilho raro não ocorreu neste teste --
+    o guard fica dormente até o cenário real acontecer).
+  - Achados de menor severidade (duplicação 3x do padrão start+
+    update_targets, singleton do LoadBalancer nunca resetado, chamada
+    redundante de start_http_traffic no branch ATTACK_DURATION_SECONDS==0,
+    has_targets() código morto, lógica duplicada de espera+montagem de URL
+    entre os injetores, self-tests só cobrindo 1 alvo único) NÃO foram
+    corrigidos nesta sessão -- registrados como pendência de baixa
+    prioridade, não bloqueiam a recoleta.
