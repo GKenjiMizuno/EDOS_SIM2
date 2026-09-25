@@ -4264,3 +4264,140 @@ Verificado:
     existentes + 288 rep2-5 novas da seção 96/98), nenhum arquivo
     faltando.
   - PNG (1x4 painéis) inspecionado visualmente.
+
+================================================================================
+§100. ml_feature_extraction.py (novo) -- Fase 1 do plano de ML (dataset de
+  features por janela para treinar os classificadores)
+================================================================================
+Contexto: início da branch develop_ML_treino, criada a partir de develop_ML.
+  Primeira fase do plano de ML combinado com o usuário (base científica
+  levantada com revisão de 12 artigos de referência, ver "Artigos
+  colocados/"): extrair features por janela deslizante sobre todos os runs
+  já coletados em experiment_results/, sem novo Docker, para consolidar
+  num dataset de treino.
+
+Criado ml_feature_extraction.py: varre os 6 diretórios de
+  experiment_results/ (desempate_combinado_isolado, wedos_grid,
+  combined_sweep, clients_rps_grid, normal_baseline,
+  atacantes_intensidade_grid -- este último incluído porque, mesmo tendo
+  sido coletado para investigar o paradoxo de CPU/autoscaler (seções
+  90-99), já cobre o eixo "número de atacantes" que era uma das duas
+  lacunas identificadas para a Fase 3). Para cada run, janela de 20s/passo
+  10s (mesmos parâmetros do EntCusumZV3.py): calcula estatísticas de RTT
+  (média/desvio/mediana/p90/p95/p99/CV/assimetria/mín/máx), contagem de
+  requisições, contagem de portas de origem únicas (só pacotes
+  cliente->servidor, dst_port na faixa STARTING_HOST_PORT..+MAX_INSTANCES),
+  e reimplementa entropia/Z-score/CUSUM do EntCusumZV3.py inline (mesmos
+  parâmetros: baseline pré-ataque, kappa=0.5*std, h=5*std, threshold de
+  delta-entropia=1.5, Z>3.5) -- reimplementado em vez de importado porque o
+  .xlsx do EntCusumZV3.py só guarda o tempo médio da janela como texto
+  arredondado, sem os limites exatos [t_start,t_end) necessários para
+  alinhar o rótulo com a coluna 'label' de cada run. Diferença deliberada
+  do EntCusumZV3.py: o baseline pré-ataque usa o início REAL do ataque
+  daquele run (lido de simulation_metrics.csv, coluna 'label'), não a
+  constante config.ATTACK_START_TIME_SECONDS -- os sweep scripts podem
+  sobrescrever via --attack-start, e config.py não reflete isso quando lido
+  depois, offline.
+
+  Rótulo: 'attack' se a janela se sobrepõe >=50% ao intervalo real de
+  ataque do run; 'is_transition'=True para janelas a até WINDOW_SECONDS do
+  início/fim real do ataque (excluídas do treino, não do dataset).
+  'is_hiccup'=True por mecanismo (nunca por corte estatístico/IQR, decisão
+  já travada com o usuário em sessões anteriores): linhas de
+  attack_summary_log.csv/normal_traffic_summary_log.csv com menos
+  workers completos do que o esperado (num_attackers/num_clients), ou run
+  truncado (<80% da duração configurada). average_cpu_percent/
+  num_instances/any_scale_up ficam como metadado (não-feature), reservados
+  para cruzar depois com o achado do autoscaler (seções 92-93/98-99) sem
+  precisar reextrair. Saída de comparação do detector clássico
+  (clf_alarm_entropy/clf_alarm_z/clf_alarm_cusum/clf_status_burst) também
+  gravada, só para a Fase 6, não como feature de treino. Saída:
+  ml_dataset/features_raw.csv.
+
+Resultado da primeira extração completa: 965 runs encontrados, 927
+  processados com sucesso, 38 pulados (rtt_log_*.csv ausente -- todos
+  em normal_baseline, sublote antigo de calibração
+  normal_rps{10,25,50,100}_WU{10,100,1000,5000} sem repetição no nome,
+  nunca teve rtt_log salvo; gap de dados pré-existente, não causado por
+  este script). 16.089 janelas totais (8.374 attack / 7.715 benign); 5.904
+  em transição e 1.869 pertencentes a 123 runs com soluço detectado --
+  9.289 janelas utilizáveis para treino depois de excluir as duas
+  categorias (5.220 benign / 4.069 attack, desbalanceamento leve, a
+  monitorar por cenário na Fase 4/5).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Testado em lote pequeno (--limit) antes da extração completa: run
+    conhecido do wedos_grid (S1_atk10pct_wu200000_stage1a_rep1) inspecionado
+    linha a linha -- rótulo/transição batem com o início/fim real do
+    ataque (20-160s), CUSUM reseta corretamente a 0, contagem de portas
+    únicas sobe durante o ataque.
+  - Testado especificamente nos 2 runs de soluço já identificados
+    manualmente antes desta sessão (S1_atk1pct_att4_wu200000_rep3/rep4 de
+    atacantes_intensidade_grid) -- is_hiccup=True com o motivo exato
+    esperado (esperado=4 completos=2/3).
+  - Testado em normal_baseline (sem ataque) -- 100% das janelas 'benign',
+    0 em transição, como esperado.
+  - Testado em clients_rps_grid (sem attack_summary_log.csv) -- não
+    quebra, hiccup check usa só normal_traffic_summary_log.csv nesse caso.
+  - Rodado de ponta a ponta sobre os 965 runs reais (~1min48s), CSV de
+    saída inspecionado (16.089 linhas, colunas conferidas).
+
+Correção pequena (mesmo turno, antes de qualquer uso posterior do dataset):
+  a regex de intensidade (atk(\d+)pct) não capturava valores decimais --
+  existe 1 config no wedos_grid com intensidade fracionária (atk0.5pct, S2/
+  WU=500000, de wedos_stage1b_refined.py). Corrigida para atk([\d.]+)pct
+  (float em vez de int). Só afeta a coluna de metadado intensity_pct desse
+  1 config -- não afeta rótulo, janela ou nenhuma feature. Reextração
+  completa rodada de novo após a correção: mesmas 16.089 janelas, mesmos
+  927/965 runs processados (confirma que o bug era só de parsing de
+  metadado, não de extração).
+
+================================================================================
+§101. run_wedos_grid_fill_reps.py (novo) -- disparo de 214 execuções pra
+  levar TODAS as configs do wedos_grid a 5 repetições
+================================================================================
+Contexto: a análise de cobertura da Fase 1 (seção 100) mostrou que 46 de 58
+  (depois da correção da seção anterior, 59) configs do wedos_grid tinham só
+  1 repetição, e que 39 delas já têm taxa de detecção clássica 0% -- amplo
+  demais pra reportar média±IC95% ou rodar leave-one-scenario-out com N=1
+  por célula. Usuário autorizou explicitamente rodar mais simulações se
+  necessário ("essa ML tem que dar certo... se precisar de mais simulações
+  e rodadas, pode ser feita") e confirmou via pergunta explícita: rodar as
+  214 completas (não só o subconjunto furtivo), nesta máquina, agora.
+
+Criado run_wedos_grid_fill_reps.py: reaproveita wedos_combined_grid.
+  run_point() (mesma função usada pelo stage1a/stage1b originais -- mesmos
+  parâmetros de CLI do main_orchestrator.py, mesmo dicionário
+  NORMAL_SCENARIOS), sem alterar wedos_combined_grid.py. Descobre as
+  configs existentes lendo os nomes de arquivo reais em
+  experiment_results/wedos_grid/ (não uma lista hardcoded), calcula quais
+  números de repetição faltam pra cada uma chegar a 5, e roda só o que
+  falta -- idempotente, se interrompido e rerodado não repete reps já
+  concluídas. Reps novas usam tag="mlfill" (os tags históricos são
+  irregulares entre stages -- ex. "stage1b_confirm" pra reps específicas de
+  uma config que começou como "stage1a" --, então não dá pra replicar o tag
+  exato de forma genérica; não é problema pro pipeline de ML, que agrupa
+  por scenario/intensity_pct/wu, não pelo sufixo bruto do arquivo).
+
+  S4 foi excluído do refinamento original (wedos_stage1b_refined.py) por
+  já ser instável sem ataque (teto de capacidade ~205-210 agregado,
+  S4=300) -- motivo que vale pra achar fronteira limpa do detector
+  clássico, mas não pro ML (mais dados da zona, mesmo ruidosos, são úteis;
+  o pipeline já isola runs instáveis por mecanismo via is_hiccup). Por
+  isso S4 ESTÁ incluído nas 214 execuções -- decisão registrada aqui, não
+  tomada em silêncio.
+
+Disparado em background (nohup, PID 16517) depois de confirmar docker ps
+  OK. Log em scratchpad/wedos_grid_fill_reps.log. Estimativa ~10-11h
+  (214 execuções x ~3min/run, mesma taxa observada nas 288 execuções da
+  seção 96/98).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - --dry-run conferido: 214 execuções planejadas, batendo com a contagem
+    de reps faltando calculada a partir do dataset da Fase 1.
+  - docker ps confirmado OK antes de disparar.
+  - Primeira execução (S1, 1%, WU=200000, rep2) iniciou e logou
+    corretamente; container target_instance_1 confirmado "Up" ~14s depois
+    do disparo.
