@@ -4567,3 +4567,732 @@ Verificado:
     entre os injetores, self-tests só cobrindo 1 alvo único) NÃO foram
     corrigidos nesta sessão -- registrados como pendência de baixa
     prioridade, não bloqueiam a recoleta.
+
+================================================================================
+§104. run_scaling_affected_rerun.py (novo) -- disparo de 802 execuções pra
+  recoletar todos os runs afetados pelo bug do load balancer (+ combined_sweep
+  expandido pra 5 reps)
+================================================================================
+Contexto: re-análise fresca (não extrapolada) dos 1.179 runs em disco,
+  contando exatamente quantos tiveram >=1 SCALE_UP (mecanismo pelo qual o
+  bug corrigido nas seções 102-103 se manifesta): 702 runs afetados em 6
+  diretórios. Usuário pediu, à parte, expandir combined_sweep de 1
+  repetição (24 configs, sem sufixo _repN no nome -- único diretório do
+  dataset ainda sem repetição) para 5 repetições completas (120 runs),
+  aproveitando que o Docker já ia rodar de qualquer forma -- não é efeito
+  colateral do bug, é melhoria de poder estatístico pedida explicitamente.
+  Total: 702 - 20 (combined_sweep antigo) + 120 (combined_sweep novo) = 802.
+
+Criado run_scaling_affected_rerun.py: identifica os runs afetados
+  (decision=='SCALE_UP' em algum tick do metrics_*.csv real, não por
+  suposição) e recoleta cada um com os MESMOS parâmetros do run original --
+  reaproveitando wedos_combined_grid.run_point() (wedos_grid) e
+  run_atacantes_intensidade_grid.run_point() (atacantes_intensidade_grid)
+  diretamente, e reproduzindo as fórmulas verificadas linha a linha contra
+  run_desempate_combinado_isolado.py, run_experiments_clients_rps.py,
+  run_graph4_refined.py, run_experiments_normal.py e wedos_repro_test.py
+  pros outros 4 diretórios (2 sub-famílias de normal_baseline vêm de
+  scripts já deletados -- convenção de nome verificada como consistente
+  com os scripts irmãos que sobreviveram, não inventada). combined_sweep
+  passa a também salvar normal_traffic_summary_log.csv (o script original
+  não salvava, por ser anterior à correção §35 -- aproveitado que já
+  estamos regenerando tudo).
+
+  Todo arquivo antigo é movido para experiment_results/_pre_loadbalancer_fix/
+  antes de ser sobrescrito -- nada é descartado, pedido explícito do
+  usuário pra permitir comparação antes/depois.
+
+Disparado em background (nohup, PID 1960342) depois de confirmar docker ps
+  OK. Log em scratchpad/scaling_affected_rerun.log. Estimativa ~41,5h (802
+  execuções x ~3,1min/run, mesma taxa observada nas bateladas anteriores).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - --dry-run: 802 execuções planejadas, contagem batendo exatamente por
+    diretório (wedos_grid=140, combined_sweep=120, atacantes_intensidade_
+    grid=330, clients_rps_grid=51, desempate_combinado_isolado=67,
+    normal_baseline=94) -- ZERO avisos de sufixo fora do padrão (todo
+    arquivo afetado foi reconhecido pelo parser).
+  - Amostras do --dry-run inspecionadas manualmente: combined_sweep gera
+    exatamente 5 reps por config (rep1..rep5); os outros diretórios
+    preservam o sufixo/parâmetros originais exatos.
+  - docker ps confirmado OK antes de disparar; primeira execução
+    (wedos_grid S1_atk10pct_wu325000_stage1b_rep1) iniciou e logou
+    corretamente, container target_instance_1 confirmado "Up" ~13s depois
+    do disparo.
+
+================================================================================
+§105. wedos_graphs_loadbalancer.py (novo) -- refaz o gráfico 6 (heatmap de
+  pico de CPU) com os dados pós-correção do load balancer
+================================================================================
+Contexto: usuário pediu, depois de ver a comparação antes/depois de um run
+  específico (S4/atk10pct/wu400000), o mesmo tipo de comparação pro gráfico
+  06 do projeto (heatmap de pico de CPU por cenário x intensidade x WU,
+  gerado por wedos_graphs.plot_heatmap, dados stage1a). Padrão de nome
+  combinado com o usuário pra esse tipo de pedido daqui pra frente:
+  "<número>_(loadbalancer)", sem sobrescrever nem alterar o script/arquivo
+  original -- os dois ficam lado a lado pra comparação.
+
+Criado wedos_graphs_loadbalancer.py: importa wedos_graphs.carregar_grid()
+  sem modificação (só leitura de dados) e reimplementa plot_heatmap com uma
+  única mudança -- salva em
+  graficos_apresentacao/02_caracterizacao_ataque_wedos/
+  06_wedos_heatmap_cpu_(loadbalancer).png em vez de sobrescrever
+  06_wedos_heatmap_cpu.png. wedos_graphs.py não foi tocado.
+
+Resultado -- comparação célula a célula com o heatmap original confirma que
+  o efeito visto no exemplo pontual (S4/WU=400000) não é isolado, e é maior
+  do que uma inspeção rápida sugeriu:
+
+  - Células onde a CPU nunca cruzava o limiar em nenhuma das duas versões
+    (WU baixo, intensidade baixa, principalmente S1 nas colunas 1%/5%)
+    ficam IDÊNTICAS antes/depois -- esperado, o bug só se manifesta se
+    chega a escalar de verdade.
+  - Em TODA célula que escalava (▲) no heatmap antigo, o pico de CPU
+    reportado cai de forma grande e sistemática depois da correção --
+    tipicamente pela metade ou mais (ex.: S4/WU=500000/10%: 204%->107%;
+    S3/WU=500000/10%: 211%->79%; S2/WU=400000/10%: 220%->62%).
+  - Mais importante: em VÁRIAS células o efeito não é só "CPU mais baixa" --
+    a marcação ▲ (SCALE_UP disparado) desaparece completamente, ou seja, o
+    cenário simplesmente PAROU de escalar depois da correção. Isso acontece
+    de forma consistente nas colunas de 1%/5% de S2/S3 em quase todo WU
+    (ex.: S2/WU=200000: 85%▲/94%▲ -> 29%/37%, sem nenhum ▲; S3/WU=300000:
+    108%▲ -> 30%, sem ▲) e até na coluna de 10% de S1 nos WUs mais altos
+    (S1/WU=400000/10%: 145%▲ -> 29%, sem ▲; S1/WU=500000/10%: 152%▲ -> 35%,
+    sem ▲). Só as células mais extremas da grade (S3/S4, intensidade
+    5-10%, WU alto) continuam escalando nas duas versões -- com pico bem
+    menor mesmo assim.
+
+  Implicação que vai além deste gráfico: as fronteiras de "quanto de WU/
+  intensidade força SCALE_UP" que a suíte wedos_stage1b_refined.py foi
+  atrás de refinar (ex.: "S1 só escala em pct=10%, entre WU=300000 e
+  400000") foram encontradas em cima de dados com o bug -- pelo menos
+  parte dessas fronteiras pode ter sido medindo o artefato de concentração
+  de tráfego normal na instância 1, não o comportamento real do simulador
+  sem esse bug. Vale revisar esse achado de fronteira específico à luz dos
+  dados corrigidos antes de reafirmar em qualquer texto do TCC -- não feito
+  nesta sessão, só sinalizado aqui.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta (79 pontos carregados de wedos_grid/, já com a
+    recoleta da seção 104 completa pra essa pasta).
+  - PNG inspecionado visualmente, comparado lado a lado com o original
+    (06_wedos_heatmap_cpu.png, intocado) -- ambos coexistem em
+    graficos_apresentacao/02_caracterizacao_ataque_wedos/.
+
+================================================================================
+§106. plot_grid_heatmap_loadbalancer.py (novo) -- refaz o gráfico 17
+  (heatmap clientes×RPS) com os dados pós-correção do load balancer
+================================================================================
+Contexto: usuário pediu o mesmo tratamento do gráfico 06 (§105) pro
+  gráfico 17 (plot_grid_heatmap.py, heatmap de CPU média por célula do
+  grid clientes×RPS, pasta clients_rps_grid) -- mesma regra: não apagar
+  nem sobrescrever o original, nomear com sufixo "_(loadbalancer)".
+
+Diferença importante em relação ao §105: o gráfico 17 não lê os
+  metrics_*.csv direto -- depende de um resumo pré-calculado
+  (resumo_clients_rps_grid.csv), gerado por outro script
+  (plot_clients_rps_invariance.py, que também produz o gráfico 11 e não
+  tem guarda de __main__, ou seja, não dá pra importar sem reexecutar o
+  script inteiro e sobrescrever esse resumo e o gráfico 11 com dados pós-
+  correção). Como toda a pasta clients_rps_grid/ já foi 100% recoletada
+  na recoleta de 802 execuções (§104) -- as 51 configs dessa família
+  tinham TODAS escalado antes da correção, então entraram inteiras no
+  lote afetado -- os metrics_*.csv já são todos pós-correção, mas o
+  resumo_clients_rps_grid.csv em disco ainda reflete os dados antigos
+  (não foi regenerado).
+
+Criado plot_grid_heatmap_loadbalancer.py: duplica a função run_stats()
+  e o loop de agregação de plot_clients_rps_invariance.py (só a parte de
+  CPU/nº de instâncias, não a parte de taxa de erro/gráfico 11, que não
+  foi pedida), recalcula o resumo direto dos dados atuais (pós-correção)
+  e salva em resumo_clients_rps_grid_loadbalancer.csv -- um arquivo novo,
+  sem tocar no resumo_clients_rps_grid.csv original. Monta o heatmap com
+  a mesma lógica de plot_grid_heatmap.py e salva em
+  graficos_apresentacao/01_curva_capacidade_baseline/
+  17_grid_heatmap_cpu_(loadbalancer).png, ao lado do original intocado.
+
+Resultado: confirma a mesma correção sistêmica documentada no §105, mas
+  ainda mais direta nessa família -- como as 51 configs de clients_rps_
+  grid nunca chegam a escalar de verdade pós-correção (nenhuma célula
+  passa de 1 instância; comparar com o resumo antigo, que tinha células
+  com até 2+ instâncias nos agregados mais altos), a "coluna nº de
+  instâncias" do heatmap fica inteiramente "máx 1 inst." em toda a
+  grade. O padrão "cada LINHA deveria ficar com cor uniforme" (a
+  hipótese que esse gráfico testa -- RPS agregado é o que importa,
+  não a decomposição em clientes) também fica visivelmente mais
+  verdadeiro pós-correção: ex. linha 512 RPS antes variava de 38,9% a
+  52,3% de CPU entre as colunas (decomposição 8 clientes vs. 1 cliente),
+  depois varia só entre 28,4% e 31,4% -- intervalo quase 3x mais estreito.
+  Uma célula foge do padrão mesmo pós-correção (256 RPS/1 cliente:
+  40,4%, bem acima do resto da linha, que fica entre 16-29%) -- não
+  investigado a fundo nesta sessão, sinalizado aqui como possível efeito
+  de um único worker tentando sustentar 256 req/s sozinho (rajadas mais
+  concentradas no tempo do que com mais threads dividindo a mesma taxa).
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado de ponta a ponta sobre experiment_results/clients_rps_grid/
+    (51 configs, todas pós-correção).
+  - PNG inspecionado visualmente, comparado com o 17_grid_heatmap_cpu.png
+    original (intocado) -- ambos coexistem em
+    graficos_apresentacao/01_curva_capacidade_baseline/.
+
+================================================================================
+§107. graficos_apresentacao/04_pos_loadbalancer/ (novo diretório) -- gráficos
+  11, 20, 24, 27, 42, 48, 55, 56 refeitos pós-correção do load balancer;
+  06 e 17 movidos pra lá também
+================================================================================
+Contexto: usuário pediu os gráficos 11, 20, 42, 56, 55, 27, 24, 48 refeitos
+  com dados pós load balancer, mesma regra dos §105/§106 (não sobrescrever
+  original, sufixo "_(loadbalancer)"), e pediu um diretório dedicado dentro
+  de graficos_apresentacao/ pra esses gráficos pós-correção -- inclusive
+  movendo os 2 já criados (06 e 17) pra lá.
+
+Criado graficos_apresentacao/04_pos_loadbalancer/. Movidos 06_wedos_heatmap_
+  cpu_(loadbalancer).png e 17_grid_heatmap_cpu_(loadbalancer).png pra lá;
+  wedos_graphs_loadbalancer.py e plot_grid_heatmap_loadbalancer.py (§105/106)
+  tiveram o OUT_DIR atualizado pra apontar pro novo diretório (próxima vez
+  que rodarem, salvam direto lá).
+
+Criados 8 scripts novos (mesmo padrão dos anteriores -- reimplementam a
+  lógica do script original sem importá-lo/alterá-lo, salvam só no novo
+  diretório):
+  - plot_clients_rps_invariance_loadbalancer.py -> 11 (clients_rps_grid,
+    100% recoletado)
+  - plot_graph4_pico_pre_escalonamento_loadbalancer.py -> 20
+    (clients_rps_grid, 100% recoletado, mantido o filtro IQR do original
+    por decisão já registrada -- ver script original)
+  - plot_atacantes_intensidade_grid_loadbalancer.py -> 48
+    (atacantes_intensidade_grid, 100% recoletado)
+  - plot_atacantes_intensidade_heatmap_att4_loadbalancer.py -> 55 (idem)
+  - plot_atacantes_intensidade_grid_pow2_reprodutibilidade_loadbalancer.py
+    -> 56 (idem, 5 reps)
+  - plot_normal_referencia_loadbalancer.py -> 24 (normal_baseline,
+    ver aviso de cobertura abaixo)
+  - plot_graph4_pow2_base20_quartis_loadbalancer.py -> 42 (normal_baseline,
+    ver aviso de cobertura abaixo)
+  - plot_comparacao_completa_v2_loadbalancer.py -> 27 (mistura 4 fontes,
+    ver aviso de cobertura abaixo)
+
+AVISO IMPORTANTE -- cobertura parcial em 3 dos 8 gráficos: a recoleta de
+  802 execuções (§104) só regravou configs que tinham disparado SCALE_UP
+  antes da correção. Configs que nunca escalaram ficaram com o arquivo
+  ORIGINAL intocado (o que é esperado -- sem SCALE_UP não há mais de 1
+  instância, logo o bug nunca tem chance de agir nesses casos):
+  - Gráfico 24: usa 1 único arquivo (normal_agg40_WU10_refined_rep1), que
+    nunca escalou -- o PNG gerado é PIXEL-IDÊNTICO ao original. Anotado no
+    próprio gráfico e no console.
+  - Gráfico 42: dos 6 agregados (20/40/80/160/320/640), só 320 (10/10 reps)
+    e 640 (9/10) foram majoritariamente recoletados; 160 só 2/10; 20/40/80
+    não têm nenhuma rep recoletada. Anotado "N/10 recoletado" em cada ponto
+    do gráfico. PROBLEMA DETECTADO: o ponto agg=160 (só 2/10 recoletadas,
+    misturando 8 reps antigas com 2 novas na mesma média) aparece com pico
+    médio de ~45% -- mais alto que os vizinhos agg=80 (~22%) e agg=320
+    (~23%), quebrando a curva esperadamente monotônica. Isso é um artefato
+    de MISTURAR dado antigo e novo na mesma média, não um fenômeno real --
+    sinalizado no título do gráfico e aqui, não corrigido nesta sessão
+    (corrigir exigiria recoletar as 8 reps restantes de agg=160, fora do
+    escopo do pedido).
+  - Gráfico 27: painel "normal isolado" (topo) e os painéis rps=1
+    (COMBINADO/ISOLADO, fonte wu_calibration/ e ataque_isolado/, famílias
+    fora das 6 recoletadas) ficam idênticos ao original. Só os painéis
+    rps=5 e rps=10 (fonte desempate_combinado_isolado/, 100% recoletada)
+    mudam de verdade. Anotado por painel no próprio gráfico.
+
+Verificado:
+  - python3 -m py_compile em todos os 8 -- sem erro.
+  - Todos os 8 rodados de ponta a ponta, sem traceback.
+  - PNGs inspecionados visualmente (11, 48 conferidos em detalhe -- 48
+    ficou com padrão coerente/monotônico; 42 confirmou a inconsistência do
+    aviso acima antes de reportar ao usuário).
+
+================================================================================
+§108. plot_normal_isolada_teto_loadbalancer.py (novo) -- gráfico 57, procura
+  o novo teto de capacidade pós-correção do load balancer
+================================================================================
+Contexto: usuário pediu pra estimar o custo de rodar cenários novos de
+  intensidade do atacante (S9=640, S10=1280, S11=2560 rps agregado) mais
+  tráfego normal isolado nos mesmos agregados. Antes de rodar qualquer
+  coisa nova, observou corretamente que o teto de capacidade medido
+  anteriormente (~205-210 req/s agregado, WU=10, achado de
+  wedos_repro_test.py/sweep fino, ver CLAUDE.md) foi medido com o bug do
+  load balancer presente -- e pediu pra procurar o novo teto usando os
+  dados de tráfego normal isolado que já existem (normal_baseline/,
+  família "pow2 base 20", usada nos gráficos 23/42), num gráfico no
+  estilo do 17. NÃO é uma recriação de um gráfico existente (não segue o
+  padrão de sufixo "_(loadbalancer)"), então ganhou o próximo número livre
+  da sequência do projeto (57).
+
+Criado plot_normal_isolada_teto_loadbalancer.py: heatmap anotado no mesmo
+  estilo visual do gráfico 17 (célula = CPU, colorbar, ▲ = SCALE_UP), mas
+  com eixos diferentes -- esse dataset não varia nº de clientes (sempre
+  HTTP_NORMAL_NUM_CLIENTS=4 fixo), então a segunda dimensão usada foi
+  REPETIÇÃO (1-10) em vez de nº de clientes. Cada célula marcada com borda
+  verde se veio da recoleta pós-correção (§104) ou sem borda se é dado
+  original não-recoletado (mesmo problema de cobertura mista do §107,
+  mas aqui feito TRANSPARENTE por célula em vez de escondido numa média --
+  a linha agg=160 mostra bem visualmente a mistura: 8 células escuras
+  (~40-57%, original) ao lado de 2 células claras (~13-14%, pós-correção),
+  em vez de uma média enganosa como no gráfico 42).
+  Bug corrigido durante o desenvolvimento: `grid.aggregate == agg` retorna
+  o método herdado DataFrame.aggregate (nome de coluna colide com método
+  pandas) em vez da coluna -- trocado para `grid["aggregate"]`.
+
+Resultado -- achado principal, direto ao pedido do usuário: o teto SUBIU
+  MUITO. agg=320 (10/10 reps 100% pós-correção): CPU de pico médio 23,3%,
+  nunca escala. agg=640 (7/10 pós-correção, 3 reps com log vazio por
+  soluço de thread/ambiente): CPU de pico médio 44,2%, AINDA nunca escala
+  -- mesmo a 3x o teto antigo (~205-210), a CPU não chega nem perto do
+  limiar de 60%. Extrapolando linearmente entre os dois pontos limpos
+  (320->23%, 640->44%, ~0,066pp de CPU por rps adicional), o novo teto
+  estimado fica por volta de 850-900 rps agregado -- mais de 4x o valor
+  antigo. Implicação prática pro próximo lote que o usuário está avaliando:
+  S9=640 provavelmente ainda fica ABAIXO do novo teto (grade de
+  intensidade toda "sem saturação de base"), enquanto S10=1280 deve ficar
+  claramente ACIMA -- os agregados propostos pelo usuário parecem bem
+  escolhidos pra atravessar o novo teto real, ao contrário do que a
+  extrapolação ingênua a partir do teto antigo sugeriria.
+  Linhas agg=20/40/80: 100% dado original (nunca escalaram nem antes da
+  correção) -- CPU baixa e estável, nenhuma surpresa, servem só de
+  referência de base da curva.
+
+Verificado:
+  - python3 -m py_compile -- sem erro (após o fix do bug acima).
+  - Rodado de ponta a ponta sobre experiment_results/normal_baseline/.
+  - PNG inspecionado visualmente -- confirma a mistura visível na linha
+    agg=160 e a consistência das linhas 100%-pós-correção (320) e
+    100%-original (20/40/80) antes de reportar o achado ao usuário.
+
+================================================================================
+§109. run_unaffected_rerun.py, run_atacantes_intensidade_grid_s9_s11.py,
+  run_normal_isolado_s9_s11.py (novos) -- 3 lotes planejados (não disparados
+  ainda): faltantes não-recoletados, cenários S9-S11, normal isolado dos
+  agregados novos
+================================================================================
+Contexto: usuário notou (a partir da investigação do §108 e da conversa
+  anterior sobre agg512/clients1) que casos NÃO recoletados -- que nunca
+  escalaram, logo o bug do load balancer nunca teve chance de agir --
+  ainda assim podem estar "muito diferentes" do que um run atual produziria,
+  possivelmente por causa do mesmo efeito de ambiente/host não-explicado já
+  documentado. Pediu 3 lotes de teste: (1) os faltantes (não escalaram, não
+  recoletados) de todas as famílias, (2) os cenários novos S9/S10/S11
+  (640/1280/2560 rps agregado, justificados pelo achado do §108 de que o
+  teto de capacidade subiu bem acima do valor antigo), (3) tráfego normal
+  isolado dos cenários citados. Perguntou também se o grid de intensidade
+  do atacante gera dado isolado automaticamente -- respondido que NÃO: cada
+  ponto de run_atacantes_intensidade_grid.py é uma única execução
+  COMBINADA (normal+ataque simultâneos), nunca separa em arquivos isolados
+  -- então o lote 3 continua necessário, não fica obsoleto.
+
+Estimativa inicial errada, corrigida em conversa antes de prosseguir: eu
+  disse "~35h" pro lote 1 com 5 reps/config quando o número certo era
+  ~122h (473 configs x 5 reps x ~3,1min/run) -- confundi 473 execuções com
+  473 configs. Corrigido explicitamente com o usuário antes de continuar;
+  usuário escolheu 1 rep/config pro lote 1 (não 5) depois de ver o número
+  certo.
+
+Também identificado, ao planejar o lote 3: dos 8 agregados citados
+  (20/40/80/160/320/640/1280/2560), só 1280 e 2560 são genuinamente novos --
+  20/40/80/160/320/640 já são recoletados (320 100%) ou ficam 100%
+  recoletados como efeito colateral do PRÓPRIO lote 1 (que substitui o
+  único rep restante não-recoletado de cada um, incl. os 8 reps de agg=160
+  e o 1 rep de agg=640 que ainda faltavam) -- reduziu o lote 3 de "8
+  agregados" para só 2, de 40 execuções estimadas pra 10.
+
+Criados 3 scripts (nenhum modifica/sobrescreve scripts existentes):
+  - run_unaffected_rerun.py: espelha a estrutura de run_scaling_affected_
+    rerun.py (importado como módulo `base`, reaproveitando backup_existing,
+    run_and_collect, todos os regex de sufixo e os dicionários de cenário
+    -- zero duplicação de fórmula), só troca find_affected() (decision==
+    'SCALE_UP') por find_unaffected() (metrics_*.csv presente no diretório
+    live mas AUSENTE do backup _pre_loadbalancer_fix/ -- ou seja, nunca
+    tocado pela recoleta original). combined_sweep excluído (já 100%
+    recoletado no lote 1 original, não tem complemento). 1 rep por config,
+    substituindo o arquivo existente (mesmo padrão de nome).
+  - run_atacantes_intensidade_grid_s9_s11.py: importa run_atacantes_
+    intensidade_grid.run_point() direto (reuso de função, sem duplicar
+    lógica), roda S9=640/S10=1280/S11=2560 x [1,2,4] atacantes x
+    [1,5,10,15,20,25]% x 5 reps. S1-S8 do script original intocados, sem
+    colisão de nome de arquivo.
+  - run_normal_isolado_s9_s11.py: mesma convenção de nome da família
+    "pow2 base 20" (normal_agg{agg}_WU10_refined_repN), só agg=1280 e 2560,
+    5 reps cada, reaproveitando backup_existing/run_and_collect de
+    run_scaling_affected_rerun.py (backup é no-op esperado, arquivo é novo).
+
+Verificado (só --dry-run, NENHUM lote disparado ainda -- aguardando
+  confirmação do usuário antes de rodar, mesmo padrão do lote original):
+  - python3 -m py_compile nos 3 -- sem erro.
+  - run_unaffected_rerun.py --dry-run: 473 execuções (wedos_grid=156,
+    atacantes_intensidade_grid=102, clients_rps_grid=109, desempate_
+    combinado_isolado=23, normal_baseline=83), ZERO avisos de sufixo fora
+    do padrão -- bate exatamente com a contagem manual feita antes de
+    escrever o script.
+  - run_atacantes_intensidade_grid_s9_s11.py --dry-run: 270 execuções.
+  - run_normal_isolado_s9_s11.py --dry-run: 10 execuções.
+  - Total combinado: 753 execuções, ~3,1min/run -> ~38,9h (~1,6 dias) se
+    rodado tudo em sequência.
+
+================================================================================
+§110. run_unaffected_rerun.py (fix) -- protegido contra colisão quando os
+  lotes rodam fora da ordem 1->2->3
+================================================================================
+Contexto: usuário pediu pra rodar os 3 lotes do §109 na ordem 2, 3, 1 (não
+  1, 2, 3) e perguntou se o "encolhimento" do lote 3 (documentado no §109,
+  de 40 pra 10 execuções) continuava valendo nessa ordem -- pergunta certa:
+  achei 2 bugs reais ao checar.
+
+Causa raiz: find_unaffected() em run_unaffected_rerun.py (lote 1) marca
+  como "não recoletado" qualquer metrics_*.csv que não está no backup
+  _pre_loadbalancer_fix/ -- critério correto pra dado ANTIGO, mas se os
+  lotes 2/3 já rodaram antes, os arquivos NOVOS que eles criam (cenários
+  S9-S11, agregados 1280/2560) também não estão no backup (nunca precisaram
+  estar -- são recém-criados, não sobrescritos), então o lote 1 os
+  interpretava erradamente como "faltante antigo" também:
+  - jobs_atacantes_grid: tentaria `ATK_GRID_NORMAL_SCENARIOS["S9"]` -- esse
+    dict só tem S1-S8 -- KeyError, quebrava o lote 1 inteiro no meio.
+  - jobs_normal_baseline: agg=1280/2560 batem no regex NB_REFINED_RE (que
+    não depende de dicionário, só faz agg/4), não quebrava, mas re-rodava
+    as mesmas 10 execuções que o lote 3 acabou de fazer -- trabalho
+    duplicado (~31min desperdiçados), não um crash.
+
+Fix: import run_normal_isolado_s9_s11 (só pra ler AGGREGATE_TARGETS, sem
+  reexecutar nada -- tem guarda __main__). jobs_atacantes_grid agora pula
+  silenciosamente cenários fora de ATK_GRID_NORMAL_SCENARIOS (S9-S11);
+  jobs_normal_baseline pula agregados em normal_s9_s11.AGGREGATE_TARGETS
+  (1280/2560). Nenhum warning impresso pra esses casos -- é comportamento
+  esperado (run novo, não anomalia de sufixo), não confundir com os
+  "[AVISO] sufixo fora do padrão" de verdade.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - run_unaffected_rerun.py --dry-run: ainda 473 execuções, mesma contagem
+    de antes do fix (nenhum arquivo S9-S11/1280/2560 existe ainda neste
+    ponto, então o comportamento observável não muda até os lotes 2/3
+    rodarem de verdade -- fix é preventivo/correto por inspeção de código,
+    não por teste ao vivo da colisão em si).
+
+================================================================================
+§111. plot_normal_isolada_teto_loadbalancer.py (fix + dado novo) -- gráfico
+  57 atualizado com agg=1280/2560 do lote 3, achado principal corrigido
+================================================================================
+Contexto: usuário pediu, assim que o lote 3 (§109, normal isolado 1280/2560)
+  terminou, pra "refazer o gráfico 17" com os dados novos -- na verdade se
+  referindo ao gráfico 57 (o que já é no estilo do 17, único que usa esses
+  dados; clarificado com o usuário antes de prosseguir).
+
+Adicionado AGGREGATE_TARGETS += [1280, 2560] e ajustado figsize
+  proporcional ao nº de linhas (n_agg/6). Ao rodar, quebrou: TODOS os 10
+  pontos novos (1280 e 2560, 5 reps cada) ficavam de fora do heatmap com
+  "[AVISO] resumo vazio, pulando" -- o filtro is_fully_empty(sf) gateava
+  a inclusão da linha na presença de normal_traffic_summary_log_*.csv não-
+  vazio, mas esse arquivo nunca foi gerado nessas 10 execuções (thread
+  daemon do worker não persistiu a tempo -- RPS/cliente de 320-640 nesses
+  agregados, muito acima do que uma única thread Python sustenta, mesmo
+  fenômeno já investigado a fundo em agg512/clients1 nesta sessão).
+  Verificado que os metrics_*.csv (gravados pelo processo principal, não
+  pela thread do worker) estavam 100% íntegros nos 10 casos -- 36 linhas,
+  SCALE_UP real, sem timeout nem erro. O gráfico 57 nunca leu conteúdo do
+  summary log, só usava a presença dele como gate -- gate removido (vira
+  só uma nota informativa, não motivo de exclusão). Mesmo fix recuperou de
+  brinde 3 reps de agg=640 (rep2/9/10) que vinham sendo descartadas pelo
+  mesmo motivo desde a criação do gráfico no §108.
+
+Resultado -- corrige e refina o achado do §108: a extrapolação linear
+  feita lá (320->23%, 640->44%, projetando o novo teto em ~850-900 rps)
+  estava ERRADA por otimismo -- a curva não é linear perto da saturação.
+  Dado real agora disponível: agg=640 nunca escala (pico 33-49%, 10/10
+  reps), agg=1280 escala em TODAS as 5 reps (pico 60-65%, sempre pra 2
+  instâncias) e agg=2560 idem (pico 60-63%, também só 2 instâncias -- não
+  4, notável, sinaliza que o teto de UMA instância nessa faixa de WU=10
+  já é suficiente pra absorver até 2560 rps com só 2 instâncias, não
+  precisa das 4). O novo teto de capacidade fica então precisamente
+  ENTRE 640 e 1280 rps agregado (não ~850-900) -- mais de 3x o teto antigo
+  (~205-210), mas bem mais apertado do que a extrapolação linear sugeria.
+  Fronteira fina entre 640 e 1280 não mapeada nesta sessão (nenhum ponto
+  testado nesse intervalo) -- candidato natural pra um próximo lote, se o
+  usuário quiser refinar.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Rodado com o lote 1 (§109) ativo em paralelo no PID 3189912 -- script
+    é só leitura de CSV via pandas, sem qualquer interação com Docker,
+    confirmado seguro antes de rodar.
+  - PNG inspecionado visualmente -- confirma visualmente o salto entre
+    640 (nunca escala) e 1280 (escala 5/5, cor bem mais escura) antes de
+    reportar o achado corrigido ao usuário.
+
+================================================================================
+§112. plot_normal_isolada_teto_loadbalancer.py (fix real + achado corrigido)
+  -- max_instances nunca passa de 2 em 1280/2560: teto é do GERADOR DE
+  TRÁFEGO do cliente, não do servidor/autoscaler
+================================================================================
+Contexto: usuário estranhou (com razão) o §111 -- mesmo em RPS altíssimo
+  (1280/2560), pós-correção o sistema nunca escala além de 2 instâncias, e
+  pediu pra investigar por quê, além de checar quais cenários do gráfico 56
+  chegaram a escalar até o máximo (4).
+
+CORREÇÃO IMPORTANTE ao §111: a explicação dada lá ("normal_traffic_summary_
+  log ausente porque a thread daemon do worker não persistiu a tempo")
+  estava ERRADA -- era um bug no PRÓPRIO script de gráfico, não um problema
+  real da simulação. A família "refined" (normal_baseline/) tem duas
+  convenções de nome coexistindo pro normal_traffic_summary_log_: os
+  agregados históricos (20-640, de scripts já deletados) usam
+  "..._log_agg{agg}_..." (sem "normal_" duplicado); os agregados novos
+  (1280/2560, run_normal_isolado_s9_s11.py) e qualquer rep reprocessado por
+  run_unaffected_rerun.py usam "..._log_normal_agg{agg}_..." (com
+  "normal_" -- o suffix interno usado por run_and_collect() pra TODOS os
+  tipos de arquivo é sempre "normal_agg...", igual metrics_/rtt_log_/
+  traffic_capture_, só que o normal_traffic_summary_log_ histórico foi
+  gravado por um script antigo que usava um suffix diferente só pra esse
+  arquivo). O script só checava a convenção antiga -- corrigido pra tentar
+  as duas, preferindo a nova quando existir.
+
+Com o arquivo certo em mãos, achado real: real_rps somado das 4 threads
+  de cliente, pra agg=1280 (alvo nominal) fica ~735-771 rps (~58-60% do
+  alvo) e pra agg=2560 fica ~768-776 rps (~30% do alvo) -- ou seja, os
+  dois agregados nominal DIFERENTES entregam PRATICAMENTE A MESMA carga
+  real (~740-780 rps) ao servidor. Causa raiz: a família "refined" fixa
+  HTTP_NORMAL_NUM_CLIENTS=4 (não escala o nº de clientes com o agregado,
+  ao contrário de clients_rps_grid) -- em rps/cliente acima de ~200 (aqui
+  320 e 640 respectivamente), uma única thread Python, competindo pelo GIL
+  com as outras 3, não consegue mais gerar a taxa pedida; o processo
+  cliente inteiro satura num teto agregado de ~750-800 req/s
+  independente do valor nominal configurado. Isso NÃO é limitação do
+  servidor, do load balancer ou do autoscaler -- é o gerador de tráfego
+  (ferramenta de teste) batendo no próprio teto antes de o servidor
+  chegar perto do dele. max_instances fica em 2 porque os dois cenários
+  na prática testam quase a mesma carga real (~760 rps), que 2 instâncias
+  absorvem confortavelmente (~30-32% CPU) -- nada a ver com "2 instâncias
+  bastarem pra 2560 rps de verdade".
+
+  Gráfico atualizado: linhas 1280/2560 agora mostram "(real: N)" em cada
+  célula e ganham borda vermelha tracejada quando entregue < 80% do
+  nominal (as 10 células novas, sempre). Título do gráfico atualizado
+  avisando isso de cara, não só em nota de rodapé.
+
+Segunda parte do pedido -- quais combinações do gráfico 56 (S1/S6/S7/S8 x
+  atacantes x intensidade, atacantes_intensidade_grid) chegaram a 4
+  instâncias: só S8 (320 rps normal, o cenário mais pesado do conjunto),
+  e só com intensidade de ataque >=15% (9 de 72 combinações cenário x
+  atacantes x intensidade; em nenhuma delas os 3 valores de atacantes
+  fazem diferença -- 15/20/25% escalam a 4 com 1, 2 ou 4 atacantes quase
+  igualmente). S1 (40), S6 (80) e S7 (160) nunca chegam a 4 em nenhuma das
+  90 combinações cada (3 atacantes x 6 intensidades x 5 reps). Diferença
+  importante em relação ao problema de 1280/2560: aqui HTTP_NORMAL_NUM_
+  CLIENTS também é 4 fixo, mas o rps/cliente máximo testado é baixo (S8=
+  320/4=80 rps/cliente), bem abaixo do teto de ~200 rps/cliente que causa
+  o artefato -- então os dados do gráfico 56 são confiáveis, refletem
+  comportamento real do autoscaler, não um teto do gerador de tráfego.
+  Conclusão: pós-correção, a 4ª instância só é usada quando a carga real
+  genuinamente exige (S8 + ataque pesado) -- reforça que o "não escalar
+  além de 2" em 1280/2560 é mesmo artefato de teste, não comportamento
+  real do sistema sob carga alta de verdade.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Conferido que as duas convenções de nome coexistem de fato no disco
+    (ls direto, `normal_traffic_summary_log_agg640_...` E
+    `..._normal_agg640_...` ambos presentes pro mesmo rep1, confirmando a
+    causa raiz antes de escrever o fix).
+  - real_rps conferido pros 5 reps de cada um dos 2 agregados novos (10
+    arquivos), consistente (~735-775 em ambos) antes de reportar o achado.
+  - Rodado com o lote 1 (§109) ainda ativo em paralelo -- script só leitura
+    de CSV, sem interação com Docker.
+  - PNG re-inspecionado visualmente -- confirma a anotação "(real: N)" e a
+    borda vermelha tracejada aparecendo nas 10 células certas (1280/2560,
+    todos os reps) antes de reportar ao usuário.
+
+================================================================================
+§113. plot_atacantes_intensidade_heatmap_att4_extended.py (novo) -- gráfico
+  58, versão do 55 com S9-S11, achado grave: GIL do cliente disputado
+  entre tráfego normal e ataque
+================================================================================
+Contexto: usuário pediu um gráfico igual ao 55 (heatmap cenário x
+  intensidade, só 4 atacantes) incluindo os cenários novos S9/S10/S11
+  (lote 2, changes.txt §109). Antes de plotar, investigado se o mesmo
+  problema do gráfico 57 (teto do gerador de tráfego) se aplicava aqui --
+  achado bem mais grave.
+
+Em atacantes_intensidade_grid, tráfego normal (normal_traffic.py) e de
+  ataque (traffic_injectorV0.py) rodam como threads do MESMO processo
+  Python (main_orchestrator.py), disputando o mesmo GIL. Pra S9/S10/S11
+  (rps/cliente de tráfego normal = 160/320/640, WU=10, NORMAL_NUM_CLIENTS
+  =4 fixo -- mesmo problema estrutural do §112, já acima ou próximo do
+  teto de ~200 rps/thread), medido real_rps do normal_traffic_summary_log
+  em função da intensidade do ataque (attackers=4 fixo, mesmo filtro do
+  gráfico 55): o normal real DESPENCA conforme o ataque cresce, dentro do
+  MESMO cenário/agregado nominal -- ex. S10 (nominal 1280): 818 rps reais
+  em 1% de ataque -> 36 rps reais em 25% (queda de 96%). S9 (nominal 640):
+  608 -> 37 rps reais. S11 (nominal 2560): 652 -> 33 rps reais. Isso é
+  qualitativamente diferente e mais grave que o achado do gráfico 57 (lá o
+  real ficava ESTÁVEL, só limitado por um teto fixo, independente do
+  ataque) -- aqui o real DEGRADA progressivamente conforme mais threads de
+  ataque competem pelo GIL do mesmo processo, então células com intensidade
+  alta nesses 3 cenários mostram CPU média enganosamente moderada/alta
+  mesmo quando quase todo o "tráfego normal" nominal simplesmente não foi
+  enviado de verdade -- não é o servidor absorvendo bem a carga, é o
+  cliente não conseguindo gerá-la.
+
+Criado plot_atacantes_intensidade_heatmap_att4_extended.py (gráfico novo,
+  número 58 -- não é recriação do 55, não segue o padrão "_(loadbalancer)",
+  não sobrescreve nem altera plot_atacantes_intensidade_heatmap_att4_
+  loadbalancer.py): mesmo heatmap do 55, cenários S5/S1/S6/S2/S7/S3/S4/S8
+  intocados (rps/cliente ali fica em <=80, bem abaixo do teto -- conferido
+  que S8/S4 mantêm real_rps estável, 298-317 de um nominal de 300-320,
+  <7% de queda mesmo em 25% de ataque, ao contrário de S9-S11) + S9/S10/S11
+  adicionados. Cada célula de S9-S11 anota "(real N%)" quando o normal real
+  cai abaixo de 80% do nominal, e ganha borda vermelha tracejada quando cai
+  abaixo de 50% -- a MAIORIA das células de intensidade >=10% nesses 3
+  cenários leva a borda (real caindo a 3-25% do nominal nos piores casos).
+  Taxas de timeout também sobem bastante nessas células (até 34% em
+  S11/20-25%), reforçando que o sistema está sob estresse real, só que
+  não pelo motivo que os números de CPU sozinhos sugeririam.
+
+Verificado:
+  - python3 -m py_compile -- sem erro.
+  - Comparação S8/S4 (originais, rps/cliente baixo) vs S9-S11 (novos,
+    rps/cliente alto) feita ANTES de escrever o script, confirmando que o
+    problema é específico dos cenários novos, não pré-existente no dataset
+    original -- decisão de não tocar nas 8 linhas antigas.
+  - PNG inspecionado visualmente -- confirma visualmente a concentração de
+    bordas vermelhas nas 3 linhas novas, praticamente ausente nas 8
+    antigas, antes de reportar o achado ao usuário.
+
+================================================================================
+§114. Lote 1 suspenso; achado de "regime de máquina" nos dados originais;
+  run_normal_isolado_pos_lb.py + plot_normal_isolado_pos_lb.py (novos)
+================================================================================
+Lote 1 (run_unaffected_rerun.py, §109) SUSPENSO a pedido do usuário em
+  119/473 execuções (ainda dentro de wedos_grid -- clients_rps_grid,
+  desempate e normal_baseline não chegaram a ser tocados). SIGINT no
+  main_orchestrator.py em andamento + SIGTERM no run_unaffected_rerun.py e
+  no bash wrapper; containers órfãos limpos com cleanup_all_simulation_
+  instances(). Efeito colateral: metrics_S2_atk5pct_wu400000_mlfill_rep5
+  (wedos_grid) já tinha ido pro backup quando o run foi interrompido --
+  hoje só existe em _pre_loadbalancer_fix/. Retomar = rodar de novo
+  `python3 run_unaffected_rerun.py`: find_unaffected() recalcula o que
+  falta a cada execução, então retoma exatamente de onde parou (incl.
+  esse arquivo).
+
+Achado (usuário estranhou S7 1% / 4 atacantes: 43% de CPU média no
+  gráfico, ~15% num run manual novo): configuração e carga entregue
+  IDÊNTICAS (4x40 rps normal, 4x0,4 ataque; 156-159 rps normais reais,
+  0 erros, 1 instância o tempo todo -- load balancer não tem efeito), mas
+  a rep1 original custou ~3x mais CPU por requisição (43% vs 14-15%, host
+  17% vs 5%, RTT 60 vs 17-22ms). Sistemático: nos 270 runs do grid de
+  atacantes que ficaram em 1 instância, os 101 ORIGINAIS (não recoletados)
+  gastam ~45% de CPU por 100 rps entregues, os 169 recoletados ~28%. Causa
+  provável: estado da máquina na coleta original (plano de energia/
+  bateria do Windows, throttling térmico ou recursos da VM WSL2/Docker)
+  -- não reconstruível a posteriori, só medível. Mesmo fenômeno do
+  agg512/clients1. Implicação: gráficos que usam só rep1 (55, 58) ou
+  misturam original+recoletado comparam dois regimes de máquina.
+  Recomendado ao usuário: fixar estado da máquina (na tomada, modo
+  "Melhor desempenho") e rodar uma config de referência no início de cada
+  lote pra detectar mudança de regime.
+
+Arquivos do run manual do usuário (S7 1% 4 atacantes, 29/09 10:12) que
+  estavam soltos na raiz foram MOVIDOS (não apagados) pra
+  experiment_results/_manual_runs/S7_atk1pct_att4_manual_20260929_1012/
+  antes do lote novo, que os sobrescreveria.
+
+Criado run_normal_isolado_pos_lb.py: 1 execução por agregado, 20/40/80/
+  160/320/640/1280/2560 rps, tráfego normal isolado, 4 clientes, WU=10,
+  180s, tudo numa única sessão (mesmo regime de máquina). Diretório
+  próprio experiment_results/normal_isolado_pos_lb/ (não mistura com
+  normal_baseline/ nem herda as duas convenções de nome do §112 -- todos
+  os arquivos usam o suffix agg{agg}_WU10_rep1). Reaproveita
+  run_and_collect() de run_scaling_affected_rerun.py.
+
+Criado plot_normal_isolado_pos_lb.py -> gráficos 59 (CPU média), 60
+  (CPU pico) e 61 (pico pré-escalonamento, mesma definição do gráfico 20)
+  em graficos_apresentacao/04_pos_loadbalancer/. Cada ponto anota nº máx.
+  de instâncias e RPS real entregue; anel vermelho quando real < 80% do
+  nominal (teto do gerador do cliente, §112). Nenhum gráfico existente
+  (17, 20, 42, 57...) foi alterado ou sobrescrito.
+
+Verificado:
+  - py_compile nos 2 scripts -- sem erro; --dry-run: 8 execuções.
+  - Lote disparado em background (PID 397463, log scratchpad/
+    normal_isolado_pos_lb.log). Terminou 8/8, 0 erros/traceback.
+  - Gráficos 59/60/61 gerados e inspecionados visualmente.
+
+Resultado (1 rep por agregado, mesma sessão):
+  agg nominal | real entregue | CPU média | CPU pico = pico pré-escal. | inst.
+     20       |    20         |   1,8%    |   2,6%                      |  1
+     40       |    40         |   3,7%    |   5,3%                      |  1
+     80       |    80         |   6,9%    |   8,6%                      |  1
+    160       |   158         |  11,6%    |  13,3%                      |  1
+    320       |   316         |  20,9%    |  24,0%                      |  1
+    640       |   611         |  41,5%    |  46,8%                      |  1
+   1280       |   852 (teto)  |  34,7%    |  71,1% (SCALE_UP)           |  2
+   2560       |   871 (teto)  |  36,3%    |  70,3% (SCALE_UP)           |  2
+  - Curva praticamente linear até 640 (~6,5% de CPU por 100 rps reais).
+  - Pico == pico pré-escalonamento em todos os 8 pontos (nos 2 que
+    escalam, o pico é o tick imediatamente anterior ao SCALE_UP) -- por
+    isso os gráficos 60 e 61 ficaram iguais neste lote.
+  - 1280/2560 batem no teto do gerador do cliente (entregam ~850-870 rps,
+    um pouco acima dos ~760-775 do lote 3) e escalam só pra 2 instâncias;
+    a CPU média cai abaixo da de 640 porque a carga passa a ser dividida
+    em 2. Extrapolando a reta (47% de pico a 611 rps reais), 1 instância
+    cruzaria 60% por volta de ~780-800 rps reais -- praticamente o mesmo
+    ponto onde o gerador do cliente satura, então os dois tetos não dão
+    pra ser separados com este desenho (4 clientes fixos).
+  - CONFIRMA o efeito de regime de máquina do §114: comparando com a
+    curva antiga (normal_baseline refined), as reps ORIGINAIS dão 2-3x
+    mais CPU pra mesma carga (20: 4,5% vs 1,8%; 40: 7,6% vs 3,7%; 80:
+    15,9% vs 6,9%; 160: 34,4% vs 11,6%), enquanto as reps já RECOLETADAS
+    batem com este lote (160: 11,1% vs 11,6%; 320: 20,2% vs 20,9%; 640:
+    39,2% vs 41,5%).
+
+================================================================================
+§115. Lote 1 (faltantes não-recoletados) CONCLUÍDO
+================================================================================
+Retomado em 29/09 10:58 (run_unaffected_rerun.py, 353 execuções restantes
+  depois da suspensão do §114) + o run que a suspensão tinha deixado só no
+  backup (wedos_grid S2_atk5pct_wu400000_mlfill_rep5), rodado à parte via
+  wedos_combined_grid.run_point() -- correção: no §114 eu tinha dito que
+  retomar o script pegaria esse arquivo automaticamente, mas find_unaffected()
+  só enxerga arquivos presentes no diretório live, então ele teria ficado de
+  fora.
+Terminou em 30/09 05:59: 353 + 1 execuções, 0 erros/traceback/KeyError.
+  wedos_grid=36, atacantes_intensidade_grid=102, clients_rps_grid=109,
+  desempate_combinado_isolado=23, normal_baseline=83 (+156-36=120 de
+  wedos_grid já feitos antes da suspensão).
+Verificado: run_unaffected_rerun.py --dry-run agora retorna 0 execuções em
+  todas as 5 famílias -- nenhum metrics_*.csv com dado anterior à correção
+  do load balancer sobrou no dataset (exceto os que estão, por design, só em
+  _pre_loadbalancer_fix/ como backup). Todo o dataset das 6 famílias está
+  agora coletado com o código pós-correção.
+
+================================================================================
+§116. Gráficos 57, 58, 17_(loadbalancer) e 27_(loadbalancer) regenerados com
+  o dataset 100% pós-correção; correção de legenda errada no 27
+================================================================================
+Depois do §115 (nenhum dado pré-correção sobrando nas 6 famílias), os 4
+  gráficos foram regenerados em graficos_apresentacao/04_pos_loadbalancer/
+  (originais em 01_/02_ intocados).
+  - 57 (plot_normal_isolada_teto_loadbalancer.py): removida a marcação de
+    "cobertura mista" (borda verde pós-correção x original) -- todas as reps
+    agora são pós-correção. Resumo impresso simplificado. Resultado bate
+    com o lote de sessão única do §114 (160 rps: 12,0% vs 11,6%; 640: 39,4%
+    vs 41,5% de CPU média). Anotação do teto do cliente (1280/2560) mantida.
+  - 58 e 17_(loadbalancer): só reexecutados (scripts sem marcação de
+    cobertura). No 58, S7/1%/4 atacantes passou de 43% pra 15%, e as linhas
+    de baixa carga (S5/S1/S6) caíram de forma parecida -- é o efeito de
+    regime de máquina do §114 saindo do gráfico. No 17, as linhas 16-128 rps
+    ficaram mais uniformes entre colunas.
+  - 27 (plot_comparacao_completa_v2_loadbalancer.py): CORREÇÃO -- a versão
+    do §107 afirmava que os painéis rps=1 vinham de wu_calibration/ e
+    ataque_isolado/ e ficavam idênticos ao original. Errado:
+    DESEMPATE_RPS = {1, 5, 10}, então TODOS os painéis COMBINADO/ISOLADO
+    vêm de desempate_combinado_isolado/ (90 arquivos, 30 deles rps=1), e o
+    ramo que leria wu_calibration/ataque_isolado nunca executa. Legendas e
+    docstring corrigidas; com o lote 1, o painel NORMAL (agg40 rep1) também
+    passou a ser pós-correção -- gráfico inteiro é pós-correção agora.
+Famílias que NUNCA foram recoletadas (fora das 6): wu_calibration (18),
+  ataque_isolado (9), wedos_failure (28). Nenhum dos gráficos da pasta
+  04_pos_loadbalancer/ usa essas famílias.
+Verificado: py_compile nos 4 scripts; os 4 PNGs inspecionados visualmente.

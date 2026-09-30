@@ -1,0 +1,23 @@
+50000 WU - RTT 230
+
+8000 WU - 
+
+Fiz o teste no dataset com intensidade = 640 agregado e não bateu no teto
+
+Fiz o teste no dataset com intensidade = 640 agregado com 10% de intensidade escala máximo de 4 e estabilizou em 78% (carga é distribuída)
+
+Fiz o teste no dataset com intensidade = 640 agregado com 5% de intensidade escala máximo de 3 e estabilizou em 48% (carga é distribuída)
+
+Fiz o teste no dataset com intensidade = 320 agregado com 25% de intensidade escala máximo de 4 e estabilizou em 80% (carga é distribuída)
+
+Fiz o teste no dataset com intensidade = 320 agregado com 20% de intensidade escala máximo de 4 e estabilizou em 60% (carga é distribuída)
+
+Fiz o teste no dataset com intensidade = 320 agregado com 10% de intensidade escala máximo de 3 e estabilizou em 35% (carga é distribuída)
+
+Fiz o teste no dataset com intensidade = 160 agregado com 25% de intensidade escala no máximo 3 e estabilizou em 40% (carga é distribuída)
+
+
+
+Por conta de estrutura e limite no próprio gerador de tráfego, há um teto de 720 RPS agregado. Realizar teste e mostrar dados pré ele.
+
+Se for necessário escalar, alterar o WU do tráfego normal. 
