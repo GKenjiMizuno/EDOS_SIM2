@@ -1,0 +1,189 @@
+PLANO -- Reavaliação da detecção estatística (Entropia / Z-score / CUSUM)
+sobre o dataset pós-correção do load balancer
+Registrado em 30/09/2026, ANTES de rodar qualquer análise sobre os dados
+novos (pré-registro: métricas, critérios de inclusão, janelas, regras e
+hipóteses fixados aqui; qualquer desvio posterior vai registrado como
+desvio, não silenciosamente). Ver changes.txt §117.
+
+-------------------------------------------------------------------------
+0. ACHADOS DE INTEGRIDADE QUE CONDICIONAM O PLANO (descobertos na checagem)
+-------------------------------------------------------------------------
+A) Captura de pacotes (tcpdump) VAZIA em 100% do dataset pós-correção
+   (1576 de 1576 traffic_capture_*.csv só com cabeçalho). `getcap` do
+   tcpdump retorna vazio -- a capability cap_net_raw foi perdida (risco já
+   documentado no CLAUDE.md). Nos backups pré-correção a captura existia,
+   exceto nos 214 runs "mlfill" do wedos_grid (já coletados sem captura).
+   Consequência para ESTA análise: nenhuma -- o detector usa rtt_log.csv
+   e o ground truth vem do rótulo 'label' do metrics_*.csv. Consequência
+   para a ML: features de pacote (request_count/unique_src_ports) não
+   existem nos dados novos.
+B) Efeito observador do sniffer (forte indício, não prova causal): no
+   wedos_grid pré-correção, mesma era de código, janela pré-ataque (só
+   tráfego normal, mesma carga): COM captura -> CPU 2-3x maior e RTT
+   10-15x maior (ex. S2: 21,9% / 26,8 ms com captura vs 7,9% / 1,8 ms
+   sem). Mecanismo provável: o parser do sniffer é thread Python no
+   mesmo processo que gera e cronometra as requisições (GIL) + carga no
+   host. Confundidor: captura on/off coincide com data de coleta
+   (ago vs set). Isso explica o "regime de máquina" do §114 e implica que
+   TODOS os resultados de detecção antigos (§72-§82, gráficos 31-47)
+   foram medidos com o RTT inflado pelo próprio instrumento.
+   -> Teste confirmatório proposto (seção 7): captura on/off, mesma
+      sessão, mesmas configs.
+
+-------------------------------------------------------------------------
+1. PERGUNTAS
+-------------------------------------------------------------------------
+Q1  Com RTT medido sem o efeito observador, qual a sensibilidade (TPR) e
+    especificidade (1-FPR) dos detectores de burst, por método?
+Q2  A furtividade W-EDoS se sustenta? Isto é: existem ataques que causam
+    dano econômico real (SCALE_UP) sem serem detectados, e em que região
+    do espaço (intensidade, custo por requisição, volume normal)?
+Q3  Qual variável explica a detecção? Hipótese mecanística: a razão de
+    TRABALHO de CPU ataque/normal (rps_ataque*WU_ataque / rps_normal*
+    WU_normal), não a razão de volume de requisições.
+Q4  Os resultados dependem dos limiares arbitrários do detector (z=3.5,
+    piso 1,8x, h=5σ)? Qual o melhor desempenho alcançável a FPR fixa?
+Q5  Quanto os resultados antigos (sniffer ligado) diferem dos novos?
+
+-------------------------------------------------------------------------
+2. DADOS
+-------------------------------------------------------------------------
+Unidade experimental = 1 execução (run) de 180 s.
+Execuções COM ataque (positivas), exigem tráfego normal antes do ataque
+(é dele que sai o baseline do detector):
+  - wedos_grid (296), combined_sweep (120), desempate_combinado_isolado
+    condição "combinado" (45), atacantes_intensidade_grid S1-S8 (432).
+  - atacantes_intensidade_grid S9-S11 (270): analisados SEPARADOS e fora
+    do resultado principal -- tráfego normal real colapsa por disputa de
+    GIL no cliente (§113), a carga de fundo não é a nominal.
+  - EXCLUÍDO: desempate "isolado" (45) -- rtt_log só começa quando o
+    ataque começa, não há baseline pré-ataque (mesma decisão de antes).
+Execuções SEM ataque (negativas): clients_rps_grid (160), normal_baseline
+  (187), normal_isolado_pos_lb (8). Negativas com agregado nominal > 640
+  (teto do gerador do cliente, §112) entram só nas análises estratificadas.
+Todas as execuções acima: código pós-correção, sniffer sem captura
+  (regime único e consistente -- vide 0.A/0.B).
+
+-------------------------------------------------------------------------
+3. GROUND TRUTH E JANELAS
+-------------------------------------------------------------------------
+- Intervalo real de ataque por execução: do metrics_*.csv (coluna label,
+  que reflete o estado da iteração anterior): [primeira linha 'attack' -
+  intervalo de monitoramento, última linha 'attack']. Esperado [20,160] s.
+- Tempo relativo = timestamp do rtt_log - 1ª amostra (tráfego normal começa
+  na 1ª iteração, t≈0; offset < 0,1 s, desprezível frente a janelas de 20 s).
+- Janelas do detector: 20 s, passo 10 s (default do detector), início em
+  t0 = 0, 10, 20, ...
+- Janela POSITIVA: [t0, t0+20) inteiramente dentro do ataque -> t0 ∈ {20..140}
+  (13 janelas por execução).
+- Janela de CALIBRAÇÃO: t0 = 0 (é a própria amostra de baseline) -> nunca
+  avaliada.
+- Janelas de TRANSIÇÃO (t0 = 10 e 150): parcialmente sobrepostas às bordas
+  -> fora das métricas por janela; usadas só na latência.
+- Execuções negativas: avaliadas nas MESMAS posições t0 ∈ {20..140} ->
+  exposição idêntica (130 s) entre positivas e negativas, o que torna TPR e
+  FPR por execução diretamente comparáveis.
+- Janela com < 10 amostras de RTT é pulada pelo detector (regra original):
+  contabilizada como "perda de cobertura" e tratada como NÃO-alarme
+  (conservador para TPR; reportada separadamente).
+
+-------------------------------------------------------------------------
+4. DETECTOR
+-------------------------------------------------------------------------
+- Reimplementação fiel de EntCusumZV3.analisar_bursts_tunavel (mesma
+  ordem de operações: baseline t<20 s, CUSUM por amostra com κ=0,5σ,
+  histograma de 10 bins na faixa min/max do arquivo, Z = máximo |x-μ|/σ
+  contra a janela anterior AVALIADA), mas sem I/O (sem xlsx/png) e
+  guardando as estatísticas BRUTAS de cada janela (média/baseline, max Z,
+  CUSUM/σ, ΔEntropia) -- qualquer limiar pode ser reaplicado depois sem
+  reprocessar.
+- VALIDAÇÃO obrigatória antes de usar: 'Status Burst' idêntico ao do
+  EntCusumZV3 original em amostra estratificada de ≥ 30 execuções (rodado
+  em cópia temporária, sem sujar experiment_results/). Qualquer
+  divergência para a análise.
+- Regras avaliadas no ponto de operação original (z=3.5, piso=1,8x, h=5σ,
+  ΔH=1,5):
+    R1 Combinada atual:  média > 1,8·baseline  E  (Z>3.5 OU CUSUM>5σ)
+    R2 Z-score sozinho:  Z > 3.5
+    R3 CUSUM sozinho:    CUSUM > 5σ
+    R4 Entropia sozinha: ΔH > 1.5
+    R5 Z OU CUSUM:       Z>3.5 OU CUSUM>5σ (sem piso)
+  (as mesmas 5 do gráfico 46, para comparabilidade com o antigo)
+- Limitação conhecida, registrada e não corrigida (fidelidade ao detector
+  estudado): a faixa do histograma de entropia usa min/max do arquivo
+  inteiro (olha o futuro). Não afeta R1-R3/R5.
+
+-------------------------------------------------------------------------
+5. MÉTRICAS (definidas antes de ver os dados)
+-------------------------------------------------------------------------
+M1 TPR por janela = janelas positivas com alarme / janelas positivas.
+M2 FPR por janela = janelas com alarme / janelas avaliadas (negativas).
+M3 TPR por execução = P(≥1 alarme nas 13 janelas positivas).
+M4 FPR por execução = P(≥1 alarme nas 13 janelas equivalentes) em
+   execução sem ataque.
+M5 Latência = fim da 1ª janela com alarme - início do ataque (inclui
+   transição t0=10), só execuções detectadas.
+M6 Taxa de FURTIVIDADE = entre execuções com ataque que causaram
+   SCALE_UP (dano econômico), fração SEM nenhum alarme em janela positiva.
+   (Métrica central da tese.)
+M7 Perda de cobertura = janelas puladas por < 10 amostras, positivas vs
+   negativas.
+M8 AUC (execução) de cada score contínuo (máximo sobre as 13 janelas de:
+   média/baseline, Z, CUSUM/σ, ΔH) separando ataques-com-dano de negativas
+   de carga comparável -- desempenho independente de limiar.
+M9 Neyman-Pearson: limiar escolhido para FPR por execução = 5% usando
+   negativas de repetição ÍMPAR; TPR e FPR reportados nas execuções de
+   repetição PAR (hold-out). Para R1 (3 limiares), grade de busca
+   selecionada nas ímpares (positivas e negativas), avaliada nas pares --
+   sem vazamento entre seleção e avaliação.
+Incerteza: proporções por execução -> IC 95% de Wilson; métricas por
+  janela -> bootstrap por conglomerado (reamostra EXECUÇÕES, não janelas,
+  pois janelas da mesma execução são correlacionadas), 2000 réplicas,
+  semente fixa (20260930).
+Estratificação: família, cenário/volume normal, intensidade, WU do ataque,
+  nº de atacantes, escalou ou não.
+Modelo explicativo (Q3): regressão logística da detecção por execução
+  (R1 e R2) em log10(razão de trabalho), log10(rps normal real), e
+  log10(razão de volume); comparação por AUC/log-loss em validação
+  cruzada agrupada por configuração; IC dos coeficientes por bootstrap
+  agrupado por configuração.
+Sensibilidade (Q4): varredura de piso {1.2..3.0}, z {2..6}, h {2..10}σ,
+  e janela {10, 20, 30} s (esta última exige reprocessar -- feito só para
+  R1/R2 em amostra completa).
+
+-------------------------------------------------------------------------
+6. HIPÓTESES PRÉ-REGISTRADAS
+-------------------------------------------------------------------------
+H1 Sem o efeito observador, o baseline de RTT cai para ~2 ms com desvio
+   pequeno, o que torna o piso relativo (1,8x) e o Z MUITO mais sensíveis
+   que antes -- espera-se TPR de R1 maior e FPR de R2 maior que nos
+   resultados antigos.
+H2 A detecção cresce monotonicamente com a razão de trabalho ataque/
+   normal; existe uma faixa de razão baixa onde há SCALE_UP sem detecção
+   (furtividade real).
+H3 A razão de trabalho explica a detecção melhor que a razão de volume.
+H4 Nenhuma regra booleana atinge simultaneamente TPR ≥ 80% (execuções com
+   dano, intensidade ≤ 5%) e FPR ≤ 5% no hold-out.
+Critério: hipótese "suportada" se o IC 95% relevante não cruza o limiar
+  / sinal previsto; caso contrário "não suportada" ou "inconclusiva".
+
+-------------------------------------------------------------------------
+7. TESTES ADICIONAIS PROPOSTOS (dependem do usuário)
+-------------------------------------------------------------------------
+T1 Confirmatório do efeito observador: reativar captura (usuário roda
+   `sudo setcap cap_net_raw,cap_net_admin=eip $(which tcpdump)`), rodar
+   as mesmas configs com sniffer ON e OFF intercalados na mesma sessão
+   (ex.: S2 e S3, 1% e 10%, WU 300k, 3 reps cada condição -> 24 runs, ~75
+   min). Resolve o confundidor data×captura do achado 0.B.
+T2 Se a análise mostrar estratos com poucas execuções (IC muito largo)
+   na fronteira da furtividade, repetições extras só nesses estratos.
+
+-------------------------------------------------------------------------
+8. SAÍDAS (sem gráficos, a pedido)
+-------------------------------------------------------------------------
+experiment_results/deteccao_pos_lb/
+  runs.csv            -- 1 linha por execução (metadados, covariáveis, dano)
+  windows.csv.gz      -- 1 linha por janela (estatísticas brutas)
+  validacao.csv       -- conferência contra o EntCusumZV3 original
+  resultados/*.csv    -- tabelas de cada métrica/estrato/modelo
+  RELATORIO_DETECCAO_POS_LB.txt -- interpretação

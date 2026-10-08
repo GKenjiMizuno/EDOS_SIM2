@@ -1,0 +1,34 @@
+REGISTRO DOS GRÁFICOS CENTRAIS DO TCC
+Gerado em 2026-10-01 12:36. Ver changes.txt §124.
+
+Todos: código pós-correção do load balancer (§102-104), dataset 100% recoletado (§115),
+captura de pacotes desligada em todas as execuções usadas (regime de medição único, §117).
+Verificado: nenhum arquivo de dado destas fontes foi modificado depois da geração do PNG;
+os testes posteriores (normal_wu_teste, ataque_wu_teste, confirmacao_320, confirmacao_wu5000,
+deteccao_pos_lb) gravaram só em diretórios próprios.
+
+==============================================================================
+17_grid_heatmap_cpu_(loadbalancer).png
+  script: plot_grid_heatmap_loadbalancer.py
+  gerado: 2026-09-30 19:36  md5 PNG: 2aec28865eb44c77cec16d30f760ec5d
+  o que mostra: Heatmap CPU média: RPS agregado (16-512) x nº de clientes (1-16), WU=10, 5 reps/célula (algumas 8-10). Mostra que o RPS agregado define a CPU, não a decomposição em clientes.
+  fonte: experiment_results/clients_rps_grid  (160 metrics; impressão digital nomes+tamanhos md5=2538e07a1e98aa21aa5dee794477d1a7)
+==============================================================================
+27_comparacao_completa_v2_(loadbalancer).png
+  script: plot_comparacao_completa_v2_loadbalancer.py
+  gerado: 2026-09-30 19:36  md5 PNG: 9b4bf386d7539b98bdf4cac5cf169633
+  o que mostra: Séries temporais CPU+instâncias: combinado x isolado, rps/atacante 1/5/10 x WU 100k/200k/400k, rep mais próxima da mediana de timeout das 5; painel normal = normal_baseline agg40 refined rep1.
+  fonte: experiment_results/desempate_combinado_isolado  (90 metrics; impressão digital nomes+tamanhos md5=e37d661bd95f2c30833c1f2ac0de3efa)
+  fonte: experiment_results/normal_baseline  (187 metrics; impressão digital nomes+tamanhos md5=aa2165fcc90529e499b9d807cd20fd40)
+==============================================================================
+58_atacantes_intensidade_heatmap_att4_extendido_S9_S11.png
+  script: plot_atacantes_intensidade_heatmap_att4_extended.py
+  gerado: 2026-09-30 19:37  md5 PNG: 73c0fbe24dbbc4cfa622fc70823ba60c
+  o que mostra: Heatmap CPU média: cenário S5..S11 x intensidade 1-25%, 4 atacantes, WU=200k, rep1. Linhas S9-S11 marcadas: tráfego normal real colapsa por disputa de GIL no cliente (changes.txt §113).
+  fonte: experiment_results/atacantes_intensidade_grid  (702 metrics; impressão digital nomes+tamanhos md5=cd672271f5fcde51f351ac86050a8c4a)
+==============================================================================
+60_normal_isolado_cpu_pico.png
+  script: plot_normal_isolado_pos_lb.py
+  gerado: 2026-09-29 10:50  md5 PNG: 3bbce6ef0351ba4499c6a775bd48f1fa
+  o que mostra: Curva de capacidade: CPU de pico do tráfego normal isolado, 20-2560 rps, WU=10, 4 clientes, 1 rep, mesma sessão. 1280/2560 marcados como teto do gerador do cliente (§112).
+  fonte: experiment_results/normal_isolado_pos_lb  (8 metrics; impressão digital nomes+tamanhos md5=bf0bce9628dee608f8b396bb28efb9b9)

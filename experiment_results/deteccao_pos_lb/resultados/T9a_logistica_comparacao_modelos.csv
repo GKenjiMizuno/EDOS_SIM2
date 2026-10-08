@@ -1,0 +1,6 @@
+alvo,modelo,auc_cv,logloss_cv,n,taxa_det
+det_R1_combinada,volume,0.872,0.21,892,91.7
+det_R1_combinada,trabalho,0.942,0.174,892,91.7
+det_R1_combinada,trabalho+carga,0.967,0.117,892,91.7
+det_R1_combinada,volume+carga,0.932,0.176,892,91.7
+det_R1_combinada,completo,0.982,0.088,892,91.7

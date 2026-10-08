@@ -9,7 +9,7 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
                              window_seconds=20, overlap_percent=50,
                              z_threshold=3.5, baseline_ratio=1.8, show_plot=True,
                              time_col='timestamp', value_col='rtt', value_label='RTT',
-                             value_unit='ms', min_samples_per_window=10):
+                             value_unit='ms', min_samples_per_window=10, cusum_h_sigma=5.0):
     """
     Detector de burst por janela deslizante (entropia de Shannon + Z-score +
     CUSUM) sobre uma série temporal escalar qualquer -- por padrão RTT
@@ -70,7 +70,12 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
             print(f"[WARNING] Poucas amostras antes do ataque (t<{config.ATTACK_START_TIME_SECONDS}s): "
                   f"{len(baseline)}. Usando o arquivo inteiro como baseline (menos preciso).")
             global_mean, global_std = df[value_col].mean(), df[value_col].std()
-        kappa, h = 0.5 * global_std, 5 * global_std
+        # cusum_h_sigma: limiar do CUSUM em múltiplos do desvio do baseline.
+        # Default 5 preserva o comportamento original (todos os resultados
+        # antigos continuam reproduzíveis). Com RTT por requisição (milhares
+        # de amostras/janela, cauda pesada) 5σ dispara em 47-93% das execuções
+        # sem ataque; ~1000σ é a calibração medida em changes.txt §124-§125.
+        kappa, h = 0.5 * global_std, cusum_h_sigma * global_std
 
         # Piso de burst relativo ao baseline desta execução, em vez de um
         # valor fixo igual para todo cenário (RPS/WU diferentes têm nível

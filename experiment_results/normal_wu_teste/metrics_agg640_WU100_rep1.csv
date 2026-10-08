@@ -1,0 +1,13 @@
+elapsed_time_s,num_instances,average_cpu_percent,mem_usage,avg_rtt_ms,decision,active_containers_names,label,host_cpu_percent
+0.0,1,0.0,0.0,0.0,NO_ACTION,,normal,0.0
+5.0,1,37.39,11.32,2.67,NO_ACTION,target_instance_1,normal,11.17
+10.0,1,37.19,12.24,2.84,NO_ACTION,target_instance_1,normal,10.94
+15.0,1,35.96,11.32,2.61,NO_ACTION,target_instance_1,normal,11.07
+20.0,1,35.63,11.32,4.05,NO_ACTION,target_instance_1,normal,11.89
+25.0,1,36.34,11.98,16.43,NO_ACTION,target_instance_1,normal,10.05
+30.0,1,37.33,11.3,2.75,NO_ACTION,target_instance_1,normal,11.29
+35.0,1,37.55,12.14,2.72,NO_ACTION,target_instance_1,normal,11.27
+40.0,1,40.16,11.42,2.95,NO_ACTION,target_instance_1,normal,11.96
+45.0,1,37.99,12.71,2.81,NO_ACTION,target_instance_1,normal,11.9
+50.0,1,38.22,11.35,2.72,NO_ACTION,target_instance_1,normal,11.91
+55.0,1,38.65,11.46,2.75,NO_ACTION,target_instance_1,normal,11.6

@@ -1,0 +1,263 @@
+RELATÓRIO -- Reavaliação da detecção estatística (Entropia / Z / CUSUM)
+sobre o dataset pós-correção do load balancer
+30/09/2026. Plano pré-registrado: PLANO_DETECCAO_POS_LB.txt (raiz do repo).
+Scripts: deteccao_pos_lb_extract.py, deteccao_pos_lb_analise.py,
+deteccao_pos_lb_mecanismo.py. Tabelas: resultados/*.csv. Saída completa
+dos scripts: resultados_console.txt, resultados_mecanismo_console.txt.
+Sem gráficos (a pedido).
+
+=========================================================================
+0. INTEGRIDADE
+=========================================================================
+- Detector reimplementado sem I/O e VALIDADO contra o EntCusumZV3 original:
+  decisão idêntica em 42/42 execuções amostradas (7 famílias), 356/356
+  alarmes (validacao.csv).
+- 1518 execuções extraídas, 0 erros. Populações:
+    POS  (ataque, S1-S8 + desempate "combinado")   892 execuções
+      POS_D (causou SCALE_UP durante o ataque)      300
+      POS_ND (não causou)                           592
+    NEG  (sem ataque, WU=10, agregado <= 640)       331  (NEG_ALL = 355)
+    GIL  (S9-S11, analisado à parte)                270
+  1 execução excluída por intervalo de ataque atípico ([20,80] s em vez de
+  [20,160] s): wedos_grid/S2_atk5pct_wu400000_mlfill_rep4.
+- Captura de pacotes vazia em todo o dataset (não afeta esta análise: o
+  detector usa rtt_log.csv; ground truth vem do label do metrics_*.csv).
+- Exposição idêntica: TPR e FPR avaliados nas MESMAS 13 posições de janela
+  (t0 = 20..140 s, janelas de 20 s inteiramente dentro do ataque), tanto em
+  execuções com quanto sem ataque. Nenhuma janela perdida por falta de
+  amostras em nenhuma população (T5).
+
+=========================================================================
+1. RESULTADOS PRINCIPAIS (ponto de operação original: z=3.5, piso 1,8x,
+   h=5σ, ΔH=1,5) -- T1
+=========================================================================
+                          TPR execução (IC95)     FPR execução (IC95)
+  R1 combinada (piso E    dano:  100.0 [98.7-100]   3.9 [2.3-6.6]
+     (Z ou CUSUM))        todos:  91.7 [89.7-93.3]  (por janela: 0.5%)
+  R2 Z sozinho            100 (todos)             100.0 [98.9-100]
+  R3 CUSUM sozinho        100 (todos)              75.2 [70.3-79.6]
+  R4 Entropia sozinha     dano: 1.3 / todos: 0.4     0.0
+  R5 Z ou CUSUM           100                     100.0
+  Latência (R1): mediana 10 s após o início do ataque = a 1ª janela que
+  fisicamente contém ataque; 97,8% das detecções em até 30 s (T4).
+
+LEITURA:
+- Só R1 é um detector utilizável. Z e "Z ou CUSUM" alarmam em 100% das
+  execuções SEM ataque; CUSUM em 75%; Entropia não reage a nada.
+- Dentro de R1, o que decide é o PISO de média (razão média_janela /
+  baseline). Variar z (2 a 6) ou h (2σ a 10σ) não muda NADA no R1 (T10a):
+  qualquer janela acima do piso já tem Z>2 e CUSUM>2σ. R1 é, na prática,
+  "média da janela > 1,8 x baseline".
+
+=========================================================================
+2. POR QUE Z E CUSUM FALHAM (mecanismo, não acaso) -- verificado
+=========================================================================
+- Z do detector = MÁXIMO de |x - média_ant|/dp_ant sobre CADA amostra da
+  janela. Uma janela de 20 s tem ~3246 amostras de RTT (mediana). Mesmo com
+  dado perfeitamente gaussiano, o máximo esperado de 3246 |z| é ~3,61 >
+  limiar 3,5: o teste dispara por construção (problema de comparações
+  múltiplas). O RTT real ainda tem cauda pesada: assimetria mediana 4,1; o
+  maior desvio por execução sem ataque é 16,7σ (P25-P75: 10-23σ).
+- CUSUM é acumulado amostra a amostra com κ=0,5σ e h=5σ: UMA amostra acima
+  de μ+5,5σ já cruza o limiar sozinha. 90% das execuções sem ataque têm
+  ≥ 1 amostra assim; 100% das que o CUSUM alarmou têm. Na calibração
+  Neyman-Pearson, nem h=200σ trouxe o FPR do CUSUM para 5% -- o "5σ" está
+  descalibrado em mais de 2 ordens de grandeza para RTT por requisição.
+- NÃO é deriva de baseline: nas execuções sem ataque a razão média_janela/
+  baseline fica em 0,98 (mediana, estável em todas as posições; T14). O
+  baseline de t<20 s é, se algo, levemente ALTO (aquecimento), o que é
+  conservador.
+- Conclusão metodológica: Z e CUSUM, como implementados, pressupõem
+  amostras gaussianas e independentes e um número pequeno de comparações.
+  Aplicados a RTT por requisição (milhares por janela, cauda pesada), não
+  são detectores válidos. Teriam que ser aplicados a agregados de janela
+  ou com limiar corrigido para n / estatística robusta.
+
+=========================================================================
+3. FURTIVIDADE W-EDoS (Q2, a métrica central da tese) -- T3
+=========================================================================
+- Execuções com dano (SCALE_UP durante o ataque) e SEM nenhum alarme R1:
+  0 de 300 -> 0,0% [0,0-1,3]. Nenhum estrato com furtividade (T3).
+- Neste regime de medição, ataque de 1% NUNCA causa dano: 0 de 228
+  execuções de 1% escalaram (wedos 0/116, combined 0/40, atacantes 0/72).
+  O dano começa em 5% de intensidade, onde a detecção já é 93-100%.
+- Portanto o achado-chave antigo (RELATORIO_WEDOS_13_08, §1: "W-EDoS força
+  SCALE_UP sem ser detectado", ex. S2 1% WU=500k, 3/3 escalaram, 0 bursts)
+  NÃO se reproduz com o RTT medido sem o efeito do sniffer (seção 6).
+
+=========================================================================
+4. O QUE O DETECTOR ESTÁ VENDO (mecanismo da detecção) -- T13
+=========================================================================
+rtt_log mistura requisições normais e de ataque (sem rótulo). Requisições
+de ataque (WU 2e5-5e5) são muito lentas. Teste: remover de cada janela as k
+amostras mais lentas, k = fração de requisições de ataque dentro da janela
+de ataque ("poda oráculo"); e, como robustez, podar 50% a mais.
+                              média/base  média podada  mediana podada
+  Ataque COM dano (300)         8,9x        4,3x (1,5k: 3,6x)  1,33x (1,5k: 1,22x)
+  Ataque SEM dano (592)         3,4x        1,7x (1,5k: 1,4x)  1,02x (1,5k: 1,01x)
+  Sem ataque (331)              0,98x       -             -
+  % execuções com janela > 1,8x:
+    com dano:  média 100 / podada 100 (1,5k: 99) / mediana 86 / med. podada 73
+    sem dano:  média 87,5 / podada 60 (1,5k: 46) / mediana 7  / med. podada 1
+    sem ataque: média 3,9 / mediana 0
+LEITURA:
+- Ataque COM dano: mesmo retirando todas as amostras que o ataque poderia
+  ter gerado (e 50% a mais), a média fica 3,6-4,3x acima do baseline e a
+  MEDIANA do tráfego restante sobe 22-33%. Há degradação real do tráfego
+  legítimo (fila no servidor) -- a detecção não é só o atacante vendo a
+  própria lentidão.
+- Ataque SEM dano: a mediana não se move (1,01-1,05x); 53-65% da elevação
+  da média vem só das amostras lentas do próprio ataque. Aqui o alarme é,
+  essencialmente, o detector enxergando as requisições do atacante.
+- Implicação de modelo de ameaça: o detector só vê o ataque "de graça"
+  porque observa o RTT de TODAS as requisições (incluindo as do atacante).
+  Um defensor que observe só a experiência dos usuários legítimos (mediana)
+  ainda detectaria 73-86% dos ataques com dano e 0% de falso alarme, mas
+  praticamente nenhum ataque sem dano.
+
+=========================================================================
+5. O QUE EXPLICA A DETECÇÃO (Q3, H3) -- T9
+=========================================================================
+- Taxa de detecção R1 cresce monotonicamente com a razão de TRABALHO
+  ataque/normal (rps_atk x WU_atk / rps_normal x WU_normal):
+    <316: 57%  | 316-1k: 90% | 1k-3,2k: 99,7% | >=3,2k: 100%
+  (dano no mesmo eixo: 0% -> 6% -> 41% -> 54-100%).
+- Regressão logística, validação cruzada agrupada por configuração:
+    AUC volume 0,872 < trabalho 0,942; volume+carga 0,932 < trabalho+carga
+    0,967. A razão de trabalho explica melhor que a razão de volume.
+  A carga normal tem efeito POSITIVO independente (mesma razão de trabalho,
+  mais carga -> mais fácil detectar; coerente com fila crescendo perto da
+  saturação). Coeficientes muito grandes (quase-separação) -- usar a
+  comparação por AUC/log-loss, não o tamanho do coeficiente.
+
+=========================================================================
+6. ANTIGO x NOVO (Q5, H1) -- T12
+=========================================================================
+(A) Experimento natural, MESMA era de código (wedos_grid pré-correção), 59
+    configurações com as duas condições (sniffer com captura: stage1a/1b;
+    sem captura: mlfill):
+                     RTT baseline  dp baseline  dano   R1     CUSUM
+    captura ON       27,5 ms       20,7 ms      68%   32,9%  80,5%
+    captura OFF       1,9 ms        0,9 ms      39%   94,4%  100%
+    Diferença pareada por configuração (ON - OFF): R1 -54,4 pp
+    [-66,8 a -41,8]; CUSUM -18,1 pp [-27,1 a -9,6]; Z 0.
+    Com o sniffer capturando, o RTT de base fica 14x maior e 23x mais
+    ruidoso; o dano aumenta (a CPU fica inflada) e a detecção cai pela
+    metade. Ressalva: captura on/off coincide com a data de coleta
+    (ago x set) -- não é prova causal (ver teste T1).
+(B) Datasets completos, mesma métrica:
+    ANTIGO (captura ON na maioria): R1 detecta 52-77% dos ataques, 0% de
+      falso alarme; Z com 41-55% de falso alarme (bate com o antigo §76:
+      42,4%) -> o pipeline novo reproduz o resultado antigo quando aplicado
+      ao dado antigo.
+    NOVO: R1 detecta 90-96% dos ataques e 100% dos com dano; falso alarme
+      0,6-7,5%; Z com 100% de falso alarme.
+H1 SUPORTADA: sem o efeito observador, o baseline de RTT cai para ~2 ms
+  com desvio ~1 ms, o piso relativo fica muito mais sensível e o Z piora.
+INTERPRETAÇÃO: a "furtividade" medida antes era, em boa parte, produto do
+  RUÍDO que o próprio instrumento adicionava ao RTT. Visto de outro ângulo,
+  o experimento natural é um experimento de ruído: a detectabilidade do
+  W-EDoS é governada pela razão sinal/ruído do RTT de base. Com ruído alto
+  (como o de uma rede real com jitter), a furtividade reaparece.
+
+=========================================================================
+7. DESEMPENHO INDEPENDENTE DE LIMIAR E CALIBRADO (Q4, H4) -- T7, T8
+=========================================================================
+- AUC (execução), ataque com dano x sem ataque: razão média/baseline 1,000
+  [1,000-1,000] em TODAS as faixas de carga; CUSUM/σ 1,000; ΔEntropia
+  0,900; Z 0,761. Todos os ataques x sem ataque: razão 0,991, CUSUM 0,981.
+- Neyman-Pearson (limiar escolhido em repetições ÍMPARES, avaliado nas
+  PARES):
+    FPR alvo 5% -> piso 1,3x: dano 100% [96,5-100]; dano com intensidade
+      <=5%: 100% [87,1-100]; todos os ataques 97,9%; FPR hold-out 6,4%
+      [3,4-11,7] (acima do alvo por otimismo de seleção, dentro do IC).
+    FPR alvo 1% -> piso 4,0x: dano 100%; todos 72,5%; FPR hold-out 0,7%
+      [0,1-3,9].
+    Z sozinho precisa de z=55 para 5% de FPR e aí detecta só 45% dos danos.
+    CUSUM e "Z ou CUSUM" não chegam a 5% de FPR nem com h=200σ.
+- H4 NÃO SUPORTADA: uma regra simples (só o piso de média) atinge 100% de
+  detecção dos ataques com dano, inclusive os de baixa intensidade, a 1%
+  de FPR no hold-out.
+
+=========================================================================
+8. ROBUSTEZ -- T6, T10
+=========================================================================
+- Janela de 10/20/30 s: R1 continua 100% nos ataques com dano; FPR
+  4,8% / 3,9% / 2,1%. Conclusões não dependem da janela.
+- Piso de 1,2x a 3,0x: dano sempre 100%; todos os ataques 99,6% -> 77,6%;
+  FPR 6,9% -> 1,5% (curva monotônica, sem ponto frágil).
+- Falso alarme de R1 concentra-se em carga normal alta: clients_rps_grid
+  451-700 rps: 36,7% (n=30; agregado 512, perto da saturação); demais
+  faixas 0-3,3%. normal_baseline 451-700: 0% (n=10). Fonte provável:
+  flutuação natural de fila perto do teto, que ultrapassa 1,8x.
+- Grupo GIL (S9-S11, T11): 100% detectado, mas a carga normal real
+  colapsa por disputa de GIL no cliente -- fora das conclusões.
+
+=========================================================================
+9. VEREDITO DAS HIPÓTESES
+=========================================================================
+  H1 (sem efeito observador: R1 mais sensível, Z pior)    SUPORTADA
+  H2a (detecção cresce com a razão de trabalho)           SUPORTADA
+  H2b (existe dano sem detecção)                          NÃO SUPORTADA
+                                                          (0/300, IC <= 1,3%)
+  H3 (trabalho explica melhor que volume)                 SUPORTADA
+  H4 (nenhuma regra: TPR>=80% e FPR<=5%)                  NÃO SUPORTADA
+
+=========================================================================
+10. AMEAÇAS À VALIDADE
+=========================================================================
+- Efeito observador: indício forte, mas confundido com data de coleta.
+  Precisa do teste confirmatório T1.
+- Sem rótulo por requisição no rtt_log: a separação ataque/legítimo usa a
+  poda oráculo (aproximação: assume que as requisições de ataque são as
+  mais lentas; verdadeiro para WU >= 1e5, mas parte das podadas pode ser
+  legítima -- por isso a variante 1,5k, conservadora).
+- O RTT é medido pelo gerador de carga (visão do cliente, inclui o
+  atacante). O modelo de ameaça "defensor vê todas as requisições" é o que
+  torna a detecção fácil (seção 4).
+- Negativas vêm de famílias diferentes das positivas (clients_rps_grid /
+  normal_baseline x wedos/atacantes); mitigado pela AUC estratificada por
+  carga (=1,000 em todas as faixas).
+- Um único host, loopback, sem jitter de rede real: o regime "limpo" é
+  otimista para o defensor (o próprio achado 6 mostra que ruído muda tudo).
+- Otimismo de seleção no Neyman-Pearson (FPR 6,4% vs alvo 5%).
+
+=========================================================================
+11. IMPLICAÇÕES E PRÓXIMOS TESTES SUGERIDOS
+=========================================================================
+- A narrativa da tese "W-EDoS é furtivo aos métodos estatísticos" precisa
+  ser reformulada: no simulador com RTT limpo, o W-EDoS com dano é trivial
+  de detectar por um piso de média; a furtividade depende do ruído do RTT
+  (e do defensor enxergar ou não as requisições do atacante). Isso é uma
+  contribuição mais forte e mais honesta do que a antiga -- mas precisa
+  dos testes abaixo para se sustentar.
+- Z e CUSUM, como implementados, devem ser descritos como inválidos para
+  RTT por requisição (comparações múltiplas + cauda pesada), não como
+  "menos sensíveis".
+- Testes sugeridos:
+  T1 captura ON x OFF intercalada na mesma sessão (confirma causalidade do
+     efeito observador; ~24 execuções, ~75 min; exige setcap no tcpdump).
+  T3 NOVO: injeção controlada de jitter no RTT (ex.: tc netem na loopback,
+     vários níveis de ruído) com os mesmos ataques -- mede a furtividade
+     como função da razão sinal/ruído, que é o resultado cientificamente
+     central que emergiu aqui. Exige root para o tc.
+  T4 NOVO: registrar o tipo da requisição (normal/ataque) no rtt_log (mudança
+     pequena de código) e recoletar um subconjunto -- elimina a aproximação
+     da poda oráculo e permite avaliar o detector só sobre o tráfego
+     legítimo (modelo de ameaça mais realista).
+
+=========================================================================
+12. DESVIOS E ADIÇÕES EM RELAÇÃO AO PLANO
+=========================================================================
+- Adição: M10 (poda oráculo / mediana) e M11 (viés de baseline), e a
+  checagem de cauda pesada da seção 2 -- motivadas pelos primeiros
+  resultados; registradas como adição.
+- Correção durante a análise: a fração de ataque da poda oráculo foi
+  primeiro calculada sobre 180 s e corrigida para a janela de ataque
+  (140 s); a variante 1,5k foi adicionada como robustez. Só a versão
+  corrigida está nas tabelas.
+- Desvio: faixas da razão de trabalho (T9c) trocadas para escala log real
+  (10^2-10^5) e grade do Neyman-Pearson ampliada (piso até 8x, z até 80, h
+  até 200σ) -- a 1ª versão era estreita demais para Z/CUSUM.
+- Adição: extração do backup pré-correção (runs_prefix.csv) para a
+  comparação antigo x novo e o experimento natural captura ON x OFF.

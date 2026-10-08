@@ -1,0 +1,5 @@
+populacao,n_exec,janelas_perdidas_pct,exec_com_perda_pct,erros_ataque_mediana,erros_normal_mediana
+"POS (ataque, principal)",892,0.0 [0.0-0.0],0.0,0.0,0.0
+POS_D (ataque com dano),300,0.0 [0.0-0.0],0.0,13.5,213.5
+"NEG (sem ataque, WU=10, <=640)",331,0.0 [0.0-0.0],0.0,,0.0
+"GIL (S9-S11, separado)",270,0.0 [0.0-0.0],0.0,575.5,1028.0

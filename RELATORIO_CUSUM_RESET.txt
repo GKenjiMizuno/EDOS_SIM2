@@ -1,0 +1,187 @@
+================================================================================
+RELATÓRIO: CUSUM COM REINÍCIO (RESET) APÓS ALARME
+Projeto EDOS_SIM2 -- detecção de W-EDoS por RTT
+Data: 01/10/2026 · Registro técnico: changes.txt §128-§131
+================================================================================
+
+1. O PROBLEMA OBSERVADO
+--------------------------------------------------------------------------------
+Nos gráficos 65 e 67 (S4, ataque W-EDoS de 20 a 160 s), o CUSUM continuava
+indicando "ataque" depois que o ataque terminava. Rodar o teste por mais
+tempo (200 s em vez de 180 s, gráfico 67) não resolveu: o detector seguiu
+em "ataque" até o fim da execução (3 de 3 janelas após o ataque).
+
+
+2. POR QUE ISSO ACONTECE
+--------------------------------------------------------------------------------
+O CUSUM é calculado a cada requisição:
+
+    S = max(0, S + (RTT - μ) - κ)          alarme se S > h
+
+  μ, σ = média e desvio do RTT nos primeiros 20 s (baseline, sem ataque)
+  κ    = 0,5σ (folga: só soma o que passar de μ + 0,5σ)
+  h    = 1000σ (limiar calibrado, §125/§129)
+
+Analogia: S é um balde. Requisição lenta joga água (o quanto passou do
+normal); requisição normal tira um pouco (o vazamento κ); o balde nunca
+fica com menos que zero; passou da marca h -> alarme.
+
+Valores medidos no teste do gráfico 67 (S4, 300 rps normais + 30 rps de
+ataque, WU = 400.000):
+  - durante o ataque, cada requisição soma em média ~38σ; a ~320 req/s o
+    balde enche ~12.000σ por segundo e passa de 1000σ em ~0,2 s;
+  - ao fim do ataque o balde está em ~10^6σ;
+  - sem ataque o balde esvazia só ~190σ por segundo (cada requisição tira
+    ~0,64σ, a ~300 req/s);
+  - para voltar de ~10^6σ a menos de 1000σ seriam necessários ~5.000 s
+    (mais de uma hora).
+
+Conclusão: o CUSUM sem reinício tem memória "infinita". Ele responde à
+pergunta "já houve ataque em algum momento desde o início?", e não à
+pergunta "está havendo ataque agora?".
+
+
+3. A CORREÇÃO: REINÍCIO (RESET) APÓS ALARME
+--------------------------------------------------------------------------------
+Regra: toda vez que S passa de h, o detector registra um alarme e zera S.
+
+    S = max(0, S + (RTT - μ) - κ)
+    se S > h:  registra alarme;  S = 0
+
+Comportamento resultante:
+  - durante o ataque: depois de zerado, o balde volta a passar de h em
+    frações de segundo -> alarmes repetidos -> o detector diz "ataque";
+  - depois do ataque: após o último alarme, o tráfego normal não enche o
+    balde até h (o vazamento drena antes) -> os alarmes param -> o
+    detector volta a "normal".
+
+Veredito por janela (20 s, passo 10 s, como no EntCusumZV3): a janela é
+"ataque" se houve pelo menos 1 alarme dentro dela.
+
+O detector combinado (média > 1,8x o baseline E (Z > 3,5 OU CUSUM)) passou
+a usar esse CUSUM com reset.
+
+
+4. RESPALDO NA LITERATURA
+--------------------------------------------------------------------------------
+ATENÇÃO: as referências abaixo foram indicadas de memória. Conferir nos
+textos originais (capítulo, página, edição) antes de citar.
+
+a) Page, E. S. (1954). "Continuous Inspection Schemes". Biometrika,
+   41(1/2). Artigo que cria o CUSUM como esquema de inspeção CONTÍNUA:
+   acumula evidência, sinaliza ao passar de um limite, e o monitoramento
+   recomeça.
+
+b) Basseville, M.; Nikiforov, I. V. (1993). Detection of Abrupt Changes:
+   Theory and Application. Prentice Hall. Apresenta o CUSUM como uma
+   sequência de testes sequenciais (SPRT) repetidos: cada vez que a soma
+   chega a zero, um novo teste começa. O max(0, ...) da fórmula já é esse
+   reinício pelo lado de baixo; o reset após alarme é o mesmo princípio
+   pelo lado de cima (o teste decidiu "houve mudança" e recomeça).
+
+c) Montgomery, D. C. Introduction to Statistical Quality Control (várias
+   edições). No controle estatístico de processos, após o sinal do CUSUM a
+   causa é investigada e corrigida e a soma é zerada para reiniciar o
+   monitoramento. A variante "Fast Initial Response" (Lucas, J. M.;
+   Crosier, R. B., Technometrics, 1982) trata justamente do valor inicial
+   ao reiniciar -- o que mostra que reiniciar é a prática padrão.
+
+d) CUSUM em detecção de ataques de rede (contexto, NÃO como fonte do
+   reset): Wang, H.; Zhang, D.; Shin, K. G. "Detecting SYN Flooding
+   Attacks", IEEE INFOCOM 2002; Siris, V. A.; Papagalou, F. "Application of
+   Anomaly Detection Algorithms for Detecting SYN Flooding Attacks", IEEE
+   GLOBECOM 2004. Usam CUSUM não paramétrico para detectar o início de
+   ataques. Não foi verificado como tratam a soma após o alarme.
+
+Ressalva: na indústria o reset ocorre depois de investigar e corrigir a
+causa. Aqui ele é automático e imediato após cada alarme, para que o
+detector funcione como monitor contínuo. Essa adaptação é uma escolha de
+implementação deste trabalho e deve ser declarada no texto.
+
+Texto sugerido para o TCC:
+  "Após cada alarme, a estatística CUSUM é reiniciada em zero, seguindo o
+  procedimento de monitoramento contínuo de Page (1954) e a prática do
+  controle estatístico de processos (Montgomery). Dessa forma, o detector
+  indica se o ataque está ocorrendo no momento, e não apenas se ocorreu em
+  algum instante anterior."
+
+
+5. TESTE REALIZADO
+--------------------------------------------------------------------------------
+Script: run_s4_200s.py · Dados: experiment_results/s4_200s/
+1 repetição de cada, 200 s, ataque de 20 a 160 s, captura de pacotes vazia
+(igual aos dados originais).
+
+  Combinado (S4_atk10pct_wu400000_200s_rep1):
+    tráfego normal 300 rps (4 clientes x 75 rps, WU = 10)
+    ataque 10% = 30 rps (4 atacantes x 7,5 rps, WU = 400.000)
+  Normal isolado (normal_agg300_WU10_200s_rep1):
+    tráfego normal 300 rps (4 clientes x 75 rps, WU = 10), sem ataque
+
+Detectores recalculados no tempo do rtt_log corrigido dos saltos de relógio
+do WSL2 (§128).
+
+
+6. RESULTADOS
+--------------------------------------------------------------------------------
+Janelas "no ataque" = 13 janelas inteiras dentro de 20-160 s.
+Janelas "depois"    = 3 janelas inteiras após 160 s (fim em 180, 190, 200 s).
+
+Com ataque (gráfico 67):
+
+  Detector             | No ataque | Depois (sem reset) | Depois (com reset)
+  ---------------------+-----------+--------------------+-------------------
+  CUSUM (h = 1000σ)    |   13/13   |        3/3         |        1/3
+  Combinado            |   13/13   |        1/3         |        1/3
+  Z-score (> 3,5)      |   13/13   |        2/3         |        2/3
+  Entropia (ΔH > 1,5)  |    0/13   |        0/3         |        0/3
+
+  - CUSUM com reset: 1.135 alarmes; o 1º em 20,22 s (0,22 s após o início
+    do ataque), o último em 162,56 s.
+  - Os 12 alarmes após 160 s vêm da "cauda" de RTT alto nos ~2 s seguintes
+    ao fim do ataque (fila ainda drenando). Eles caem na janela de 160 a
+    180 s, que por isso ainda fica "ataque". A partir de 190 s o detector
+    volta a "normal".
+  - Autoscaler no mesmo teste: SCALE_UP em 25, 45 e 65 s (1 -> 4
+    instâncias); SCALE_DOWN só em 165 e 185 s; termina o teste com 2
+    instâncias (o custo continua depois do ataque -- efeito EDoS).
+
+Sem ataque (gráfico 68):
+  - CUSUM com reset: 0 alarmes; 0/17 alarmes falsos (janelas com fim em
+    40-200 s). Combinado e entropia: 0/17. Z-score: 17/17 (dispara sempre,
+    com ou sem ataque; problema conhecido, §124).
+  - CPU ~19%, 1 instância o teste todo, RTT ~2 ms.
+
+Conclusão: o reset faz o CUSUM voltar a "normal" ~2 s após o fim do ataque
+(primeira janela inteiramente limpa: 170-190 s), sem perder nenhuma janela
+do ataque e sem gerar alarmes falsos no tráfego normal.
+
+
+7. LIMITAÇÕES
+--------------------------------------------------------------------------------
+  - Uma única repetição de cada caso. A taxa de alarme falso do CUSUM com
+    reset ainda não foi medida no conjunto completo (pode ser feito com os
+    dados existentes, repetindo a calibração do §129 com reset).
+  - Com reset, a verificação no fim de cada janela passa a contar
+    "houve alarme dentro da janela". Uma janela de 20 s que pegue até 1 s
+    de cauda após o ataque ainda é marcada como "ataque".
+  - O reset foi implementado só no script dos gráficos
+    (plot_s4_10pct_cpu_rtt_cusum.py, opção --reset). O EntCusumZV3.py NÃO
+    foi alterado.
+
+
+8. ARQUIVOS
+--------------------------------------------------------------------------------
+  Gráficos (graficos_apresentacao/04_pos_loadbalancer/):
+    67_s4_10pct_wu400k_200s_cpu_e_rtt_detectores.png        (sem reset)
+    67_s4_10pct_wu400k_200s_cpu_e_rtt_detectores_reset.png  (com reset)
+    68_s4_normal_isolado_200s_cpu_e_rtt_detectores.png      (sem reset)
+    68_s4_normal_isolado_200s_cpu_e_rtt_detectores_reset.png (com reset)
+  Scripts:
+    run_s4_200s.py                     (testes de 200 s)
+    plot_s4_10pct_cpu_rtt_cusum.py     (python3 ... --200s [--normal] [--reset])
+  Dados:
+    experiment_results/s4_200s/
+  Registro:
+    changes.txt §130 (testes de 200 s) e §131 (reset)
+================================================================================

@@ -1,0 +1,6 @@
+regra,n_detectadas,lat_p25,lat_mediana,lat_p75,pct_ate_30s
+R1_combinada,820,10.0,10.0,10.0,97.8
+R2_z,892,10.0,10.0,10.0,100.0
+R3_cusum,892,10.0,10.0,10.0,99.3
+R4_entropia,9,10.0,10.0,20.0,100.0
+R5_z_ou_cusum,892,10.0,10.0,10.0,100.0

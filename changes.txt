@@ -5296,3 +5296,505 @@ Famílias que NUNCA foram recoletadas (fora das 6): wu_calibration (18),
   ataque_isolado (9), wedos_failure (28). Nenhum dos gráficos da pasta
   04_pos_loadbalancer/ usa essas famílias.
 Verificado: py_compile nos 4 scripts; os 4 PNGs inspecionados visualmente.
+
+================================================================================
+§117. Reavaliação da detecção estatística pós load balancer (sem gráficos)
+================================================================================
+Plano pré-registrado ANTES de olhar os dados: PLANO_DETECCAO_POS_LB.txt
+  (raiz). Relatório completo e interpretação:
+  experiment_results/deteccao_pos_lb/RELATORIO_DETECCAO_POS_LB.txt.
+Scripts novos (nenhum script existente alterado):
+  - deteccao_pos_lb_extract.py: reimplementação fiel do EntCusumZV3 sem
+    I/O (validada: decisão idêntica em 42/42 execuções, 356/356 alarmes),
+    guarda estatísticas brutas por janela; extrai também janelas de 10/30 s
+    e o backup pré-correção (--base/--tag).
+  - deteccao_pos_lb_analise.py: métricas M1-M9 do plano (TPR/FPR por
+    janela e por execução com IC de Wilson/bootstrap por conglomerado,
+    furtividade, latência, cobertura, AUC, Neyman-Pearson com seleção em
+    reps ímpares e avaliação em pares, logística com CV agrupada,
+    sensibilidade, antigo x novo).
+  - deteccao_pos_lb_mecanismo.py: poda oráculo (separa sinal do próprio
+    ataque x degradação do tráfego legítimo) e viés de baseline.
+Achados de integridade descobertos no caminho:
+  - tcpdump sem capability (getcap vazio): traffic_capture vazio em 100% do
+    dataset pós-correção (e nos 214 mlfill antigos). Não afeta a detecção
+    por RTT; afeta features de pacote da ML.
+  - Efeito observador do sniffer (experimento natural, wedos_grid
+    pré-correção, 59 configs pareadas): com captura, RTT de base 27,5 vs
+    1,9 ms, dp 20,7 vs 0,9 ms, CPU 2-3x, detecção R1 -54 pp [-67 a -42].
+    Explica o "regime de máquina" do §114. Confundido com data de coleta
+    -> teste T1 proposto.
+Resultados principais (detalhe no relatório):
+  - R1 (piso de média E (Z ou CUSUM)) detecta 100% [98,7-100] dos ataques
+    com dano (n=300) e 91,7% de todos (n=892); FPR por execução 3,9%.
+    Na prática R1 = "média > 1,8x baseline" (z e h não mudam nada).
+  - Z e CUSUM sozinhos: FPR 100% e 75% -- inválidos em RTT por requisição
+    (~3200 amostras/janela -> máx. gaussiano esperado 3,61 > 3,5; cauda
+    pesada, assimetria 4,1). Entropia não reage (0-1%).
+  - Furtividade: 0/300 ataques com dano sem alarme [0-1,3%]. Ataques de 1%
+    nunca causam dano neste regime (0/228). O achado W-EDoS antigo (dano
+    sem detecção) NÃO se reproduz sem o ruído do sniffer.
+  - Ataques com dano degradam o tráfego legítimo de verdade (após poda
+    oráculo: média 3,6-4,3x, mediana +22-33%); ataques sem dano só são
+    vistos pelas próprias requisições lentas do atacante.
+  - Razão de trabalho explica a detecção melhor que a de volume (AUC CV
+    0,942 x 0,872). Neyman-Pearson hold-out a 1% de FPR: piso 4x detecta
+    100% dos ataques com dano.
+  - Hipóteses: H1 suportada, H2a suportada, H2b (dano sem detecção) não
+    suportada, H3 suportada, H4 não suportada.
+Saídas: experiment_results/deteccao_pos_lb/ (runs*.csv, windows*.csv.gz,
+  validacao.csv, resultados/T1-T14*.csv, execucoes_avaliadas.csv,
+  resultados_console.txt, resultados_mecanismo_console.txt, relatório).
+Testes adicionais sugeridos no relatório: T1 (captura on x off), T3
+  (injeção controlada de jitter -- furtividade x sinal/ruído), T4 (rótulo
+  de tipo de requisição no rtt_log).
+
+================================================================================
+§118. Teste rápido: tráfego normal isolado com WU 100 / 1000 / 10000
+================================================================================
+Contexto: a reavaliação do §117 mostrou que o ataque com dano não é furtivo
+  no simulador atual -- o contraste de custo por requisição normal (WU=10)
+  x ataque (WU=2e5-5e5) é de 20.000x e entrega o ataque. Usuário pediu
+  uma solução simples: só 2 "endpoints" (normal e ataque), subindo o WU do
+  normal, testado primeiro isoladamente.
+Criados run_normal_wu_teste.py (WU {100,1000,10000} x agregado {20,40,80,
+  160,320,640}, 1 rep, 60 s, 4 clientes, captura desligada; saída
+  experiment_results/normal_wu_teste/) e resumo_normal_wu_teste.py
+  (tabela; referência WU=10 = primeiros 60 s de normal_isolado_pos_lb).
+  Um run interrompido pelo usuário (agg100_WU100, versão anterior do
+  script) deixou container órfão e simulation_metrics.csv parcial na raiz
+  -- limpos (lixo do próprio run cortado). Arquivos de uma execução manual
+  de 20 s às 21:03 (não feita por mim) foram MOVIDOS para
+  experiment_results/_manual_runs/run_raiz_20260930_2103/.
+Resultado (18/18 execuções, 0 erros de script):
+  - WU 100 e 1000 ~ iguais a WU 10: CPU +0-2 pp, RTT mediano 1,5-3,4 ms.
+    O custo de CPU de até 1000 WU é desprezível frente ao overhead HTTP.
+  - WU 10000 é o único que muda o comportamento: CPU ~2-2,5x (160 rps:
+    27%; 320: 51%; 640: 61% média / 105% pico, escalou p/ 2 instâncias,
+    43 erros); RTT mediano 2,9-4,6 ms (~+2,7 ms por 10k WU -> ~0,27 µs/
+    WU, estimando ataque WU 2e5 em ~55 ms e 5e5 em ~140 ms por requisição).
+  - Perto da saturação (WU 10000 a 320/640 rps, e todos os WU a 640) o RTT
+    fica instável (dp 25-86 ms, picos) -- região de alarme falso.
+  - Gerador de tráfego entrega o nominal até 640 rps (605 real).
+Interpretação e próximo passo proposto ao usuário na conversa.
+
+================================================================================
+§119. Teste rápido: endpoint normal WU=10000 (160 rps) x ataque WU=200000
+================================================================================
+Criado run_ataque_wu_teste.py (1 rep, 60 s, ataque [20,60] s, 4 atacantes,
+  intensidade 1/5/10%; saída experiment_results/ataque_wu_teste/, resumo em
+  resumo_ataque_wu_teste.csv). Controle: normal_wu_teste agg160_WU10000.
+Resultado (3/3 execuções, 0 erros de script):
+            escalou  CPU ataque (méd/pico)  média RTT/base  mediana/base  alarmes R1
+  controle  não       27/29                  1,02            1,02          0/3
+  1%        não       32/37                  1,83            1,00          1/3
+  5%        não       44/50                  3,33            1,24          3/3
+  10%       sim (40s) 47/62                  7,47            1,27          3/3
+Leitura: subir o WU normal para 10000 NÃO tornou o ataque furtivo para a
+  regra da média: cada requisição de ataque leva ~400 ms (estimado pela
+  elevação da média / fração de amostras de ataque), contra ~3 ms da
+  normal -- contraste ainda ~100x (a estimativa de ~55 ms do §118, por
+  extrapolação linear do WU, estava errada; o custo não escala
+  linearmente). Dano só a 10%, onde a média sobe 7,5x. Porém a MEDIANA
+  (experiência do usuário legítimo) sobe só 27% mesmo com dano -- abaixo
+  de um piso de 1,8x: um detector que só observe o tráfego legítimo não
+  veria este ataque.
+
+================================================================================
+§120. Teste rápido "opção B": normal WU=10000 a 320 rps x ataque WU=200000,
+  1-25%; 160 rps completado com 15/20/25%
+================================================================================
+run_ataque_wu_teste.py estendido (JOBS = 160 e 320 rps x 1/5/10/15/20/25%,
+  pula o que já existe). 1ª versão desta extensão usava 240 rps -- usuário
+  corrigiu para 320 (igual ao S8 dos testes de atacantes); lote de 240 foi
+  interrompido no 1º job (nenhum resultado de 240 gravado), containers e
+  arquivos parciais da raiz limpos. Arquivos de outra execução manual
+  (22:09, não feita por mim) movidos para experiment_results/_manual_runs/
+  run_raiz_20260930_2209/. Criado resumo_ataque_wu_teste.py (tabela).
+Resultado (1 rep, 60 s, ataque [20,60] s; 9/9 + 3 anteriores, 0 erros de
+  script):
+  - 160 rps (CPU base 27%): dano só a partir de 10%; sempre 3/3 janelas
+    com alarme.
+  - 320 rps (CPU base ~51%, perto do limiar de 60%): QUALQUER intensidade
+    escala, inclusive 1% (3,3 rps de ataque). Com 1% e 5%, só a 1ª janela
+    do ataque (antes do escalonamento fazer efeito) alarma (razão 5,4-9,8x);
+    depois do SCALE_UP (t=25 s) a carga se divide, a CPU cai para ~30-45%
+    e o RTT volta para 0,89x (1%) / 1,6-1,75x (5%) do baseline -- abaixo do
+    piso de 1,8x. O ataque continua ativo e invisível, e a 2ª instância é
+    MANTIDA (CPU 27-45% > limiar de scale-down de 25%) -> custo EDoS
+    sustentado sem sinal no RTT após o transitório inicial.
+  - 320 rps a partir de 10%: alarme contínuo, muitos timeouts (até 3179
+    erros normais a 25%) -- ataque grosseiro, não furtivo.
+Ressalvas: 1 repetição, 60 s (ataque de 40 s) -- não confirma se a
+  instância extra é mantida por mais tempo nem o comportamento do controle
+  sem ataque a 320 rps (CPU 51%, pico 57%) em execuções longas.
+
+================================================================================
+§121. Confirmação do §120 (320 rps, 0/1/5%, 180 s, 3 reps) -- NÃO confirmou
+================================================================================
+Criados run_confirmacao_320.py (base normal WU=10000 a 320 rps, ataque
+  WU=200000 / 4 atacantes a 0, 1 e 5%, ataque [20,160] s, 3 reps intercaladas,
+  captura desligada; saída experiment_results/confirmacao_320/) e
+  analise_confirmacao_320.py (resumo_confirmacao_320.csv).
+Resultado (9/9, 0 erros de script):
+  - TODAS as execuções, inclusive o CONTROLE SEM ATAQUE (3/3), escalaram
+    aos 5 s, antes do ataque (CPU nos primeiros 20 s: controle 58-64%,
+    ataques 64-76%). No teste rápido do §120 a mesma carga deu ~51% e não
+    escalou -- 320 rps com WU=10000 está em cima do limiar de 60% e escala
+    sozinho: inválido como base para atribuir dano ao ataque.
+  - 0/13 alarmes em todas -- artefato: o baseline do detector (t<20 s) foi
+    aprendido com o sistema sobrecarregado antes de escalar (RTT de base
+    10-58 ms); depois do escalonamento o RTT fica abaixo desse baseline
+    inflado (razão 0,2-0,7), o piso 1,8x é inalcançável.
+  - Sinal real, porém: o ataque somou instâncias além do controle (controle
+    2-3, 1% -> 3, 5% -> 4) sem nenhum alarme -- fenômeno de "baseline
+    contaminado" (aprender o normal em período de carga alta cega o
+    detector), registrado, mas não é o que se queria testar.
+Próximo passo proposto: mesma bateria com base de 240 rps (CPU ~40%),
+  0/1/5/10%, 3 reps, 180 s.
+
+================================================================================
+§122. Confirmação com endpoint normal WU=5000 (160 e 320 rps, 0/1/5/10%,
+  180 s, 3 reps) -- sem furtividade; 320 rps escala no arranque
+================================================================================
+Criado run_confirmacao_wu5000.py (saída experiment_results/
+  confirmacao_wu5000/); analise_confirmacao_320.py parametrizado (--dir,
+  --nwu, --cargas, --intensidades; reproduz o resultado do §121 sem
+  mudança). Resumo: confirmacao_wu5000/resumo_confirmacao_wu5000.csv.
+Resultado (24/24, 0 erros de script):
+  - 160 rps (CPU ~30%): controle 3/3 sem escalar e 0/13 alarmes (válido).
+    1%: sem dano, detectado (5-13/13 janelas). 5%: dano (SCALE_UP aos
+    30-35 s, oscila sobe/desce) e detectado (9-13/13). 10%: dano e 13/13.
+    Nenhum dano sem detecção.
+  - 320 rps: o CONTROLE escala aos 5 s em 3/3 de novo, agora por um PICO
+    DE ARRANQUE: a 1ª leitura de CPU da simulação dá 63-66% (WU=5000) e
+    76-90% (WU=10000, §121), e em seguida cai para ~30% com 2 instâncias.
+    O autoscaler age já na 1ª iteração, sem período de aquecimento. Base
+    inválida para atribuir dano ao ataque. Ataque de 1% não somou
+    instâncias além do controle (2); 5-10% somaram (3-4) e foram
+    detectados em 13/13.
+Conclusão: subir o WU do endpoint normal para 5000-10000 não gera
+  furtividade com dano numa base válida -- a requisição de ataque
+  (WU=200000) continua ~100x mais lenta que a normal e puxa a média.
+  Também identificado problema do simulador: pico de CPU no arranque +
+  autoscaler sem aquecimento -> escalonamento espúrio em cargas maiores.
+
+================================================================================
+§123. Prévia rápida de ML sobre as janelas do §117 (sem Docker, sem gráficos)
+================================================================================
+Pergunta do usuário: "a ML vai detectar bem?". Rodado ad hoc (não é a fase
+  de ML do plano): estatísticas de janela já extraídas (log razão média/
+  baseline, razão de desvio, max Z, CUSUM/σ, ΔH, entropia, razão de nº de
+  requisições), janelas t0=20..140 de execuções com ataque (POS principal)
+  x mesmas janelas de execuções sem ataque (NEG); validação cruzada
+  agrupada por configuração (GroupKFold 5). Resultado em
+  experiment_results/deteccao_pos_lb/resultados/T15_previa_ml.csv.
+  AUC (todas as janelas de ataque): regra da média 0,995 / logística 0,997
+  / gradient boosting 0,999. Ataques com dano: 1,000 nos três.
+  Detecção com limiar de 1% de falso alarme por janela:
+    intensidade 1%:              média 79,1 | logística 88,7 | GB 96,5
+    intensidade 1%, carga<=80:   média 47,3 | logística 65,9 | GB 89,9
+Leitura: a ML detecta bem, mas o ganho sobre a regra simples só aparece
+  nos ataques fracos (que não causam dano). Ressalvas: negativas vêm de
+  famílias diferentes das positivas (risco de aprender diferença de
+  família, não de ataque); features de pacote ausentes (captura vazia).
+
+================================================================================
+§124. Registro dos gráficos centrais (17, 27, 58, 60) + diagnóstico profundo
+  de Z-score / CUSUM / entropia (sem gráficos)
+================================================================================
+Usuário escolheu 17, 27, 58 e 60 como gráficos centrais do TCC. Verificado
+  que nenhum arquivo de dado das fontes desses 4 gráficos foi modificado
+  depois da geração de cada PNG (find -newer = 0 nos 5 diretórios-fonte);
+  os testes posteriores (§118-§123) gravaram só em diretórios próprios.
+  Os 4 usam o mesmo regime: código pós-correção, dataset recoletado,
+  captura desligada. Criado REGISTRO_GRAFICOS_CENTRAIS.txt (raiz) com
+  script, data de geração, md5 do PNG, descrição e impressão digital
+  (md5 de nomes+tamanhos) de cada diretório-fonte.
+Criado deteccao_pos_lb_diagnostico_metodos.py (diagnóstico por janela,
+  4303 janelas sem ataque x 11596 com ataque; saída
+  resultados/T16_diagnostico_metodos_janelas.csv.gz). Achados:
+  - Z: ~3244 amostras/janela; mesmo gaussiano, P(>=1 |z|>3,5) = 78%.
+    RTT real: assimetria 2,9, curtose em excesso 14, 1,22% das amostras
+    com |z|>3,5 (26x o gaussiano) -> 98,7% das janelas sem ataque alarmam.
+    Pior: Z máx mediano é MENOR com ataque (8,2) que sem (9,7) -- Z compara
+    com a janela anterior, que durante ataque sustentado também é ataque;
+    só detecta mudança, não estado. Nenhum limiar separa (z=20: 5,3% sem
+    ataque x 16,2% com ataque).
+  - CUSUM: 88,8% das janelas sem ataque passam de 5σ em algum instante,
+    17,7% no fim da janela (o alarme só é lido no fim); 77,7% têm ao menos
+    1 amostra > μ+5,5σ, que sozinha cruza h. MAS o sinal é forte: CUSUM/σ
+    mediano no fim da janela = 0 sem ataque x 90.912 com ataque. Com
+    h=100σ: 4,7% sem ataque x 95,9% com ataque, 100% com dano. Limiar
+    5σ descalibrado ~2 ordens de grandeza; falso alarme cresce com a carga
+    (9,5% -> 27,4%).
+  - Entropia: bins de largura fixa na faixa min..max do ARQUIVO; máximo/
+    mediana do arquivo = 13x (sem ataque) e 596x (com ataque) -> 91% / 99%
+    das amostras caem no 1º dos 10 bins, histograma degenerado, ΔH nunca
+    passa de 1,5. Falha de implementação (binning), não do conceito.
+
+================================================================================
+§125. CUSUM recalibrado: parâmetro cusum_h_sigma no EntCusumZV3 + gráficos
+  62 (alarme falso x carga x limiar) e 63 (detecção W-EDoS com h=1000σ)
+================================================================================
+EntCusumZV3.analisar_bursts_tunavel ganhou o parâmetro cusum_h_sigma
+  (limiar h do CUSUM em múltiplos do σ do baseline). Default = 5.0, que
+  mantém o comportamento original (todas as análises anteriores
+  continuam reprodutíveis); h=1000σ é passado explicitamente.
+Criado plot_cusum_calibracao.py (lê
+  experiment_results/deteccao_pos_lb/resultados/execucoes_avaliadas.csv,
+  windows.csv.gz e os rtt_log brutos do exemplo). Saídas em
+  graficos_apresentacao/04_pos_loadbalancer/:
+  - 62_cusum_alarme_falso_por_carga_e_limiar.png: % de execuções SEM
+    ataque com >=1 alarme do CUSUM nas 13 janelas (t=20-160 s), por faixa
+    de carga normal, uma curva por h. h=5σ: 47,2 / 56,8 / 70,2 / 93,3 /
+    88,9 / 65,4% (16-25 ... 400-640 rps). h=1000σ: 0 / 0 / 0 / 3,3 / 3,0
+    / 26,9%. h=10000σ: 0 / 0 / 0 / 0 / 2,0 / 21,2%. 1280-2560 rps fora do
+    gráfico (0% em todos os limiares por cegueira: desvio ~77 ms + teto
+    do gerador, §112).
+  - 63_cusum_1000sigma_deteccao_wedos.png:
+    (a) CUSUM/σ x tempo, execução S4_atk5pct_wu200000_mlfill_rep2
+        (normal 300 rps = 4 x 75 rps, WU=10; ataque 5% = 15 rps = 4 x 3,75
+        rps, WU=200.000; ataque 20-160 s de 180 s) x controle
+        normal_agg300_WU10_refined_rep10. 1º alarme em t=40 s (fim da 1ª
+        janela com ataque) nas 5 reps; SCALE_UP em t=105 s; CUSUM máx do
+        controle = 25,6σ.
+    (b) detecção com h=1000σ na grade W-EDoS inteira (S1-S4, WU 100k-500k):
+        controles normal_baseline 40/100/200/300 rps 2,5% (n=40); 0,5%:
+        100% (n=5); 1%: 96,6% (n=116, nenhuma com dano); 5%: 100% (n=79),
+        com dano 100% (n=29); 10%: 100% (n=95), com dano 100% (n=49).
+  Apenas o CUSUM isolado (sem a regra da média 1,8x e sem Z) é avaliado
+  no 63. Ressalva: o falso alarme a 400-640 rps (~27%) continua alto
+  mesmo com h=1000σ (perto do teto de capacidade o RTT normal deriva).
+
+================================================================================
+§126. Gráfico 63 (§125) separado em dois e simplificado a pedido do usuário
+================================================================================
+plot_cusum_calibracao.py: o painel duplo 63_cusum_1000sigma_deteccao_wedos.png
+  foi substituído no script por dois gráficos independentes:
+  - 63_cusum_exemplo_ataque_vs_normal.png: só o exemplo no tempo (mesmas
+    execuções do §125); eixo com rótulos "1 mil / 1 milhão", legenda em
+    linguagem simples, linha de 5σ removida, marcações "ALARME (t=40 s)" e
+    "autoscaler cria nova instância (t=105 s)".
+  - 64_cusum_deteccao_por_intensidade.png: uma barra por grupo (sem ataque,
+    0,5%, 1%, 5%, 10%) com "% e k de n testes"; dentro da barra, quantos
+    escalaram e quantos desses foram detectados. Barras de erro removidas
+    (valores e n escritos no gráfico). Números iguais aos do §125.
+  O PNG antigo 63_cusum_1000sigma_deteccao_wedos.png não foi apagado (fica
+  como versão anterior; script não o gera mais).
+
+================================================================================
+§127. Detecção no combinado rps10/WU=400k (fonte do gráfico 27) e no S8
+  inteiro do atacantes_intensidade_grid
+================================================================================
+Criado deteccao_combinado_s8.py (só tabelas; sem Docker). Mesmo protocolo
+  do §117 (13 janelas de 20 s, t0=20..140). Detectores: R1 original
+  (EntCusumZV3 padrão, h=5σ) e CUSUM sozinho com h=1000σ (§125).
+  Controles: normal_baseline agg40 e agg320 refined (10 reps cada).
+  Saídas: experiment_results/deteccao_pos_lb/resultados/
+  T17_combinado_s8_execucoes.csv e T17_combinado_s8_resumo.csv.
+Resultados: detecção 100% (R1 e CUSUM 1000σ, 13/13 janelas, 1º alarme
+  em t=40 s) no combinado (5/5) e em todas as 90 execuções do S8 (1-25%,
+  1/2/4 atacantes); 0/20 alarmes falsos nos controles (CUSUM máx mediano 10σ no
+  agg40 e 44σ no agg320; pior caso 150σ e 649σ). Escalonamento no S8: 1% nunca escala; 5% -> 2
+  instâncias; 10% -> 2-3; 15% -> 3-4; 20-25% -> 4 (máximo). Combinado
+  rps10/WU400k -> 4 instâncias em 5/5, 1º SCALE_UP em t=25 s.
+
+================================================================================
+§128. Gráfico 65 (S4 10% WU=400k: CPU/instâncias + RTT com veredito do
+  CUSUM) + ACHADO: saltos do relógio de parede no rtt_log (WSL2)
+================================================================================
+Criado plot_s4_10pct_cpu_rtt_cusum.py ->
+  graficos_apresentacao/04_pos_loadbalancer/65_s4_10pct_wu400k_cpu_e_rtt_cusum.png.
+  Execução wedos_grid/S4_atk10pct_wu400000_mlfill_rep3 (erro normal
+  mediano das 5 reps, 0,53%). (a) CPU + nº de instâncias no estilo do 27:
+  SCALE_UP em 25/45/80 s (1->2->3->4), SCALE_DOWN em 165 s. (b) RTT x
+  tempo com fundo pelo veredito do CUSUM h=1000σ a cada 10 s: 1º alarme
+  em t=30 s (fim da janela 10-30 s), DEPOIS do 1º SCALE_UP (25 s); o
+  CUSUM não zera após o fim do ataque (fica "ataque" até 180 s).
+ACHADO (não corrigido no código, só no gráfico): o timestamp do rtt_log
+  vem de time.time() (normal_traffic.py:45, traffic_injectorV0.py:41),
+  enquanto a simulação anda em time.monotonic(). No WSL2 o relógio de
+  parede salta ~3,6 s a cada ~36 s em relação ao monotonic. Execução do
+  65: 5 lacunas de 3,6 s, log com 198 s; descontando lacunas > 2 s a
+  duração fica 180,0 s e o RTT volta ao normal exatamente em 160 s.
+  Afeta 1174 das 1518 execuções do catálogo do §117 (rtt_dur > 185 s;
+  mediana 193,6 s, máx 206 s). Impacto: só o eixo de tempo do rtt_log
+  (valores de RTT vêm de diferenças de monotonic, intactos). Nas análises
+  do §117 as janelas t0=20..140 no relógio do log continuam dentro do
+  ataque real (fim real >= ~146 s); controles não dependem do
+  alinhamento -> conclusões mantidas, mas tempos de "1º alarme" e o
+  eixo do gráfico 63 estão no relógio do log (esticado). Correção
+  definitiva sugerida: gravar time.monotonic() relativo ao início
+  (pede aprovação; entra junto da T4).
+  Ajuste do 65 (pedido do usuário): (a) linha do limiar de scale down
+  (25%, config.CPU_THRESHOLD_SCALE_DOWN) adicionada e setas de SCALE_UP
+  removidas; (b) nuvem de pontos do RTT por requisição removida, fica só
+  o RTT médio por segundo.
+  Gráfico 63 refeito com a correção dos saltos de relógio
+  (plot_cusum_calibracao.py: serie_cusum desconta lacunas > 2 s; 1º
+  alarme recalculado na série corrigida, veredito no fim de cada janela
+  a cada 10 s a partir de t=20, igual ao 65). Mesmas execuções; 1º
+  alarme passa de t=40 s para t=30 s (antes só contavam janelas com
+  t0 >= 20; agora conta também a janela 10-30 s, como no 65); folga até o
+  SCALE_UP (105 s) = 75 s. Curva do ataque estabiliza exatamente em
+  160 s. Gráficos 62/64 não mudam (contagem por execução, sem eixo de
+  tempo).
+  Gráfico 65 ampliado (pedido do usuário): painel (b) virou RTT médio por
+  segundo (com linha de 1,8x o baseline) + 4 faixas com o veredito de cada
+  detector do EntCusumZV3 a cada 10 s, recalculados no tempo corrigido:
+  CUSUM (h=1000σ), Z-score (>3,5 contra a janela anterior), entropia
+  (ΔH>1,5, 10 faixas min..max do arquivo) e combinado (média > 1,8x E
+  (Z OU CUSUM>h)). Nas 13 janelas inteiras do ataque: CUSUM 13/13, Z
+  13/13, entropia 0/13, combinado 13/13 (com h=5σ dá o mesmo). Legendas
+  dos dois painéis unificadas embaixo. Ressalva: o Z também alarma em
+  ~98,7% das janelas SEM ataque (§124), então o 13/13 dele aqui não é
+  evidência de detecção.
+  Gráfico 66 (pedido do usuário): mesmo desenho do 65 com o tráfego
+  normal isolado do S4 -- plot_s4_10pct_cpu_rtt_cusum.py ganhou a opção
+  --normal (sem ela gera o 65, inalterado). Execução
+  normal_baseline/normal_agg300_WU10_refined_rep10 (o mesmo controle do
+  63). Saída: 66_s4_normal_isolado_cpu_e_rtt_detectores.png. CPU ~19%,
+  1 instância o teste todo, RTT ~1,9 ms. Alarmes falsos nas 13 janelas:
+  CUSUM 1000σ 0/13, Z 13/13, entropia 0/13, combinado 0/13 (a regra da
+  média barra o Z).
+
+================================================================================
+§129. Calibração dos parâmetros dos detectores (EntCusumZV3) -- só dados
+  existentes, sem Docker
+================================================================================
+Criados calibracao_parametros_detectores.py (varredura nas janelas do §117,
+  windows.csv.gz) e calibracao_latencia_continua.py (avaliação contínua no
+  tempo corrigido do §128). Saídas: experiment_results/deteccao_pos_lb/
+  resultados/T18a..T18f.
+Populações (§117): NEG 331 sem ataque (WU=10, <=640 rps), POS 892 com
+  ataque (sem S9-S11), POS_D 300 com dano. Seleção nas reps ímpares,
+  avaliação nas pares; alarme por execução (>=1 de 13 janelas).
+Critério: faixa aceitável = FPR <= 5% e detecção do dano >= 95% (seleção).
+Resultados (avaliação, reps pares):
+  - CUSUM h: faixa aceitável 1.778σ-177.828σ (todo o dano é pego em toda a
+    faixa). 5σ: FPR 74,5%. 1000σ: FPR 5,0%, POS 95,7%. 2000σ: FPR 5,0%,
+    POS 94,5%. 18.000σ (centro log): FPR 3,5%, POS 80,1%. Escolha
+    recomendada 2000σ (menor h que cumpre FPR<=5% já na seleção; 1000σ é
+    praticamente igual, 6,3% na seleção).
+  - Média: faixa 1,32x-10x; 1,8x (padrão) FPR 4,3%, POS 91,1%; 1,5x FPR
+    5,7%, POS 95,7%. Padrão 1,8x mantido.
+  - Z: nenhum limiar serve (melhor: 30 -> FPR 13,5%, dano 62,6%).
+  - Entropia ΔH: nenhum limiar serve (melhor 0,2 -> FPR 8,5%, dano 75,7%);
+    problema é o binning (§124), não o limiar.
+  - Combinado: h não muda nada (Z sempre verdadeiro); sem Z, média 1,8x E
+    CUSUM 2000σ = FPR 3,7% / POS 90,8% (seleção).
+  - Todos os 54 ataques que escapam ao CUSUM 2000σ são 1% (e 5% no S5, 20
+    rps) sem dano (1 instância).
+  - FPR concentrado em 400-640 rps (21-29% em qualquer parâmetro; RTT normal
+    deriva perto da saturação); <=350 rps: 0-3%.
+Latência: avaliando só no fim das janelas (1ª em 40 s) o alarme chega
+  antes do 1º SCALE_UP em só 14% das execuções com dano (SCALE_UP mediano
+  25 s). Avaliando CONTINUAMENTE: CUSUM 2000σ alarma em 20,4 s (mediana),
+  100% antes do 1º SCALE_UP (folga mediana 4,8 s); média de 10 s a cada 1 s
+  > 1,8x: 21,0 s, 100% antes. FPR contínuo quase igual: CUSUM 2000σ 5,4%,
+  média 1,8x 4,5%. A latência é limitada pela cadência de verificação,
+  não pelo limiar.
+
+================================================================================
+§130. Testes de 200 s do S4 (1 rep) para ver os detectores após o ataque +
+  gráficos 67 e 68
+================================================================================
+Criado run_s4_200s.py -> experiment_results/s4_200s/: combinado
+  S4_atk10pct_wu400000_200s_rep1 (normal 4x75 rps WU=10 + 4x7,5 rps
+  WU=400.000, ataque 20-160 s) e normal_agg300_WU10_200s_rep1 (sem
+  ataque), --duration 200, captura vazia como nos dados originais.
+  Começou com 5 reps; a pedido do usuário o runner foi parado durante a
+  1ª execução (que terminou normalmente; arquivos movidos à mão com os
+  mesmos nomes) e o script ficou com REPS=[1].
+plot_s4_10pct_cpu_rtt_cusum.py ganhou --200s (com --normal opcional): gera
+  67_s4_10pct_wu400k_200s_cpu_e_rtt_detectores.png e
+  68_s4_normal_isolado_200s_cpu_e_rtt_detectores.png; 65/66 intocados
+  (md5 do 65 conferido igual).
+Resultados (67): SCALE_UP 25/45/65 s (1->4), SCALE_DOWN 165 e 185 s (fica
+  com 2 instâncias até o fim). Janelas no ataque 13/13 para CUSUM 1000σ,
+  Z e combinado; entropia 0/13. Depois do ataque (3 janelas inteiras,
+  fim 180-200 s): CUSUM 3/3 (continua "ataque": soma ~10^6σ, dreno
+  ~190σ/s), Z 2/3, combinado 1/3 (só a janela 160-180 s, que pega a
+  cauda de RTT logo após o fim; volta a normal a partir de 190 s),
+  entropia 0/3. (68): 0/17 alarmes falsos para CUSUM, entropia e
+  combinado; Z 17/17.
+
+================================================================================
+§131. CUSUM com reset após alarme nos gráficos 67/68 (aprovado pelo usuário)
+================================================================================
+plot_s4_10pct_cpu_rtt_cusum.py ganhou --reset (só vale com --200s): quando a
+  soma do CUSUM passa de h=1000σ registra um disparo e volta a 0; janela =
+  "ataque" se houve >= 1 disparo dentro dela. O combinado usa esse CUSUM.
+  Saídas novas 67_..._reset.png e 68_..._reset.png; 65-68 originais
+  intocados (md5 conferidos). EntCusumZV3.py NÃO foi alterado.
+Resultados: (67) 1.135 disparos, 1º em 20,22 s, último em 162,56 s (12
+  depois de 160 s, cauda de RTT logo após o fim do ataque). Janelas: 13/13
+  no ataque; depois do ataque 1/3 (só a 160-180 s; volta a "normal" a
+  partir de 190 s), antes era 3/3. Combinado igual (13/13, 1/3).
+  (68) 0 disparos, 0/17 alarmes falsos.
+  Relatório do reset em linguagem simples, com referências e resultados:
+  RELATORIO_CUSUM_RESET.txt (raiz).
+
+================================================================================
+§132. Detecção em todo o atacantes_intensidade_grid + tabela de células
+  "furtivas que escalaram"
+================================================================================
+Criado deteccao_atacantes_intensidade_furtivos.py (só tabelas; tempo do
+  rtt_log corrigido, §128; 13 janelas t0=20..140). Detectores: R1
+  (EntCusumZV3 padrão), CUSUM 1000σ, média 1,8x. Furtiva e escalou =
+  SCALE_UP em (20,160] s sem nenhum alarme. Saídas em
+  experiment_results/deteccao_pos_lb/resultados/:
+  T19_atacantes_intensidade_execucoes.csv (702) e
+  T19_atacantes_intensidade_celulas.csv (234 células).
+Resultado: 419 execuções escalaram no ataque; R1 e média detectaram 419/419;
+  CUSUM 1000σ 418/419 -- a exceção é S9_atk1pct_att1_wu200000_rep3
+  (S9, teto de GIL; CUSUM máx 1135σ no meio de uma janela, abaixo de
+  1000σ nos fins de janela; seria pego com verificação contínua, §129).
+  Fora de S9-S11: 0 execuções furtivas que escalaram. S10/S11: 180/180
+  execuções escalaram no arranque (<=20 s), inválidas para atribuir dano.
+  Ataques não detectados são todos sem dano (1% em S1/S2/S5/S6, 5% em S5).
+
+================================================================================
+§133. Gráficos 69-71: mesmo desenho do 67 (CUSUM com reset) com normal WU=10.000
+  a 320 rps -- dados existentes do confirmacao_320 (§121), sem rodar Docker
+================================================================================
+plot_s4_10pct_cpu_rtt_cusum.py ganhou --c320=<0|1|5>: lê
+  experiment_results/confirmacao_320/ (normal 4x80 rps WU=10.000, ataque
+  4 atacantes WU=200.000, 180 s, ataque 20-160 s), usa a rep de erro normal
+  mediano das 3 e CUSUM com reset. Saídas em 04_pos_loadbalancer/:
+  69_320rps_wu10k_atk0pct_..._reset.png (rep3), 70_..._atk1pct_... (rep2),
+  71_..._atk5pct_... (rep3). 65-68 intocados (md5 conferidos).
+Resultados: nos três o sistema escala aos 5 s pelo pico de CPU do arranque
+  (CPU ~87-104% na 1ª leitura), e o baseline (0-20 s) é aprendido nessa
+  sobrecarga (RTT médio de base ~22-50 ms, contra ~6-8 ms depois). Com isso
+  o piso de 1,8x fica em ~40-90 ms e o CUSUM nunca acumula: CUSUM com reset,
+  combinado e entropia 0/13 nas janelas do ataque (0/15 no controle); Z
+  12-15 de 13/15 (sempre). 1%: SCALE_UP extra aos 60 s (2->3) sem nenhum
+  alarme; 5%: 2->3->4 (25 e 45 s) sem nenhum alarme. Não é furtividade real:
+  é o artefato de "baseline contaminado" do §121 -- o detector compara com
+  um normal inflado. Rodapé dos gráficos traz o aviso.
+
+================================================================================
+§134. RTT por requisição com 1 instância: normal WU=10.000 x ataque WU=200.000
+  (consulta aos dados existentes, sem código novo) -- CORRIGE o §119
+================================================================================
+Tempo do rtt_log corrigido (§128); só períodos com 1 instância.
+  Normal isolado WU=10.000 (normal_wu_teste, 60 s, t>=5 s): média 5,0 /
+  4,6 / 4,0 / 3,5 / 4,4 ms a 20 / 40 / 80 / 160 / 320 rps (medianas 2,9-
+  4,6 ms; CPU 6-51%). 640 rps escala aos 5 s (sem período de 1 instância).
+  Ataque isolado WU=200.000, 4 atacantes, sem tráfego normal
+  (desempate_combinado_isolado isolado_rps*_att4_WU200000, 5 reps, 20-160 s):
+  4 rps -> média 26,9 ms (mediana 24,1; p95 45); 20 rps -> 38,9 ms (mediana
+  30,9); 40 rps -> 35,4 ms (só ~1.180 amostras antes de escalar).
+  Ataque dentro do combinado normal WU=10.000 a 160 rps (ataque_wu_teste,
+  coluna avg_rtt_ms das linhas "attack" = só RTT do ataque): 28,6 ms (1%),
+  37,2 ms (5%), 75,4 ms (10%).
+CORREÇÃO do §119: lá foi ESTIMADO (indiretamente, pela elevação da média)
+  que cada requisição de ataque levaria ~400 ms, contraste ~100x. Medido
+  direto, uma requisição WU=200.000 leva ~25-40 ms com 1 instância: ~6-8x
+  uma requisição normal WU=10.000 (~3,5-5 ms) e ~15x uma WU=10 (~1,5-2 ms).
+  A estimativa do §119 estava errada; a elevação grande da média de RTT nos
+  ataques vem principalmente de fila/saturação de CPU e da cauda de ~1 s
+  (requisições com ~1.000-1.100 ms vistas nos rtt_logs, compatíveis com
+  retransmissão TCP), não do tempo de serviço de cada requisição de ataque.

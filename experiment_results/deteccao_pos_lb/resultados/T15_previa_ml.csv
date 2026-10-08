@@ -1,0 +1,16 @@
+metodo,subconjunto,n_jan_ataque,AUC,deteccao_a_1pct_FP
+regra da média (só razão),todas as janelas de ataque,11596,0.995,94.6
+regra da média (só razão),ataques COM dano,3900,1.0,100.0
+regra da média (só razão),ataques SEM dano,7696,0.993,91.9
+regra da média (só razão),intensidade 1%,2964,0.984,79.1
+regra da média (só razão),"intensidade 1%, carga <=80 rps",819,0.955,47.3
+logística,todas as janelas de ataque,11596,0.997,97.0
+logística,ataques COM dano,3900,1.0,100.0
+logística,ataques SEM dano,7696,0.995,95.5
+logística,intensidade 1%,2964,0.989,88.7
+logística,"intensidade 1%, carga <=80 rps",819,0.97,65.9
+gradient boosting,todas as janelas de ataque,11596,0.999,99.1
+gradient boosting,ataques COM dano,3900,1.0,100.0
+gradient boosting,ataques SEM dano,7696,0.999,98.6
+gradient boosting,intensidade 1%,2964,0.997,96.5
+gradient boosting,"intensidade 1%, carga <=80 rps",819,0.991,89.9

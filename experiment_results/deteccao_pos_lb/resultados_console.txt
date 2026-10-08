@@ -1,0 +1,348 @@
+Tamanhos: {'POS (ataque, principal)': 892, 'POS_D (ataque com dano)': 300, 'POS_ND (ataque sem dano)': 592, 'NEG (sem ataque, WU=10, <=640)': 331, 'NEG_ALL (todas sem ataque)': 355, 'GIL (S9-S11, separado)': 270}
+Excluídas por intervalo de ataque atípico: ['wedos_grid/S2_atk5pct_wu400000_mlfill_rep4']
+
+=== T1 ponto de operação original (z=3.5, piso 1.8x, h=5σ, ΔH=1.5) ===
+                     populacao         regra  n_exec          janela_pct       execucao_pct
+       POS (ataque, principal)  R1_combinada     892    83.0 [80.8-85.2]   91.7 [89.7-93.3]
+       POS (ataque, principal)          R2_z     892    94.6 [94.2-95.0] 100.0 [99.6-100.0]
+       POS (ataque, principal)      R3_cusum     892    97.8 [97.1-98.5] 100.0 [99.6-100.0]
+       POS (ataque, principal)   R4_entropia     892       0.0 [0.0-0.1]      0.4 [0.2-1.1]
+       POS (ataque, principal) R5_z_ou_cusum     892  100.0 [99.9-100.0] 100.0 [99.6-100.0]
+       POS_D (ataque com dano)  R1_combinada     300 100.0 [100.0-100.0] 100.0 [98.7-100.0]
+       POS_D (ataque com dano)          R2_z     300    93.2 [92.5-93.9] 100.0 [98.7-100.0]
+       POS_D (ataque com dano)      R3_cusum     300 100.0 [100.0-100.0] 100.0 [98.7-100.0]
+       POS_D (ataque com dano)   R4_entropia     300       0.1 [0.0-0.2]      1.3 [0.5-3.4]
+       POS_D (ataque com dano) R5_z_ou_cusum     300 100.0 [100.0-100.0] 100.0 [98.7-100.0]
+      POS_ND (ataque sem dano)  R1_combinada     592    74.4 [71.3-77.5]   87.5 [84.6-89.9]
+      POS_ND (ataque sem dano)          R2_z     592    95.3 [94.8-95.8] 100.0 [99.4-100.0]
+      POS_ND (ataque sem dano)      R3_cusum     592    96.8 [95.6-97.8] 100.0 [99.4-100.0]
+      POS_ND (ataque sem dano)   R4_entropia     592       0.0 [0.0-0.0]      0.0 [0.0-0.6]
+      POS_ND (ataque sem dano) R5_z_ou_cusum     592  100.0 [99.9-100.0] 100.0 [99.4-100.0]
+NEG (sem ataque, WU=10, <=640)  R1_combinada     331       0.5 [0.3-0.9]      3.9 [2.3-6.6]
+NEG (sem ataque, WU=10, <=640)          R2_z     331    98.7 [98.3-99.1] 100.0 [98.9-100.0]
+NEG (sem ataque, WU=10, <=640)      R3_cusum     331    17.7 [15.7-19.8]   75.2 [70.3-79.6]
+NEG (sem ataque, WU=10, <=640)   R4_entropia     331       0.0 [0.0-0.0]      0.0 [0.0-1.1]
+NEG (sem ataque, WU=10, <=640) R5_z_ou_cusum     331    99.1 [98.7-99.4] 100.0 [98.9-100.0]
+    NEG_ALL (todas sem ataque)  R1_combinada     355       0.5 [0.3-0.8]      3.7 [2.2-6.2]
+    NEG_ALL (todas sem ataque)          R2_z     355    98.8 [98.4-99.2] 100.0 [98.9-100.0]
+    NEG_ALL (todas sem ataque)      R3_cusum     355    16.9 [14.9-18.9]   72.7 [67.8-77.1]
+    NEG_ALL (todas sem ataque)   R4_entropia     355       0.0 [0.0-0.0]      0.0 [0.0-1.1]
+    NEG_ALL (todas sem ataque) R5_z_ou_cusum     355    99.1 [98.8-99.5] 100.0 [98.9-100.0]
+        GIL (S9-S11, separado)  R1_combinada     270    97.5 [96.2-98.7] 100.0 [98.6-100.0]
+        GIL (S9-S11, separado)          R2_z     270    84.4 [82.5-86.1] 100.0 [98.6-100.0]
+        GIL (S9-S11, separado)      R3_cusum     270    97.0 [95.5-98.4] 100.0 [98.6-100.0]
+        GIL (S9-S11, separado)   R4_entropia     270       1.7 [1.3-2.1]   21.9 [17.3-27.2]
+        GIL (S9-S11, separado) R5_z_ou_cusum     270 100.0 [100.0-100.0] 100.0 [98.6-100.0]
+
+=== T3 furtividade (dano sem alarme) ===
+estrato         regra  n_dano  furtivos              pct
+  TODOS  R1_combinada     300         0    0.0 [0.0-1.3]
+  TODOS          R2_z     300         0    0.0 [0.0-1.3]
+  TODOS      R3_cusum     300         0    0.0 [0.0-1.3]
+  TODOS   R4_entropia     300       296 98.7 [96.6-99.5]
+  TODOS R5_z_ou_cusum     300         0    0.0 [0.0-1.3]
+                                 estrato        regra  n_dano  furtivos            pct
+  atacantes_intensidade_grid | intens=5% R1_combinada      18         0 0.0 [0.0-17.6]
+ atacantes_intensidade_grid | intens=10% R1_combinada      23         0 0.0 [0.0-14.3]
+ atacantes_intensidade_grid | intens=15% R1_combinada      37         0  0.0 [0.0-9.4]
+ atacantes_intensidade_grid | intens=20% R1_combinada      40         0  0.0 [0.0-8.8]
+ atacantes_intensidade_grid | intens=25% R1_combinada      45         0  0.0 [0.0-7.9]
+              combined_sweep | intens=5% R1_combinada      18         0 0.0 [0.0-17.6]
+             combined_sweep | intens=10% R1_combinada      26         0 0.0 [0.0-12.9]
+desempate_combinado_isolado | intens=-1% R1_combinada      15         0 0.0 [0.0-20.4]
+                  wedos_grid | intens=5% R1_combinada      29         0 0.0 [0.0-11.7]
+                 wedos_grid | intens=10% R1_combinada      49         0  0.0 [0.0-7.3]
+
+=== T4 latência ===
+        regra  n_detectadas  lat_p25  lat_mediana  lat_p75  pct_ate_30s
+ R1_combinada           820     10.0         10.0     10.0         97.8
+         R2_z           892     10.0         10.0     10.0        100.0
+     R3_cusum           892     10.0         10.0     10.0         99.3
+  R4_entropia             9     10.0         10.0     20.0        100.0
+R5_z_ou_cusum           892     10.0         10.0     10.0        100.0
+
+=== T5 cobertura ===
+                     populacao  n_exec janelas_perdidas_pct  exec_com_perda_pct  erros_ataque_mediana  erros_normal_mediana
+       POS (ataque, principal)     892        0.0 [0.0-0.0]                 0.0                   0.0                   0.0
+       POS_D (ataque com dano)     300        0.0 [0.0-0.0]                 0.0                  13.5                 213.5
+NEG (sem ataque, WU=10, <=640)     331        0.0 [0.0-0.0]                 0.0                   NaN                   0.0
+        GIL (S9-S11, separado)     270        0.0 [0.0-0.0]                 0.0                 575.5                1028.0
+
+=== T6 FPR estratos (negativas) ===
+              familia faixa_carga  normal_wu  escalou  n  fpr_exec_R1_combinada  fpr_exec_R2_z  fpr_exec_R3_cusum  fpr_exec_R4_entropia  fpr_exec_R5_z_ou_cusum
+     clients_rps_grid        <=50         10    False 50                    0.0          100.0               36.0                   0.0                   100.0
+     clients_rps_grid      51-120         10    False 25                    0.0          100.0               60.0                   0.0                   100.0
+     clients_rps_grid     121-250         10    False 25                    0.0          100.0              100.0                   0.0                   100.0
+     clients_rps_grid     251-450         10    False 30                    3.3          100.0               86.7                   0.0                   100.0
+     clients_rps_grid     451-700         10    False 30                   36.7          100.0               80.0                   0.0                   100.0
+      normal_baseline        <=50         10    False 21                    0.0          100.0               85.7                   0.0                   100.0
+      normal_baseline        <=50        100    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline        <=50       1000    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline        <=50       5000    False  1                    0.0          100.0                0.0                   0.0                   100.0
+      normal_baseline      51-120         10    False 21                    0.0          100.0               81.0                   0.0                   100.0
+      normal_baseline      51-120        100    False  1                    0.0          100.0                0.0                   0.0                   100.0
+      normal_baseline      51-120       1000    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline      51-120       5000    False  1                    0.0          100.0                0.0                   0.0                   100.0
+      normal_baseline     121-250         10    False 65                    0.0          100.0               87.7                   0.0                   100.0
+      normal_baseline     121-250        100    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     121-250       1000    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     121-250       5000    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     251-450         10    False 48                    2.1          100.0               91.7                   0.0                   100.0
+      normal_baseline     251-450        100    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     251-450       1000    False  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     251-450       5000     True  1                    0.0          100.0              100.0                   0.0                   100.0
+      normal_baseline     451-700         10    False 10                    0.0          100.0                0.0                   0.0                   100.0
+      normal_baseline        >700         10     True 10                    0.0          100.0                0.0                   0.0                   100.0
+normal_isolado_pos_lb        <=50         10    False  2                    0.0          100.0              100.0                   0.0                   100.0
+normal_isolado_pos_lb      51-120         10    False  1                    0.0          100.0              100.0                   0.0                   100.0
+normal_isolado_pos_lb     121-250         10    False  1                    0.0          100.0              100.0                   0.0                   100.0
+normal_isolado_pos_lb     251-450         10    False  1                    0.0          100.0              100.0                   0.0                   100.0
+normal_isolado_pos_lb     451-700         10    False  1                    0.0          100.0                0.0                   0.0                   100.0
+normal_isolado_pos_lb        >700         10     True  2                    0.0          100.0                0.0                   0.0                   100.0
+
+=== T2 (resumo): detecção por execução por família x intensidade ===
+                                     n  dano     R1   R2   R3     R4
+familia                     pct                                     
+atacantes_intensidade_grid   1.0    72     0  0.458  1.0  1.0  0.000
+                             5.0    72    18  0.931  1.0  1.0  0.000
+                             10.0   72    23  1.000  1.0  1.0  0.000
+                             15.0   72    37  1.000  1.0  1.0  0.000
+                             20.0   72    40  1.000  1.0  1.0  0.000
+                             25.0   72    45  1.000  1.0  1.0  0.014
+combined_sweep               1.0    40     0  0.875  1.0  1.0  0.000
+                             5.0    40    18  1.000  1.0  1.0  0.000
+                             10.0   40    26  1.000  1.0  1.0  0.075
+desempate_combinado_isolado -1.0    45    15  0.911  1.0  1.0  0.000
+wedos_grid                   0.5     5     0  1.000  1.0  1.0  0.000
+                             1.0   116     0  0.819  1.0  1.0  0.000
+                             5.0    79    29  1.000  1.0  1.0  0.000
+                             10.0   95    49  1.000  1.0  1.0  0.000
+
+=== T7 AUC (independente de limiar) ===
+              positivos              estrato  n_pos  n_neg       score   auc        ic95
+POS_D (ataque com dano)      todas as cargas    300    331     s_ratio 1.000 1.000-1.000
+POS_D (ataque com dano)      todas as cargas    300    331         s_z 0.761 0.721-0.802
+POS_D (ataque com dano)      todas as cargas    300    331     s_cusum 1.000 1.000-1.000
+POS_D (ataque com dano)      todas as cargas    300    331        s_dH 0.900 0.874-0.925
+POS_D (ataque com dano)      todas as cargas    300    331 s_margem_R1 1.000 1.000-1.000
+POS_D (ataque com dano)    carga normal 0-50     15     73     s_ratio 1.000 1.000-1.000
+POS_D (ataque com dano)    carga normal 0-50     15     73         s_z 0.402 0.252-0.573
+POS_D (ataque com dano)    carga normal 0-50     15     73     s_cusum 1.000 1.000-1.000
+POS_D (ataque com dano)    carga normal 0-50     15     73        s_dH 0.982 0.950-1.000
+POS_D (ataque com dano)    carga normal 0-50     15     73 s_margem_R1 1.000 1.000-1.000
+POS_D (ataque com dano)  carga normal 51-120     30     47     s_ratio 1.000 1.000-1.000
+POS_D (ataque com dano)  carga normal 51-120     30     47         s_z 0.848 0.734-0.939
+POS_D (ataque com dano)  carga normal 51-120     30     47     s_cusum 1.000 1.000-1.000
+POS_D (ataque com dano)  carga normal 51-120     30     47        s_dH 0.564 0.414-0.703
+POS_D (ataque com dano)  carga normal 51-120     30     47 s_margem_R1 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 121-250    105     91     s_ratio 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 121-250    105     91         s_z 0.775 0.702-0.843
+POS_D (ataque com dano) carga normal 121-250    105     91     s_cusum 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 121-250    105     91        s_dH 0.928 0.884-0.964
+POS_D (ataque com dano) carga normal 121-250    105     91 s_margem_R1 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 251-450    150     79     s_ratio 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 251-450    150     79         s_z 0.742 0.675-0.804
+POS_D (ataque com dano) carga normal 251-450    150     79     s_cusum 1.000 1.000-1.000
+POS_D (ataque com dano) carga normal 251-450    150     79        s_dH 0.959 0.926-0.987
+POS_D (ataque com dano) carga normal 251-450    150     79 s_margem_R1 1.000 1.000-1.000
+POS (ataque, principal)      todas as cargas    892    331     s_ratio 0.991 0.986-0.995
+POS (ataque, principal)      todas as cargas    892    331         s_z 0.610 0.576-0.643
+POS (ataque, principal)      todas as cargas    892    331     s_cusum 0.981 0.975-0.987
+POS (ataque, principal)      todas as cargas    892    331        s_dH 0.623 0.591-0.653
+POS (ataque, principal)      todas as cargas    892    331 s_margem_R1 0.991 0.986-0.995
+POS (ataque, principal)    carga normal 0-50    258     73     s_ratio 0.998 0.993-1.000
+POS (ataque, principal)    carga normal 0-50    258     73         s_z 0.539 0.467-0.605
+POS (ataque, principal)    carga normal 0-50    258     73     s_cusum 0.992 0.985-0.997
+POS (ataque, principal)    carga normal 0-50    258     73        s_dH 0.660 0.596-0.718
+POS (ataque, principal)    carga normal 0-50    258     73 s_margem_R1 0.998 0.993-1.000
+POS (ataque, principal)  carga normal 51-120    217     47     s_ratio 1.000 1.000-1.000
+POS (ataque, principal)  carga normal 51-120    217     47         s_z 0.864 0.817-0.906
+POS (ataque, principal)  carga normal 51-120    217     47     s_cusum 0.992 0.982-0.998
+POS (ataque, principal)  carga normal 51-120    217     47        s_dH 0.263 0.203-0.328
+POS (ataque, principal)  carga normal 51-120    217     47 s_margem_R1 1.000 1.000-1.000
+POS (ataque, principal) carga normal 121-250    219     91     s_ratio 1.000 1.000-1.000
+POS (ataque, principal) carga normal 121-250    219     91         s_z 0.692 0.629-0.747
+POS (ataque, principal) carga normal 121-250    219     91     s_cusum 1.000 0.999-1.000
+POS (ataque, principal) carga normal 121-250    219     91        s_dH 0.528 0.464-0.589
+POS (ataque, principal) carga normal 121-250    219     91 s_margem_R1 1.000 1.000-1.000
+POS (ataque, principal) carga normal 251-450    198     79     s_ratio 1.000 1.000-1.000
+POS (ataque, principal) carga normal 251-450    198     79         s_z 0.607 0.539-0.675
+POS (ataque, principal) carga normal 251-450    198     79     s_cusum 1.000 1.000-1.000
+POS (ataque, principal) carga normal 251-450    198     79        s_dH 0.828 0.778-0.877
+POS (ataque, principal) carga normal 251-450    198     79 s_margem_R1 1.000 1.000-1.000
+
+=== T8 Neyman-Pearson hold-out ===
+       regra  alvo_fpr piso     z h_sigma  sel_TPR_dano_impar  sel_FPR_impar   holdout_TPR_dano holdout_TPR_dano_intens_ate5 holdout_TPR_todos_ataques    holdout_FPR  n_neg_holdout  n_dano_holdout
+R1_combinada       5.0  1.3   2.0     2.0               100.0            4.7 100.0 [96.5-100.0]           100.0 [87.1-100.0]          97.9 [95.6-99.0] 6.4 [3.4-11.7]            141             107
+        R2_z       5.0    -  55.0       -                44.0            4.7   44.9 [35.8-54.3]             38.5 [22.4-57.5]          34.6 [29.6-39.9]  5.0 [2.4-9.9]            141             107
+piso_sozinho       5.0  1.3     -       -               100.0            4.7 100.0 [96.5-100.0]           100.0 [87.1-100.0]          97.9 [95.6-99.0] 6.4 [3.4-11.7]            141             107
+       regra  alvo_fpr  piso    z h_sigma  sel_TPR_dano_impar  sel_FPR_impar   holdout_TPR_dano holdout_TPR_dano_intens_ate5 holdout_TPR_todos_ataques   holdout_FPR  n_neg_holdout  n_dano_holdout
+R1_combinada       1.0   4.0  2.0     2.0               100.0            0.5 100.0 [96.5-100.0]           100.0 [87.1-100.0]          72.5 [67.4-77.0] 0.7 [0.1-3.9]            141             107
+piso_sozinho       1.0   4.0    -       -               100.0            0.5 100.0 [96.5-100.0]           100.0 [87.1-100.0]          72.5 [67.4-77.0] 0.7 [0.1-3.9]            141             107
+
+=== T9 logística ===
+            alvo         modelo  auc_cv  logloss_cv   n  taxa_det
+det_R1_combinada         volume   0.872       0.210 892      91.7
+det_R1_combinada       trabalho   0.942       0.174 892      91.7
+det_R1_combinada trabalho+carga   0.967       0.117 892      91.7
+det_R1_combinada   volume+carga   0.932       0.176 892      91.7
+det_R1_combinada       completo   0.982       0.088 892      91.7
+            alvo                variavel  coef           ic95  odds_ratio_por_10x
+det_R1_combinada log10 razão de trabalho 7.397 5.655 a 11.391             1630.75
+det_R1_combinada   log10 rps normal real 6.317  4.805 a 9.427              553.87
+                  n  det_R1  det_R2  det_R3   dano
+faixa_trabalho                                    
+<316            141    57.4   100.0   100.0    0.0
+316-1k          134    90.3   100.0   100.0    6.0
+1k-3.2k         360    99.7   100.0   100.0   41.4
+3.2k-10k        236   100.0   100.0   100.0   54.2
+10k-32k          16   100.0   100.0   100.0   62.5
+>32k              5   100.0   100.0   100.0  100.0
+
+=== T10 sensibilidade de limiares ===
+parametro  valor        regra  tpr_exec_dano  tpr_exec_todos  fpr_exec
+    ratio    1.2 R1_combinada          100.0            99.6       6.9
+    ratio    1.2         R2_z          100.0           100.0     100.0
+    ratio    1.2     R3_cusum          100.0           100.0      75.2
+    ratio    1.4 R1_combinada          100.0            96.3       4.8
+    ratio    1.4         R2_z          100.0           100.0     100.0
+    ratio    1.4     R3_cusum          100.0           100.0      75.2
+    ratio    1.6 R1_combinada          100.0            95.0       4.2
+    ratio    1.6         R2_z          100.0           100.0     100.0
+    ratio    1.6     R3_cusum          100.0           100.0      75.2
+    ratio    1.8 R1_combinada          100.0            91.7       3.9
+    ratio    1.8         R2_z          100.0           100.0     100.0
+    ratio    1.8     R3_cusum          100.0           100.0      75.2
+    ratio    2.0 R1_combinada          100.0            90.0       3.6
+    ratio    2.0         R2_z          100.0           100.0     100.0
+    ratio    2.0     R3_cusum          100.0           100.0      75.2
+    ratio    2.2 R1_combinada          100.0            86.5       3.0
+    ratio    2.2         R2_z          100.0           100.0     100.0
+    ratio    2.2     R3_cusum          100.0           100.0      75.2
+    ratio    2.4 R1_combinada          100.0            84.5       2.7
+    ratio    2.4         R2_z          100.0           100.0     100.0
+    ratio    2.4     R3_cusum          100.0           100.0      75.2
+    ratio    2.6 R1_combinada          100.0            82.1       2.1
+    ratio    2.6         R2_z          100.0           100.0     100.0
+    ratio    2.6     R3_cusum          100.0           100.0      75.2
+    ratio    2.8 R1_combinada          100.0            80.3       1.8
+    ratio    2.8         R2_z          100.0           100.0     100.0
+    ratio    2.8     R3_cusum          100.0           100.0      75.2
+    ratio    3.0 R1_combinada          100.0            77.6       1.5
+    ratio    3.0         R2_z          100.0           100.0     100.0
+    ratio    3.0     R3_cusum          100.0           100.0      75.2
+        z    2.0 R1_combinada          100.0            91.7       3.9
+        z    2.0         R2_z          100.0           100.0     100.0
+        z    2.0     R3_cusum          100.0           100.0      75.2
+        z    2.5 R1_combinada          100.0            91.7       3.9
+        z    2.5         R2_z          100.0           100.0     100.0
+        z    2.5     R3_cusum          100.0           100.0      75.2
+        z    3.0 R1_combinada          100.0            91.7       3.9
+        z    3.0         R2_z          100.0           100.0     100.0
+        z    3.0     R3_cusum          100.0           100.0      75.2
+        z    3.5 R1_combinada          100.0            91.7       3.9
+        z    3.5         R2_z          100.0           100.0     100.0
+        z    3.5     R3_cusum          100.0           100.0      75.2
+        z    4.0 R1_combinada          100.0            91.7       3.9
+        z    4.0         R2_z          100.0           100.0     100.0
+        z    4.0     R3_cusum          100.0           100.0      75.2
+        z    4.5 R1_combinada          100.0            91.7       3.9
+        z    4.5         R2_z          100.0           100.0     100.0
+        z    4.5     R3_cusum          100.0           100.0      75.2
+        z    5.0 R1_combinada          100.0            91.7       3.9
+        z    5.0         R2_z          100.0           100.0     100.0
+        z    5.0     R3_cusum          100.0           100.0      75.2
+        z    5.5 R1_combinada          100.0            91.7       3.9
+        z    5.5         R2_z          100.0           100.0     100.0
+        z    5.5     R3_cusum          100.0           100.0      75.2
+        z    6.0 R1_combinada          100.0            91.7       3.9
+        z    6.0         R2_z          100.0            99.8      99.7
+        z    6.0     R3_cusum          100.0           100.0      75.2
+        h    2.0 R1_combinada          100.0            91.7       3.9
+        h    2.0         R2_z          100.0           100.0     100.0
+        h    2.0     R3_cusum          100.0           100.0      85.2
+        h    3.0 R1_combinada          100.0            91.7       3.9
+        h    3.0         R2_z          100.0           100.0     100.0
+        h    3.0     R3_cusum          100.0           100.0      81.3
+        h    4.0 R1_combinada          100.0            91.7       3.9
+        h    4.0         R2_z          100.0           100.0     100.0
+        h    4.0     R3_cusum          100.0           100.0      77.3
+        h    5.0 R1_combinada          100.0            91.7       3.9
+        h    5.0         R2_z          100.0           100.0     100.0
+        h    5.0     R3_cusum          100.0           100.0      75.2
+        h    6.0 R1_combinada          100.0            91.7       3.9
+        h    6.0         R2_z          100.0           100.0     100.0
+        h    6.0     R3_cusum          100.0           100.0      73.1
+        h    7.0 R1_combinada          100.0            91.7       3.9
+        h    7.0         R2_z          100.0           100.0     100.0
+        h    7.0     R3_cusum          100.0           100.0      71.0
+        h    8.0 R1_combinada          100.0            91.7       3.9
+        h    8.0         R2_z          100.0           100.0     100.0
+        h    8.0     R3_cusum          100.0           100.0      68.6
+        h    9.0 R1_combinada          100.0            91.7       3.9
+        h    9.0         R2_z          100.0           100.0     100.0
+        h    9.0     R3_cusum          100.0           100.0      66.5
+        h   10.0 R1_combinada          100.0            91.7       3.9
+        h   10.0         R2_z          100.0           100.0     100.0
+        h   10.0     R3_cusum          100.0           100.0      64.4
+
+=== T10b sensibilidade ao tamanho de janela (ponto de operação original) ===
+ janela_s        regra  tpr_exec_dano  tpr_janela_todos  fpr_exec
+       10 R1_combinada          100.0              82.1       4.8
+       10         R2_z          100.0              92.9     100.0
+       10     R3_cusum          100.0              97.8      84.6
+       20 R1_combinada          100.0              83.0       3.9
+       20         R2_z          100.0              94.6     100.0
+       20     R3_cusum          100.0              97.8      75.2
+       30 R1_combinada          100.0              82.8       2.1
+       30         R2_z          100.0              94.9     100.0
+       30     R3_cusum          100.0              97.7      60.7
+
+=== T11 grupo GIL (S9-S11) ===
+               n  dano   R1   R2  base_rtt
+cenario pct                               
+S10     1.0   15  0.07  1.0  1.0     18.72
+        5.0   15  1.00  1.0  1.0     18.05
+        10.0  15  1.00  1.0  1.0     16.61
+        15.0  15  1.00  1.0  1.0     17.31
+        20.0  15  1.00  1.0  1.0     18.13
+        25.0  15  1.00  1.0  1.0     18.94
+S11     1.0   15  1.00  1.0  1.0     43.09
+        5.0   15  1.00  1.0  1.0     40.66
+        10.0  15  1.00  1.0  1.0     39.86
+        15.0  15  1.00  1.0  1.0     42.92
+        20.0  15  1.00  1.0  1.0     42.11
+        25.0  15  1.00  1.0  1.0     43.34
+S9      1.0   15  1.00  1.0  1.0      5.27
+        5.0   15  1.00  1.0  1.0      6.41
+        10.0  15  1.00  1.0  1.0      5.31
+        15.0  15  1.00  1.0  1.0      6.81
+        20.0  15  1.00  1.0  1.0      6.16
+        25.0  15  1.00  1.0  1.0      5.52
+
+=== T12 antigo x novo ===
+(A) wedos_grid pré-correção, configs com as duas condições:
+           n  configs  rtt_base_mediana  rtt_base_dp_mediana   dano     R1   R2     R3
+captura                                                                               
+False    213       59             1.903                0.907  0.385  0.944  1.0  1.000
+True      82       59            27.460               20.696  0.683  0.329  1.0  0.805
+Diferença pareada por config (captura ON - OFF): {'det_R1_combinada': '-54.4 pp [-66.8 a -41.8] (n_cfg=59)', 'det_R2_z': '0.0 pp [0.0 a 0.0] (n_cfg=59)', 'det_R3_cusum': '-18.1 pp [-27.1 a -9.6] (n_cfg=59)'}
+              dataset                     familia                      populacao   n  captura_pct  rtt_base_mediana  R1_combinada  R2_z  R3_cusum  R4_entropia  R5_z_ou_cusum
+ANTIGO (pré-correção)                  wedos_grid        POS (ataque, principal) 295         28.0              2.52          77.3 100.0      94.6          3.4          100.0
+ANTIGO (pré-correção)                  wedos_grid        POS_D (ataque com dano) 138         41.0              3.32          77.5 100.0      97.1          7.2          100.0
+ANTIGO (pré-correção)  atacantes_intensidade_grid        POS (ataque, principal) 425        100.0             30.78          52.0  97.9      79.8         11.1           98.4
+ANTIGO (pré-correção)  atacantes_intensidade_grid        POS_D (ataque com dano) 321        100.0             31.76          67.3  99.7      92.2         14.6          100.0
+ANTIGO (pré-correção) desempate_combinado_isolado        POS (ataque, principal)  44        100.0             16.30          68.2  86.4      90.9          6.8           97.7
+ANTIGO (pré-correção) desempate_combinado_isolado        POS_D (ataque com dano)  35        100.0             16.26          85.7  91.4     100.0          8.6          100.0
+ANTIGO (pré-correção)            clients_rps_grid NEG (sem ataque, WU=10, <=640) 160        100.0             28.37           0.0  41.2      13.8          0.0           46.9
+ANTIGO (pré-correção)             normal_baseline NEG (sem ataque, WU=10, <=640) 139        100.0             36.05           0.0  54.7      13.7          0.0           57.6
+  NOVO (pós-correção)                  wedos_grid        POS (ataque, principal) 295          0.0              1.98          92.9 100.0     100.0          0.0          100.0
+  NOVO (pós-correção)                  wedos_grid        POS_D (ataque com dano)  78          0.0              1.77         100.0 100.0     100.0          0.0          100.0
+  NOVO (pós-correção)              combined_sweep        POS (ataque, principal) 120          0.0              2.01          95.8 100.0     100.0          2.5          100.0
+  NOVO (pós-correção)              combined_sweep        POS_D (ataque com dano)  44          0.0              2.00         100.0 100.0     100.0          6.8          100.0
+  NOVO (pós-correção)  atacantes_intensidade_grid        POS (ataque, principal) 432          0.0              1.91          89.8 100.0     100.0          0.2          100.0
+  NOVO (pós-correção)  atacantes_intensidade_grid        POS_D (ataque com dano) 163          0.0              1.75         100.0 100.0     100.0          0.6          100.0
+  NOVO (pós-correção) desempate_combinado_isolado        POS (ataque, principal)  45          0.0              2.48          91.1 100.0     100.0          0.0          100.0
+  NOVO (pós-correção) desempate_combinado_isolado        POS_D (ataque com dano)  15          0.0              2.54         100.0 100.0     100.0          0.0          100.0
+  NOVO (pós-correção)            clients_rps_grid NEG (sem ataque, WU=10, <=640) 160          0.0              2.33           7.5 100.0      67.5          0.0          100.0
+  NOVO (pós-correção)             normal_baseline NEG (sem ataque, WU=10, <=640) 165          0.0              1.97           0.6 100.0      82.4          0.0          100.0

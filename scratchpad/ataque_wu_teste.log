@@ -1,0 +1,657 @@
+
+===== agg160_nwu10000_atk1pct_awu200000_rep1 =====
+Attacker RPS set to: 0.4
+Number of attackers set to: 4
+Simulation duration set to: 60
+Attack work units set to: 200000
+Normal traffic RPS per client set to: 40.0
+Normal traffic number of clients set to: 4
+Normal traffic work units set to: 10000
+Attack start time set to: 20
+Attack window duration set to: 40
+[Orchestrator] Initializing simulation environment...
+[Sniffer] Realtime tcpdump started on any
+[Sniffer] Label set to: benign
+[Autoscaler] Initialized.
+Attempting to build Docker image: edos_target_app:latest...
+Image edos_target_app:latest already exists. Skipping build.
+Docker network 'edos_network' already exists.
+[Orchestrator] Cleaning up any pre-existing simulation instances...
+Cleaning up all simulation instances...
+No simulation instances found to clean up.
+[Orchestrator] Starting initial 1 instance(s)...
+Attempting to start container target_instance_1 mapping container:80 to host:8080...
+Container c5aa1b6524 (target_instance_1) started. Accessible on host port 8080.
+[Autoscaler] Initial number of instances set to: 1
+[Orchestrator] 1 initial instance(s) running.
+[Orchestrator] Metrics will be logged to: simulation_metrics.csv
+[Orchestrator] Attack summary will be logged to: attack_summary_log.csv
+[Orchestrator] Normal traffic summary will be logged to: normal_traffic_summary_log.csv
+[Orchestrator] Starting simulation main loop for 60 seconds.
+[Orchestrator] Monitoring interval: 5s. Cooldown: 20s.
+[Orchestrator] CPU Thresholds: Scale Up > 60.0%, Scale Down < 25.0%
+[Orchestrator] Traffic injection scheduled: Start at 20s, Duration 40s.
+[Sniffer] Label set to: benign
+
+--- Iteration 1 | Time: 0.0s / 60s ---
+[Orchestrator]RTT = 0.0
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 0.00%, Avg App MEM: 0.00 MB
+[Autoscaler] Condition for SCALE_DOWN met (Avg CPU: 0.00%), but already at MIN_INSTANCES (1). No action.
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: False
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[Orchestrator] Starting Normal Traffic. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Normal] Alvos atualizados: ['http://localhost:8080']
+[Normal_Injector] Starting HTTP flood with 4 attackers, ~160.0 RPS total, across 1 targets: http://localhost:8080
+  [Normal_Injector Worker 140360873408192] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140360856622784] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140360839837376] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140360831444672] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+[Normal_Injector] All 4 attacker threads launched.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586852.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 2 | Time: 5.0s / 60s ---
+[Orchestrator]RTT = 4.087683942634612
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 32.48%, Avg App MEM: 13.28 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 32.48% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586857.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 3 | Time: 10.0s / 60s ---
+[Orchestrator]RTT = 3.4942867021952444
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 30.43%, Avg App MEM: 12.31 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 30.43% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586862.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 4 | Time: 15.0s / 60s ---
+[Orchestrator]RTT = 3.5986208667458164
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 26.73%, Avg App MEM: 11.27 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 26.73% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586867.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 5 | Time: 20.0s / 60s ---
+[Orchestrator]RTT = 3.488882274888012
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 27.84%, Avg App MEM: 11.26 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 27.84% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Orchestrator] Starting HTTP flood. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Attack] Alvos atualizados: ['http://localhost:8080']
+[Injector] Starting HTTP flood with 4 attackers, ~1.6 RPS total, across 1 targets: http://localhost:8080
+  [Injector Worker 140356561655488] Started. RPS: 0.40, Mean interval: 2.5000s (Poisson)
+  [Injector Worker 140356544870080] Started. RPS: 0.40, Mean interval: 2.5000s (Poisson)
+  [Injector Worker 140356536477376] Started. RPS: 0.40, Mean interval: 2.5000s (Poisson)
+  [Injector Worker 140356041569984] Started. RPS: 0.40, Mean interval: 2.5000s (Poisson)
+[Injector] All 4 attacker threads launched.
+[Sniffer] Label set to: attack
+[DEBUG Orchestrator] attack_has_started flag set to TRUE.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586872.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 6 | Time: 25.0s / 60s ---
+[Orchestrator]RTT = 43.860750121530145
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 31.86%, Avg App MEM: 13.21 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 31.86% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586877.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 7 | Time: 30.0s / 60s ---
+[Orchestrator]RTT = 28.396785460327838
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 36.48%, Avg App MEM: 13.30 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 36.48% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586882.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 8 | Time: 35.0s / 60s ---
+[Orchestrator]RTT = 28.1870189239271
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 31.96%, Avg App MEM: 12.59 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 31.96% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586887.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 9 | Time: 40.0s / 60s ---
+[Orchestrator]RTT = 24.271020565980248
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 31.72%, Avg App MEM: 13.26 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 31.72% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586892.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 10 | Time: 45.0s / 60s ---
+[Orchestrator]RTT = 24.68345535453409
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 28.85%, Avg App MEM: 13.22 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 28.85% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586897.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 11 | Time: 50.0s / 60s ---
+[Orchestrator]RTT = 25.263551208708023
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 30.84%, Avg App MEM: 13.28 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 30.84% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586902.242856423
+[Sniffer] Label set to: benign
+
+--- Iteration 12 | Time: 55.0s / 60s ---
+[Orchestrator]RTT = 25.479592150077224
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 30.13%, Avg App MEM: 12.62 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 30.13% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586907.242856423
+
+[Orchestrator] Simulation duration reached.
+[Orchestrator] Saving RTT log...
+[Sniffer] Realtime tcpdump stopped.
+[Orchestrator] Stopping any active traffic injection at end of simulation...
+[Injector] Signaling HTTP flood workers to stop...
+  [Injector Worker 140356041569984] Stopped. Total requests: 16, Errors: 0
+  [Injector Worker 140356544870080] Stopped. Total requests: 15, Errors: 0
+[Injector] Stop signal sent (non-blocking).
+[Orchestrator] Stopping normal traffic...
+[Normal_Injector] Signaling workers to stop...
+  [Normal_Injector Worker 140360839837376] Stopped. Total requests: 2416, Errors: 0
+  [Normal_Injector Worker 140360856622784] Stopped. Total requests: 2415, Errors: 0
+  [Normal_Injector Worker 140360873408192] Stopped. Total requests: 2458, Errors: 0
+  [Normal_Injector Worker 140360831444672] Stopped. Total requests: 2455, Errors: 0
+[Normal_Injector] Stop signal sent (non-blocking).
+[Orchestrator] Cleaning up all simulation instances...
+Cleaning up all simulation instances...
+Stopping and removing container: target_instance_1 (c5aa1b6524)...
+  [Injector Worker 140356536477376] Stopped. Total requests: 19, Errors: 0
+  Container target_instance_1 removed.
+Simulation instance cleanup complete.
+[Stats_Collector] Stopping stats collector thread...
+[Orchestrator] Simulation Complete. Total Fictional Cost: $0.0003
+[Orchestrator] Metrics logged in: simulation_metrics.csv
+
+===== agg160_nwu10000_atk5pct_awu200000_rep1 =====
+Attacker RPS set to: 2.0
+Number of attackers set to: 4
+Simulation duration set to: 60
+Attack work units set to: 200000
+Normal traffic RPS per client set to: 40.0
+Normal traffic number of clients set to: 4
+Normal traffic work units set to: 10000
+Attack start time set to: 20
+Attack window duration set to: 40
+[Orchestrator] Initializing simulation environment...
+[Sniffer] Realtime tcpdump started on any
+[Sniffer] Label set to: benign
+[Autoscaler] Initialized.
+Attempting to build Docker image: edos_target_app:latest...
+Image edos_target_app:latest already exists. Skipping build.
+Docker network 'edos_network' already exists.
+[Orchestrator] Cleaning up any pre-existing simulation instances...
+Cleaning up all simulation instances...
+No simulation instances found to clean up.
+[Orchestrator] Starting initial 1 instance(s)...
+Attempting to start container target_instance_1 mapping container:80 to host:8080...
+Container bb3ca7a060 (target_instance_1) started. Accessible on host port 8080.
+[Autoscaler] Initial number of instances set to: 1
+[Orchestrator] 1 initial instance(s) running.
+[Orchestrator] Metrics will be logged to: simulation_metrics.csv
+[Orchestrator] Attack summary will be logged to: attack_summary_log.csv
+[Orchestrator] Normal traffic summary will be logged to: normal_traffic_summary_log.csv
+[Orchestrator] Starting simulation main loop for 60 seconds.
+[Orchestrator] Monitoring interval: 5s. Cooldown: 20s.
+[Orchestrator] CPU Thresholds: Scale Up > 60.0%, Scale Down < 25.0%
+[Orchestrator] Traffic injection scheduled: Start at 20s, Duration 40s.
+[Sniffer] Label set to: benign
+
+--- Iteration 1 | Time: 0.0s / 60s ---
+[Orchestrator]RTT = 0.0
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 0.00%, Avg App MEM: 0.00 MB
+[Autoscaler] Condition for SCALE_DOWN met (Avg CPU: 0.00%), but already at MIN_INSTANCES (1). No action.
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: False
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[Orchestrator] Starting Normal Traffic. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Normal] Alvos atualizados: ['http://localhost:8080']
+[Normal_Injector] Starting HTTP flood with 4 attackers, ~160.0 RPS total, across 1 targets: http://localhost:8080
+  [Normal_Injector Worker 140126688429760] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140126462146240] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140126453753536] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140126428575424] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+[Normal_Injector] All 4 attacker threads launched.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586916.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 2 | Time: 5.0s / 60s ---
+[Orchestrator]RTT = 3.7306699367280105
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 26.89%, Avg App MEM: 13.11 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 26.89% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586921.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 3 | Time: 10.0s / 60s ---
+[Orchestrator]RTT = 3.669249759405669
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 27.12%, Avg App MEM: 12.17 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 27.12% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586926.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 4 | Time: 15.0s / 60s ---
+[Orchestrator]RTT = 3.4476737946654294
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 26.75%, Avg App MEM: 12.46 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 26.75% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586931.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 5 | Time: 20.0s / 60s ---
+[Orchestrator]RTT = 3.497425834456705
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 28.04%, Avg App MEM: 13.25 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 28.04% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Orchestrator] Starting HTTP flood. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Attack] Alvos atualizados: ['http://localhost:8080']
+[Injector] Starting HTTP flood with 4 attackers, ~8.0 RPS total, across 1 targets: http://localhost:8080
+  [Injector Worker 140122653693632] Started. RPS: 2.00, Mean interval: 0.5000s (Poisson)
+  [Injector Worker 140122158786240] Started. RPS: 2.00, Mean interval: 0.5000s (Poisson)
+  [Injector Worker 140122142000832] Started. RPS: 2.00, Mean interval: 0.5000s (Poisson)
+  [Injector Worker 140122125215424] Started. RPS: 2.00, Mean interval: 0.5000s (Poisson)
+[Injector] All 4 attacker threads launched.
+[Sniffer] Label set to: attack
+[DEBUG Orchestrator] attack_has_started flag set to TRUE.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586936.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 6 | Time: 25.0s / 60s ---
+[Orchestrator]RTT = 59.09863133517016
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 43.56%, Avg App MEM: 13.17 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 43.56% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586941.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 7 | Time: 30.0s / 60s ---
+[Orchestrator]RTT = 28.55385100701824
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 45.69%, Avg App MEM: 11.18 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 45.69% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586946.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 8 | Time: 35.0s / 60s ---
+[Orchestrator]RTT = 29.84016758564394
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 50.25%, Avg App MEM: 11.22 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 50.25% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586951.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 9 | Time: 40.0s / 60s ---
+[Orchestrator]RTT = 26.84696419035188
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 37.57%, Avg App MEM: 12.19 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 37.57% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586956.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 10 | Time: 45.0s / 60s ---
+[Orchestrator]RTT = 30.49874385552747
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 47.00%, Avg App MEM: 13.30 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 47.00% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586961.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 11 | Time: 50.0s / 60s ---
+[Orchestrator]RTT = 58.3698174328004
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 43.67%, Avg App MEM: 12.22 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 43.67% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586966.356161204
+[Sniffer] Label set to: benign
+
+--- Iteration 12 | Time: 55.0s / 60s ---
+[Orchestrator]RTT = 27.166388909938895
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 41.50%, Avg App MEM: 12.57 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 41.50% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586971.356161204
+
+[Orchestrator] Simulation duration reached.
+[Orchestrator] Saving RTT log...
+[Sniffer] Realtime tcpdump stopped.
+[Orchestrator] Stopping any active traffic injection at end of simulation...
+[Injector] Signaling HTTP flood workers to stop...
+  [Injector Worker 140122142000832] Stopped. Total requests: 94, Errors: 0
+[Injector] Stop signal sent (non-blocking).
+[Orchestrator] Stopping normal traffic...
+[Normal_Injector] Signaling workers to stop...
+  [Normal_Injector Worker 140126453753536] Stopped. Total requests: 2364, Errors: 0
+  [Normal_Injector Worker 140126688429760] Stopped. Total requests: 2388, Errors: 0
+  [Normal_Injector Worker 140126462146240] Stopped. Total requests: 2378, Errors: 0
+  [Normal_Injector Worker 140126428575424] Stopped. Total requests: 2363, Errors: 0
+[Normal_Injector] Stop signal sent (non-blocking).
+[Orchestrator] Cleaning up all simulation instances...
+Cleaning up all simulation instances...
+Stopping and removing container: target_instance_1 (bb3ca7a060)...
+  [Injector Worker 140122158786240] Stopped. Total requests: 87, Errors: 0
+  [Injector Worker 140122125215424] Stopped. Total requests: 86, Errors: 0
+  [Injector Worker 140122653693632] Stopped. Total requests: 70, Errors: 0
+  Container target_instance_1 removed.
+Simulation instance cleanup complete.
+[Stats_Collector] Stopping stats collector thread...
+[Orchestrator] Simulation Complete. Total Fictional Cost: $0.0003
+[Orchestrator] Metrics logged in: simulation_metrics.csv
+
+===== agg160_nwu10000_atk10pct_awu200000_rep1 =====
+Attacker RPS set to: 4.0
+Number of attackers set to: 4
+Simulation duration set to: 60
+Attack work units set to: 200000
+Normal traffic RPS per client set to: 40.0
+Normal traffic number of clients set to: 4
+Normal traffic work units set to: 10000
+Attack start time set to: 20
+Attack window duration set to: 40
+[Orchestrator] Initializing simulation environment...
+[Sniffer] Realtime tcpdump started on any
+[Sniffer] Label set to: benign
+[Autoscaler] Initialized.
+Attempting to build Docker image: edos_target_app:latest...
+Image edos_target_app:latest already exists. Skipping build.
+Docker network 'edos_network' already exists.
+[Orchestrator] Cleaning up any pre-existing simulation instances...
+Cleaning up all simulation instances...
+No simulation instances found to clean up.
+[Orchestrator] Starting initial 1 instance(s)...
+Attempting to start container target_instance_1 mapping container:80 to host:8080...
+Container 8715a753c9 (target_instance_1) started. Accessible on host port 8080.
+[Autoscaler] Initial number of instances set to: 1
+[Orchestrator] 1 initial instance(s) running.
+[Orchestrator] Metrics will be logged to: simulation_metrics.csv
+[Orchestrator] Attack summary will be logged to: attack_summary_log.csv
+[Orchestrator] Normal traffic summary will be logged to: normal_traffic_summary_log.csv
+[Orchestrator] Starting simulation main loop for 60 seconds.
+[Orchestrator] Monitoring interval: 5s. Cooldown: 20s.
+[Orchestrator] CPU Thresholds: Scale Up > 60.0%, Scale Down < 25.0%
+[Orchestrator] Traffic injection scheduled: Start at 20s, Duration 40s.
+[Sniffer] Label set to: benign
+
+--- Iteration 1 | Time: 0.0s / 60s ---
+[Orchestrator]RTT = 0.0
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 0.00%, Avg App MEM: 0.00 MB
+[Autoscaler] Condition for SCALE_DOWN met (Avg CPU: 0.00%), but already at MIN_INSTANCES (1). No action.
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: False
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[Orchestrator] Starting Normal Traffic. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Normal] Alvos atualizados: ['http://localhost:8080']
+[Normal_Injector] Starting HTTP flood with 4 attackers, ~160.0 RPS total, across 1 targets: http://localhost:8080
+  [Normal_Injector Worker 140470421620416] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140470404835008] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140470185354944] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+  [Normal_Injector Worker 140470168569536] Started. RPS: 40.00, Mean interval: 0.0250s (Poisson)
+[Normal_Injector] All 4 attacker threads launched.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586980.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 2 | Time: 5.0s / 60s ---
+[Orchestrator]RTT = 3.8751436209020453
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 28.29%, Avg App MEM: 11.10 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 28.29% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586985.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 3 | Time: 10.0s / 60s ---
+[Orchestrator]RTT = 3.34894524051787
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 28.73%, Avg App MEM: 11.24 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 28.73% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586990.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 4 | Time: 15.0s / 60s ---
+[Orchestrator]RTT = 3.4878750326613743
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 29.42%, Avg App MEM: 11.18 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 29.42% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? False (window: 20s-60s)
+[DEGUG Orchestrator Loop Duration] Loop Duration = 586995.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 5 | Time: 20.0s / 60s ---
+[Orchestrator]RTT = 3.5688902378699443
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 29.74%, Avg App MEM: 11.14 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 29.74% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: False, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Orchestrator] Starting HTTP flood. Target URLs for this call: ['http://localhost:8080']
+[LoadBalancer:Attack] Alvos atualizados: ['http://localhost:8080']
+[Injector] Starting HTTP flood with 4 attackers, ~16.0 RPS total, across 1 targets: http://localhost:8080
+  [Injector Worker 140466863449792] Started. RPS: 4.00, Mean interval: 0.2500s (Poisson)
+  [Injector Worker 140466368542400] Started. RPS: 4.00, Mean interval: 0.2500s (Poisson)
+  [Injector Worker 140466360149696] Started. RPS: 4.00, Mean interval: 0.2500s (Poisson)
+  [Injector Worker 140466351756992] Started. RPS: 4.00, Mean interval: 0.2500s (Poisson)
+[Injector] All 4 attacker threads launched.
+[Sniffer] Label set to: attack
+[DEBUG Orchestrator] attack_has_started flag set to TRUE.
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587000.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 6 | Time: 25.0s / 60s ---
+[Orchestrator]RTT = 86.97940356634919
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 47.68%, Avg App MEM: 11.24 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 47.68% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587005.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 7 | Time: 30.0s / 60s ---
+[Orchestrator]RTT = 75.27285496184192
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 57.97%, Avg App MEM: 11.34 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 57.97% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587010.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 8 | Time: 35.0s / 60s ---
+[Orchestrator]RTT = 64.05398740361517
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 51.60%, Avg App MEM: 11.27 MB
+[Autoscaler] Decision: NO_ACTION. Avg CPU: 51.60% is within thresholds (25.0% - 60.0%).
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 1, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587015.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 9 | Time: 40.0s / 60s ---
+[Orchestrator]RTT = 57.49453934631572
+[Orchestrator] Metrics: 1 active instance(s), Avg CPU: 62.39%, Avg App MEM: 11.29 MB
+[Autoscaler] Decision: SCALE_UP. Avg CPU: 62.39% > 60.0%. Current instances: 1, Max: 4
+[Orchestrator] Action: Scaling UP from 1 instance(s). Attempting to start instance 2.
+Attempting to start container target_instance_2 mapping container:80 to host:8081...
+Container 6ca25fb499 (target_instance_2) started. Accessible on host port 8081.
+[Orchestrator] Successfully started target_instance_2. Now 2 instance(s).
+[Autoscaler] Scale action recorded. New instance count: 2. Cooldown timer reset.
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 2, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080', 'http://localhost:8081']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[LoadBalancer:Normal] Alvos atualizados: ['http://localhost:8080', 'http://localhost:8081']
+[Sniffer] Label set to: attack
+[LoadBalancer:Attack] Alvos atualizados: ['http://localhost:8080', 'http://localhost:8081']
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587020.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 10 | Time: 45.0s / 60s ---
+[Orchestrator]RTT = 27.659156693570207
+[Orchestrator] Metrics: 2 active instance(s), Avg CPU: 43.06%, Avg App MEM: 11.16 MB
+[Autoscaler]In cooldown: 14.99994550703559
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 2, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080', 'http://localhost:8081']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587025.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 11 | Time: 50.0s / 60s ---
+[Orchestrator]RTT = 26.53753930874365
+[Orchestrator] Metrics: 2 active instance(s), Avg CPU: 32.23%, Avg App MEM: 11.15 MB
+[Autoscaler]In cooldown: 9.999989203060977
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 2, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080', 'http://localhost:8081']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587030.380936071
+[Sniffer] Label set to: benign
+
+--- Iteration 12 | Time: 55.0s / 60s ---
+[Orchestrator]RTT = 26.271040717085057
+[Orchestrator] Metrics: 2 active instance(s), Avg CPU: 31.44%, Avg App MEM: 11.18 MB
+[Autoscaler]In cooldown: 4.999986825045198
+[DEBUG Orchestrator] Iteration Start. Instances Before Injector Logic: 2, Attack Started Flag: True, Normal Traffic Started Flag: True
+[DEBUG Orchestrator] URLs derived for injector (if active): ['http://localhost:8080', 'http://localhost:8081']
+[Sniffer] Label set to: benign
+[DEBUG Orchestrator] Should attack be active now? True (window: 20s-60s)
+[Sniffer] Label set to: attack
+[DEGUG Orchestrator Loop Duration] Loop Duration = 587035.380936071
+
+[Orchestrator] Simulation duration reached.
+[Orchestrator] Saving RTT log...
+[Sniffer] Realtime tcpdump stopped.
+[Orchestrator] Stopping any active traffic injection at end of simulation...
+[Injector] Signaling HTTP flood workers to stop...
+  [Injector Worker 140466368542400] Stopped. Total requests: 152, Errors: 0
+  [Injector Worker 140466360149696] Stopped. Total requests: 161, Errors: 0
+  [Injector Worker 140466351756992] Stopped. Total requests: 168, Errors: 0
+[Injector] Stop signal sent (non-blocking).
+[Orchestrator] Stopping normal traffic...
+[Normal_Injector] Signaling workers to stop...
+  [Normal_Injector Worker 140470404835008] Stopped. Total requests: 2418, Errors: 3
+  [Normal_Injector Worker 140470185354944] Stopped. Total requests: 2385, Errors: 3
+  [Normal_Injector Worker 140470421620416] Stopped. Total requests: 2437, Errors: 1
+  [Normal_Injector Worker 140470168569536] Stopped. Total requests: 2396, Errors: 3
+[Normal_Injector] Stop signal sent (non-blocking).
+[Orchestrator] Cleaning up all simulation instances...
+Cleaning up all simulation instances...
+Stopping and removing container: target_instance_2 (6ca25fb499)...
+  [Injector Worker 140466863449792] Stopped. Total requests: 136, Errors: 0
+  Container target_instance_2 removed.
+Stopping and removing container: target_instance_1 (8715a753c9)...
+  Container target_instance_1 removed.
+Simulation instance cleanup complete.
+[Stats_Collector] Stopping stats collector thread...
+[Orchestrator] Simulation Complete. Total Fictional Cost: $0.0004
+[Orchestrator] Metrics logged in: simulation_metrics.csv
+concluído

@@ -1,0 +1,57 @@
+=== M10 mecanismo (mediana por execução das janelas positivas; [P25-P75] entre execuções) ===
+                                                                      0                         1                               2
+grupo                                           POS_D (ataque com dano)  POS_ND (ataque sem dano)  NEG (sem ataque, WU=10, <=640)
+n_exec                                                              300                       592                             331
+ratio_media                                           8.92 [6.56-13.59]          3.37 [1.78-6.23]                0.98 [0.95-1.00]
+ratio_mediana                                          1.70 [1.34-3.72]          1.05 [1.01-1.12]                0.98 [0.97-1.00]
+ratio_media_podada                                     4.33 [3.53-5.90]          1.70 [1.27-2.64]                   nan [nan-nan]
+ratio_mediana_podada                                   1.33 [1.19-1.77]          1.02 [1.00-1.06]                   nan [nan-nan]
+ratio_media_podada15                                   3.58 [2.58-4.64]          1.39 [1.10-2.03]                   nan [nan-nan]
+ratio_mediana_podada15                                 1.22 [1.11-1.55]          1.01 [0.99-1.04]                   nan [nan-nan]
+frac_elevacao_explicada                                0.53 [0.47-0.64]          0.65 [0.56-0.73]                   nan [nan-nan]
+k_podadas                                        492.50 [289.75-719.75]      73.00 [35.00-146.25]                   nan [nan-nan]
+exec_com_janela_ratio_media>1.8_pct                               100.0                      87.5                             3.9
+exec_com_janela_ratio_media_podada>1.8_pct                        100.0                      59.6                             0.0
+exec_com_janela_ratio_mediana>1.8_pct                              86.0                       7.1                             0.0
+exec_com_janela_ratio_mediana_podada>1.8_pct                       72.7                       1.0                             0.0
+exec_com_janela_ratio_media_podada15>1.8_pct                       99.0                      45.9                             0.0
+exec_com_janela_ratio_mediana_podada15>1.8_pct                     59.7                       0.0                             0.0
+
+=== M10 por estrato: % de execuções com alguma janela acima de 1,8x (só o piso) ===
+                                           n  det_media  det_podada  det_mediana  r_podada_mediana  r_mediana_mediana
+fam                         pct   dano                                                                               
+atacantes_intensidade_grid   1.0  False   72       45.8        15.3          0.0              1.27               1.06
+                             5.0  False   54       90.7        40.7          0.0              1.57               1.07
+                                  True    18      100.0       100.0         22.2             21.73               1.68
+                             10.0 False   49      100.0        73.5          2.0              2.39               1.14
+                                  True    23      100.0       100.0         87.0              6.11               3.91
+                             15.0 False   35      100.0        65.7          5.7              2.67               1.23
+                                  True    37      100.0       100.0         94.6              7.75               7.89
+                             20.0 False   32      100.0        87.5         28.1              2.71               1.25
+                                  True    40      100.0       100.0         97.5              9.15              12.24
+                             25.0 False   27      100.0        92.6         33.3              2.85               1.24
+                                  True    45      100.0       100.0        100.0              8.74              14.25
+combined_sweep               1.0  False   40       87.5        65.0          0.0              2.35               1.06
+                             5.0  False   22      100.0        90.9          4.5              3.10               1.09
+                                  True    18      100.0       100.0         83.3             26.41               3.13
+                             10.0 False   14      100.0       100.0         14.3              4.63               1.14
+                                  True    26      100.0       100.0         96.2             18.06              13.86
+desempate_combinado_isolado -1.0  False   30       86.7        53.3         50.0              2.56               1.97
+                                  True    15      100.0       100.0        100.0              8.24              20.65
+wedos_grid                   0.5  False    5      100.0        60.0          0.0              1.86               1.03
+                             1.0  False  116       81.9        42.2          0.0              1.70               1.04
+                             5.0  False   50      100.0        82.0          0.0              2.54               1.10
+                                  True    29      100.0       100.0         62.1             23.85               2.23
+                             10.0 False   46      100.0        84.8          6.5              2.87               1.14
+                                  True    49      100.0       100.0         85.7              7.36               5.07
+
+=== M11 negativas: mediana da razão média_janela/baseline por posição (t0) e faixa de carga ===
+t0           20    30    40    50    60    70    80    90    100   110   120   130   140
+faixa                                                                                   
+(0, 50]     0.98  0.98  0.98  0.97  0.96  0.96  0.96  0.97  0.96  0.97  0.97  0.97  0.97
+(50, 120]   0.98  0.98  0.99  0.99  0.98  0.99  0.98  0.97  0.98  0.98  0.98  0.98  0.98
+(120, 250]  1.00  1.00  1.00  1.00  0.99  0.99  0.99  1.00  1.00  1.00  0.99  0.99  1.00
+(250, 450]  0.98  0.97  0.98  0.98  0.98  0.98  0.98  0.98  0.98  0.98  0.98  0.98  0.98
+(450, 700]  0.93  0.96  0.96  0.93  0.94  0.93  0.93  0.93  0.93  0.93  0.94  0.93  0.95
+
+Negativas: mediana (entre execuções) da razão típica = 0.981; % execuções com razão típica > 1.05: 3.3%

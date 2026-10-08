@@ -1,0 +1,51 @@
+positivos,estrato,n_pos,n_neg,score,auc,ic95
+POS_D (ataque com dano),todas as cargas,300,331,s_ratio,1.0,1.000-1.000
+POS_D (ataque com dano),todas as cargas,300,331,s_z,0.761,0.721-0.802
+POS_D (ataque com dano),todas as cargas,300,331,s_cusum,1.0,1.000-1.000
+POS_D (ataque com dano),todas as cargas,300,331,s_dH,0.9,0.874-0.925
+POS_D (ataque com dano),todas as cargas,300,331,s_margem_R1,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 0-50,15,73,s_ratio,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 0-50,15,73,s_z,0.402,0.252-0.573
+POS_D (ataque com dano),carga normal 0-50,15,73,s_cusum,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 0-50,15,73,s_dH,0.982,0.950-1.000
+POS_D (ataque com dano),carga normal 0-50,15,73,s_margem_R1,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 51-120,30,47,s_ratio,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 51-120,30,47,s_z,0.848,0.734-0.939
+POS_D (ataque com dano),carga normal 51-120,30,47,s_cusum,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 51-120,30,47,s_dH,0.564,0.414-0.703
+POS_D (ataque com dano),carga normal 51-120,30,47,s_margem_R1,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 121-250,105,91,s_ratio,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 121-250,105,91,s_z,0.775,0.702-0.843
+POS_D (ataque com dano),carga normal 121-250,105,91,s_cusum,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 121-250,105,91,s_dH,0.928,0.884-0.964
+POS_D (ataque com dano),carga normal 121-250,105,91,s_margem_R1,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 251-450,150,79,s_ratio,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 251-450,150,79,s_z,0.742,0.675-0.804
+POS_D (ataque com dano),carga normal 251-450,150,79,s_cusum,1.0,1.000-1.000
+POS_D (ataque com dano),carga normal 251-450,150,79,s_dH,0.959,0.926-0.987
+POS_D (ataque com dano),carga normal 251-450,150,79,s_margem_R1,1.0,1.000-1.000
+"POS (ataque, principal)",todas as cargas,892,331,s_ratio,0.991,0.986-0.995
+"POS (ataque, principal)",todas as cargas,892,331,s_z,0.61,0.576-0.643
+"POS (ataque, principal)",todas as cargas,892,331,s_cusum,0.981,0.975-0.987
+"POS (ataque, principal)",todas as cargas,892,331,s_dH,0.623,0.591-0.653
+"POS (ataque, principal)",todas as cargas,892,331,s_margem_R1,0.991,0.986-0.995
+"POS (ataque, principal)",carga normal 0-50,258,73,s_ratio,0.998,0.993-1.000
+"POS (ataque, principal)",carga normal 0-50,258,73,s_z,0.539,0.467-0.605
+"POS (ataque, principal)",carga normal 0-50,258,73,s_cusum,0.992,0.985-0.997
+"POS (ataque, principal)",carga normal 0-50,258,73,s_dH,0.66,0.596-0.718
+"POS (ataque, principal)",carga normal 0-50,258,73,s_margem_R1,0.998,0.993-1.000
+"POS (ataque, principal)",carga normal 51-120,217,47,s_ratio,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 51-120,217,47,s_z,0.864,0.817-0.906
+"POS (ataque, principal)",carga normal 51-120,217,47,s_cusum,0.992,0.982-0.998
+"POS (ataque, principal)",carga normal 51-120,217,47,s_dH,0.263,0.203-0.328
+"POS (ataque, principal)",carga normal 51-120,217,47,s_margem_R1,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 121-250,219,91,s_ratio,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 121-250,219,91,s_z,0.692,0.629-0.747
+"POS (ataque, principal)",carga normal 121-250,219,91,s_cusum,1.0,0.999-1.000
+"POS (ataque, principal)",carga normal 121-250,219,91,s_dH,0.528,0.464-0.589
+"POS (ataque, principal)",carga normal 121-250,219,91,s_margem_R1,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 251-450,198,79,s_ratio,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 251-450,198,79,s_z,0.607,0.539-0.675
+"POS (ataque, principal)",carga normal 251-450,198,79,s_cusum,1.0,1.000-1.000
+"POS (ataque, principal)",carga normal 251-450,198,79,s_dH,0.828,0.778-0.877
+"POS (ataque, principal)",carga normal 251-450,198,79,s_margem_R1,1.0,1.000-1.000

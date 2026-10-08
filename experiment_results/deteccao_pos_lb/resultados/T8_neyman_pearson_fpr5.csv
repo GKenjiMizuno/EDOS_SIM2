@@ -1,0 +1,4 @@
+regra,alvo_fpr,piso,z,h_sigma,sel_TPR_dano_impar,sel_FPR_impar,holdout_TPR_dano,holdout_TPR_dano_intens_ate5,holdout_TPR_todos_ataques,holdout_FPR,n_neg_holdout,n_dano_holdout
+R1_combinada,5.0,1.3,2.0,2.0,100.0,4.7,100.0 [96.5-100.0],100.0 [87.1-100.0],97.9 [95.6-99.0],6.4 [3.4-11.7],141,107
+R2_z,5.0,-,55.0,-,44.0,4.7,44.9 [35.8-54.3],38.5 [22.4-57.5],34.6 [29.6-39.9],5.0 [2.4-9.9],141,107
+piso_sozinho,5.0,1.3,-,-,100.0,4.7,100.0 [96.5-100.0],100.0 [87.1-100.0],97.9 [95.6-99.0],6.4 [3.4-11.7],141,107
