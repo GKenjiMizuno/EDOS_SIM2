@@ -5979,3 +5979,31 @@ Reorganização (git mv, conteúdo idêntico) de graficos_apresentacao/
   O branch base_graficos_tcc / tag tcc-dados-definitivos NÃO mudam (seguem
   com a estrutura plana e sem o 72); para congelar esta versão, criar um
   branch/tag novo.
+
+================================================================================
+§143. EntCusumZV3: padrões passam a ser a configuração que detecta
+================================================================================
+Padrões de analisar_bursts_tunavel trocados pelos recomendados:
+  cusum_h_sigma 5 -> 1000 (constante CUSUM_H_RECOMENDADO; §125/§129, 2000σ
+  equivalente), NOVO parâmetro cusum_reset=True (reset após alarme, §131:
+  ao passar de h registra disparo e zera; janela alarma se houve >= 1
+  disparo nela), z_modo 'janela_anterior' -> 'robusto_baseline' (k=15,
+  f=1,9%), entropia_modo 'arquivo' -> 'js_baseline' (10 faixas log, >
+  0,078) (§138). Regra combinada inalterada (média > 1,8x E (Z OU CUSUM)).
+  Título do PNG do próprio detector descreve a configuração usada.
+Nova constante PARAMS_ORIGINAIS = dict(cusum_h_sigma=5.0, cusum_reset=False,
+  z_modo='janela_anterior', entropia_modo='arquivo') para reproduzir o
+  comportamento antigo; passada explicitamente nos chamadores históricos:
+  deteccao_pos_lb_extract.validar() (valida a reimplementação do ORIGINAL),
+  run_burst_analysis.py, run_burst_detection_clients_grid.py,
+  run_burst_detection_combinado.py, run_burst_detection_wedos_final.py.
+Verificação:
+  - com **PARAMS_ORIGINAIS a saída é idêntica à do EntCusumZV3 do checkpoint
+    21432d8 (anterior a §138) em 2 arquivos (ataque S4 10% WU400k rep3 e
+    normal agg300 rep10);
+  - padrões novos: ataque -> Z 17, entropia 17, CUSUM 17, burst 17 de 20
+    janelas; normal -> 0 alarmes em tudo (19 janelas);
+  - validação da reimplementação (deteccao_pos_lb_extract.validar): 42/42
+    decisões e médias idênticas, validacao.csv inalterado;
+  - gráficos: os scripts usam só as constantes/funções do módulo -> 72, 67
+    reset _novos e 65 regenerados sem nenhuma alteração de PNG.

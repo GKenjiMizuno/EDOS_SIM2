@@ -274,7 +274,7 @@ def _proc(args):
 
 def validar(n_por_familia=6, seed=20260930):
     """Compara a decisão da reimplementação com o EntCusumZV3 original, em cópia temporária."""
-    from EntCusumZV3 import analisar_bursts_tunavel
+    from EntCusumZV3 import PARAMS_ORIGINAIS, analisar_bursts_tunavel  # valida a reimplementação do ORIGINAL (§143)
     import matplotlib
     matplotlib.use("Agg")
     rng = np.random.default_rng(seed)
@@ -289,7 +289,7 @@ def validar(n_por_familia=6, seed=20260930):
     for r in amostra:
         dst = os.path.join(tmp, "rtt_log_" + r["suffix"] + ".csv")
         shutil.copy(r["rtt_path"], dst)
-        orig = analisar_bursts_tunavel(input_file=dst, show_plot=False)
+        orig = analisar_bursts_tunavel(input_file=dst, show_plot=False, **PARAMS_ORIGINAIS)
         mine = detector_janelas(r["rtt_path"])
         st_mine = status_original(mine)
         st_orig = (orig["Status Burst"] == "DDoS Burst").values

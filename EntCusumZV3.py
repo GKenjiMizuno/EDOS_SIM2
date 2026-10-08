@@ -11,6 +11,14 @@ Z_K_RECOMENDADO = 15.0          # z robusto = (x - mediana_base) / (1,4826 · MA
 Z_FRAC_RECOMENDADA = 0.019      # janela alarma se > 1,9% das amostras tiverem z > k
 ENTROPIA_BINS_RECOMENDADO = 10  # faixas log-espaçadas entre mín. e p99,9 do baseline (+1 de transbordo)
 ENTROPIA_JS_RECOMENDADO = 0.078  # janela alarma se JS(janela || baseline) > limiar (base 2, 0..1)
+CUSUM_H_RECOMENDADO = 1000.0     # h em múltiplos do σ do baseline (§125/§129; 2000σ é equivalente)
+
+# Configuração ORIGINAL (antes de §125/§131/§138), para reproduzir resultados
+# antigos: analisar_bursts_tunavel(..., **PARAMS_ORIGINAIS). Desde o §143 os
+# padrões da função são os recomendados (CUSUM 1000σ com reset, Z robusto,
+# entropia Jensen-Shannon).
+PARAMS_ORIGINAIS = dict(cusum_h_sigma=5.0, cusum_reset=False,
+                        z_modo='janela_anterior', entropia_modo='arquivo')
 
 
 def bordas_log_baseline(baseline_vals, n_bins=ENTROPIA_BINS_RECOMENDADO):
@@ -51,9 +59,10 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
                              window_seconds=20, overlap_percent=50,
                              z_threshold=3.5, baseline_ratio=1.8, show_plot=True,
                              time_col='timestamp', value_col='rtt', value_label='RTT',
-                             value_unit='ms', min_samples_per_window=10, cusum_h_sigma=5.0,
-                             z_modo='janela_anterior', z_k=Z_K_RECOMENDADO, z_frac=Z_FRAC_RECOMENDADA,
-                             entropia_modo='arquivo', entropia_bins=ENTROPIA_BINS_RECOMENDADO,
+                             value_unit='ms', min_samples_per_window=10,
+                             cusum_h_sigma=CUSUM_H_RECOMENDADO, cusum_reset=True,
+                             z_modo='robusto_baseline', z_k=Z_K_RECOMENDADO, z_frac=Z_FRAC_RECOMENDADA,
+                             entropia_modo='js_baseline', entropia_bins=ENTROPIA_BINS_RECOMENDADO,
                              entropia_limiar=ENTROPIA_JS_RECOMENDADO):
     """
     Detector de burst por janela deslizante (entropia de Shannon + Z-score +
@@ -77,8 +86,15 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
     91-99% das amostras na 1ª faixa) ou 'js_baseline' (entropia_bins faixas
     log entre mín. e p99,9 do baseline + transbordo; alarme se a divergência
     de Jensen-Shannon janela x baseline passar de entropia_limiar).
-    Os padrões preservam o comportamento original (resultados antigos
-    reproduzíveis); os valores recomendados estão nas constantes do módulo.
+    cusum_reset (§131): True = ao passar de h a soma do CUSUM registra um
+    disparo e volta a 0 (Page 1954; monitoramento contínuo); a janela alarma
+    se houve >= 1 disparo dentro dela e a coluna 'CUSUM' mostra a soma no fim
+    da janela (já reiniciada). False = original: a soma nunca reinicia e a
+    janela alarma se a soma no fim dela passar de h (fica em "ataque" muito
+    depois do fim do ataque).
+    PADRÕES (§143): os recomendados -- CUSUM h=1000σ com reset, Z robusto
+    (k=15, f=1,9%), entropia JS (10 faixas log, > 0,078), calibrados nos
+    §129/§138. Para o comportamento original use **PARAMS_ORIGINAIS.
 
     min_samples_per_window: mínimo de amostras dentro da janela para ela
     ser analisada (janelas mais esparsas são puladas). RTT tem uma linha
@@ -162,11 +178,16 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
         # corrigido, ver changes.txt). Cada janela do relatório abaixo só LÊ
         # o valor já acumulado na última amostra dentro dela.
         cusum_running = np.empty(len(df))
+        disparo = np.zeros(len(df), dtype=bool)
         c = 0.0
         for idx, val in enumerate(df[value_col].values):
             c = max(0.0, c + (val - global_mean) - kappa)
+            if cusum_reset and c > h:
+                disparo[idx] = True
+                c = 0.0
             cusum_running[idx] = c
         df['_cusum_running'] = cusum_running
+        df['_cusum_disparo'] = disparo
 
         # Faixa fixa do histograma de entropia (min/max do arquivo inteiro,
         # não da janela individual) -- antes cada janela recalculava seus
@@ -227,7 +248,10 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
             # CUSUM -- lê o valor já precomputado (ver acima), não reprocessa
             # a janela.
             cusum_atual = janela['_cusum_running'].iloc[-1]
-            alarme_cusum = 'Sim' if cusum_atual > h else 'Não'
+            if cusum_reset:
+                alarme_cusum = 'Sim' if janela['_cusum_disparo'].any() else 'Não'
+            else:
+                alarme_cusum = 'Sim' if cusum_atual > h else 'Não'
 
             # Status Burst (tunável). Entropia é reportada mas NÃO entra
             # nesta decisão (mantido assim de propósito -- combinar os 3
@@ -276,7 +300,9 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
         ax.set_ylabel(f'{col_media} ({value_unit})')
         ax.legend()
         ax.grid(True, alpha=0.3)
-        plt.title(f'Todos os Bursts DDoS (Tunável: Z>{z_threshold}, {value_label}>{baseline_ratio}x baseline)')
+        desc_z = (f"Z robusto >{100 * z_frac:g}% c/ z>{z_k:g}" if z_modo == 'robusto_baseline' else f"Z>{z_threshold}")
+        desc_c = f"CUSUM>{cusum_h_sigma:g}σ" + (" c/ reset" if cusum_reset else "")
+        plt.title(f'Todos os Bursts DDoS ({desc_z} ou {desc_c}, {value_label}>{baseline_ratio}x baseline)')
         plt.tight_layout()
         plt.savefig(png_path, dpi=300)
         if show_plot:
@@ -295,4 +321,4 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
         return None
 
 if __name__ == "__main__":
-    analisar_bursts_tunavel(z_threshold=3.5, baseline_ratio=1.8)  # Tune aqui!
+    analisar_bursts_tunavel()  # padrões recomendados (§143); configuração antiga: **PARAMS_ORIGINAIS

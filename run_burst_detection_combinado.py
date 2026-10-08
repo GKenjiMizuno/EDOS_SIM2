@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import config
-from EntCusumZV3 import analisar_bursts_tunavel
+from EntCusumZV3 import PARAMS_ORIGINAIS, analisar_bursts_tunavel  # análises históricas: configuração original (§143)
 
 # Fase 2+4 do plano de análise estatística (CUSUM/Entropia/Z-score,
 # combinada com o usuário): roda o detector CORRIGIDO (ver changes.txt --
@@ -59,7 +59,7 @@ for rps in RPS_VALUES:
                 continue
 
             df_res = analisar_bursts_tunavel(
-                input_file=rtt_path, output_prefix=suffix, show_plot=False)
+                input_file=rtt_path, output_prefix=suffix, show_plot=False, **PARAMS_ORIGINAIS)
             if df_res is None or df_res.empty:
                 continue
 

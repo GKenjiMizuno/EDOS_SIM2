@@ -1,7 +1,7 @@
 import glob
 import os
 
-from EntCusumZV3 import analisar_bursts_tunavel
+from EntCusumZV3 import PARAMS_ORIGINAIS, analisar_bursts_tunavel  # análises históricas: configuração original (§143)
 
 # Roda a detecção de bursts (EntCusumZV3) sobre cada rtt_log_*.csv salvo por
 # qualquer varredura (run_experiments.py, run_experiments_combined.py), em
@@ -20,6 +20,6 @@ if not rtt_log_files:
 
 for rtt_log_file in rtt_log_files:
     print(f"\n===== Analisando {rtt_log_file} =====")
-    analisar_bursts_tunavel(input_file=rtt_log_file, show_plot=False)
+    analisar_bursts_tunavel(input_file=rtt_log_file, show_plot=False, **PARAMS_ORIGINAIS)
 
 print(f"\nAnálise de bursts concluída para {len(rtt_log_files)} arquivo(s).")

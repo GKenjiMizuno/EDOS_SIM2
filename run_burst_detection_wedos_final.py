@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from EntCusumZV3 import analisar_bursts_tunavel
+from EntCusumZV3 import PARAMS_ORIGINAIS, analisar_bursts_tunavel  # análises históricas: configuração original (§143)
 
 # Fase 5 do plano de análise estatística: re-roda o detector CORRIGIDO
 # (changes.txt seção 71) sobre experiment_results/wedos_grid/ e
@@ -75,7 +75,7 @@ for results_dir in DIRS:
                 print(f"[WARNING] Não consegui ler {old_xlsx_path}: {e}")
 
         # Resultado NOVO (detector corrigido)
-        df_res = analisar_bursts_tunavel(input_file=rtt_path, output_prefix=suffix, show_plot=False)
+        df_res = analisar_bursts_tunavel(input_file=rtt_path, output_prefix=suffix, show_plot=False, **PARAMS_ORIGINAIS)
         if df_res is None or df_res.empty:
             print(f"[WARNING] Sem resultado para {rtt_path}.")
             continue

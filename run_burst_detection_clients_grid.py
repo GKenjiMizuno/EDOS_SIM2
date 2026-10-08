@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from EntCusumZV3 import analisar_bursts_tunavel
+from EntCusumZV3 import PARAMS_ORIGINAIS, analisar_bursts_tunavel  # análises históricas: configuração original (§143)
 
 # Fase 3 do plano de análise estatística: mede FALSO POSITIVO de verdade,
 # usando experiment_results/clients_rps_grid/ -- tráfego 100% normal, SEM
@@ -51,7 +51,7 @@ for i, rtt_path in enumerate(rtt_files, start=1):
     summary_path = os.path.join(GRID_DIR, f"normal_traffic_summary_log_{suffix}.csv")
     soluco = is_soluco(summary_path, clients)
 
-    df_res = analisar_bursts_tunavel(input_file=rtt_path, output_prefix=suffix, show_plot=False)
+    df_res = analisar_bursts_tunavel(input_file=rtt_path, output_prefix=suffix, show_plot=False, **PARAMS_ORIGINAIS)
     if df_res is None or df_res.empty:
         continue
 
