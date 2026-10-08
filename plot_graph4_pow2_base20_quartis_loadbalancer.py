@@ -12,7 +12,12 @@ import pandas as pd
 # Refaz o gráfico 42 no diretório dedicado graficos_apresentacao/04_pos_
 # loadbalancer/, mesma regra dos demais desta leva (changes.txt §102-104).
 #
-# AVISO IMPORTANTE (cobertura parcial): dos 6 agregados usados neste
+# ATUALIZADO (changes.txt §140): depois do lote 1 (§115) TODAS as 10 reps
+# de cada agregado estão coletadas com o código pós-correção -- o aviso de
+# cobertura parcial abaixo é histórico (valia quando o gráfico foi feito) e a
+# anotação "N/10 recoletado" foi retirada do gráfico.
+#
+# (Histórico) AVISO IMPORTANTE (cobertura parcial): dos 6 agregados usados neste
 # gráfico, só uma parte foi de fato recoletada pós-correção (só entram na
 # recoleta de 802 execuções configs que chegaram a disparar SCALE_UP antes
 # da correção):
@@ -35,7 +40,6 @@ GREEN = "#1baf7a"
 GRAY = "#888888"
 
 AGGREGATE_TARGETS = [20, 40, 80, 160, 320, 640]
-RECOLETADO_INFO = {20: "0/10", 40: "0/10", 80: "0/10", 160: "2/10", 320: "10/10", 640: "9/10"}
 
 
 def is_fully_empty(summary_path):
@@ -67,7 +71,10 @@ for agg in AGGREGATE_TARGETS:
     peaks, dropped = [], []
     for mf in metric_files:
         rep = re.search(r"_rep(\d+)\.csv$", mf).group(1)
-        sf = os.path.join(NB_DIR, f"normal_traffic_summary_log_agg{agg}_WU10_refined_rep{rep}.csv")
+        # convenção "normal_" = mesma execução dos metrics_ atuais (§112); fallback no nome antigo (§140)
+        sf = os.path.join(NB_DIR, f"normal_traffic_summary_log_normal_agg{agg}_WU10_refined_rep{rep}.csv")
+        if not os.path.exists(sf):
+            sf = os.path.join(NB_DIR, f"normal_traffic_summary_log_agg{agg}_WU10_refined_rep{rep}.csv")
         if is_fully_empty(sf):
             dropped.append(rep)
             continue
@@ -169,7 +176,7 @@ labels += [
 
 for _, row in df.iterrows():
     agg = int(row["aggregate"])
-    ax.annotate(f"{row['n_escalou']:.0f}/{row['n']:.0f} escalou\n({RECOLETADO_INFO.get(agg, '?')} recoletado)",
+    ax.annotate(f"{row['n_escalou']:.0f}/{row['n']:.0f} escalou",
                 xy=(row["aggregate"], row["peak_max"]),
                 xytext=(0, 10), textcoords="offset points",
                 ha="center", fontsize=7.5, color="#333")
@@ -178,8 +185,7 @@ ax.set_xlabel("RPS agregado (tráfego normal, WU=10, escala log2)")
 ax.set_ylabel("CPU de pico (%)")
 ax.set_title(
     "Curva de capacidade -- potência de 2 base 20, COM QUARTIS -- pós-correção do load balancer\n"
-    "(changes.txt §102-104) -- ATENÇÃO: cobertura parcial da recoleta, ver anotação \"N/10 recoletado\" "
-    "por ponto"
+    "(changes.txt §102-104) -- todas as repetições coletadas pós-correção (§115)"
 )
 ax.legend(handles=handles, labels=labels, loc="upper left", fontsize=8)
 ax.grid(True, alpha=0.3)

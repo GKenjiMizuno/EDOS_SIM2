@@ -8,16 +8,13 @@ import pandas as pd
 # Refaz o gráfico 24 no diretório dedicado graficos_apresentacao/04_pos_
 # loadbalancer/, mesma regra dos demais desta leva (changes.txt §102-104).
 #
-# AVISO IMPORTANTE (diferente dos outros gráficos desta leva): o único
-# arquivo usado por este gráfico -- metrics_normal_agg40_WU10_refined_rep1
-# -- NUNCA disparou SCALE_UP no run original (não está em
-# experiment_results/_pre_loadbalancer_fix/normal_baseline/, ou seja, não
-# fez parte da recoleta de 802 execuções por não ter sido afetado pelo
-# bug). O PNG gerado aqui é portanto PIXEL-IDÊNTICO ao gráfico 24 original
-# -- não existe versão "pós-correção" diferente pra esse dado específico,
-# porque o bug nunca teve chance de agir (só 1 instância o run inteiro).
-# Mantido nesta leva só por completude/consistência de nome, não porque
-# há alguma diferença real pra mostrar.
+# ATUALIZADO (changes.txt §140): a rep1 de normal_baseline agg40 refined
+# (único arquivo deste gráfico) FOI recoletada no lote 1 (30/09, commit
+# 712eb5a); o aviso antigo deste cabeçalho ("dado idêntico ao original, não
+# recoletado") deixou de valer. A versão recoletada dá CPU ~3,8% (a antiga,
+# de 20/08, ~7%). Resumo de tráfego: convenção "normal_" (mesma execução dos
+# metrics_ atuais, §112), com fallback para o nome antigo. Versão com as 10
+# reps e IC 95%: plot_normal_referencia_ic_loadbalancer.py (§135).
 
 NB_DIR = "experiment_results/normal_baseline"
 OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
@@ -30,7 +27,9 @@ REP = 1
 path = os.path.join(NB_DIR, f"metrics_normal_agg40_WU10_refined_rep{REP}.csv")
 df = pd.read_csv(path)
 
-summary_path = os.path.join(NB_DIR, f"normal_traffic_summary_log_agg40_WU10_refined_rep{REP}.csv")
+summary_path = os.path.join(NB_DIR, f"normal_traffic_summary_log_normal_agg40_WU10_refined_rep{REP}.csv")
+if not os.path.exists(summary_path):
+    summary_path = os.path.join(NB_DIR, f"normal_traffic_summary_log_agg40_WU10_refined_rep{REP}.csv")
 timeouts, ok, rate = 0, 0, 0.0
 if os.path.exists(summary_path):
     sdf = pd.read_csv(summary_path)
@@ -53,7 +52,7 @@ ax2.set_ylabel("nº instâncias (tracejado)", fontsize=9, color=INSTANCE_COLOR)
 ax2.tick_params(labelsize=8, colors=INSTANCE_COLOR)
 
 ax.set_title(f"Tráfego normal isolado (rep{REP}) -- 40 agregado, WU=10\n{timeouts} timeouts ({rate:.1f}%) -- "
-             "dado IDÊNTICO ao original (nunca escalou, não recoletado)",
+             "pós-correção (rep1 recoletada no lote 1)",
              fontsize=9.5)
 ax.set_xlabel("tempo (s)", fontsize=9)
 ax.set_ylabel("CPU média (%)", fontsize=9)
@@ -74,5 +73,4 @@ out_path = os.path.join(OUT_DIR, "24_normal_referencia_instancias_(loadbalancer)
 fig.savefig(out_path, dpi=110)
 plt.close(fig)
 print(f"Salvo: {out_path}")
-print("[NOTA] Este PNG e' identico ao grafico 24 original -- o arquivo-fonte nunca escalou, "
-      "nao foi recoletado, o bug nunca teve chance de agir nesse dado.")
+

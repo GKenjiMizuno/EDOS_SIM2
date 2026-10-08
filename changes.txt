@@ -5893,3 +5893,34 @@ Resultados: 66/68 (sem ataque) -- Z robusto e JS 0 alarmes falsos (Z antigo:
   0/3 depois. 71 (baseline contaminado, §121/§133) -- Z robusto 2/13 e JS
   3/13 no início do ataque (CUSUM e combinado continuam 0/13): mediana/MAD
   resistem melhor ao pico de arranque.
+
+================================================================================
+§140. Teste de reprodutibilidade dos gráficos + correções antes do branch base
+================================================================================
+Criado gerar_graficos_definitivos.sh (regenera os 39 PNGs de
+  04_pos_loadbalancer só a partir de CSVs; --completo recalcula também as
+  tabelas de detecção). Teste: PNGs copiados, tudo regenerado, md5
+  comparado, originais restaurados via git.
+  - 31 reproduzidos byte a byte (inclusive os centrais 17, 27, 58, 60 e todos
+    os de 24_ic, 27_dp, 58_log2, 59-71).
+  - 8 NÃO reproduzidos: 06, 11, 20, 24, 42, 48, 55, 56 -- gerados entre 25 e
+    28/09, antes de a recoleta terminar (lotes 3 e 1, até 30/09); os dados
+    mudaram depois (diferença de 0,9% a 16% dos pixels). Scripts são
+    determinísticos (20 e 42 usam random.seed(0); duas execuções seguidas
+    dão o mesmo md5). PNGs desatualizados em relação aos dados definitivos.
+  - 63_cusum_1000sigma_deteccao_wedos.png (versão antiga de 2 painéis, §125)
+    não é gerado por nenhum script desde a divisão em 63/64 (§126).
+Correções de código (sem alterar PNGs no develop; originais restaurados):
+  - plot_normal_referencia_loadbalancer.py (24): título dizia "dado IDÊNTICO
+    ao original (nunca escalou, não recoletado)" -- falso desde o lote 1 (rep1
+    recoletada). Título/cabeçalho corrigidos; resumo de tráfego passa a usar
+    a convenção "normal_" (fallback no nome antigo).
+  - plot_graph4_pow2_base20_quartis_loadbalancer.py (42): anotação "N/10
+    recoletado" e aviso "cobertura parcial" falsos desde o §115 (todo o
+    dataset é pós-correção) -- removidos. BUG do mesmo tipo do §112: lia só o
+    resumo com nome antigo, vazio em 3 reps de 640 rps, que eram descartadas
+    (n=7); com a convenção "normal_" entram as 10 (640 rps: pico médio
+    44,5%).
+  - plot_comparacao_completa_v2_loadbalancer.py (27): mesma troca de
+    convenção para o texto de timeouts do painel normal (0 nos dois
+    arquivos); PNG do 27 conferido idêntico (md5 9b4bf386...).

@@ -74,7 +74,11 @@ gs = GridSpec(7, 3, figure=fig, height_ratios=[0.7] + [1] * 6, hspace=0.55, wspa
 
 ax_normal = fig.add_subplot(gs[0, 1])
 df_normal = pd.read_csv(os.path.join(NB_DIR, "metrics_normal_agg40_WU10_refined_rep1.csv"))
-t_n, r_n = timeout_info(os.path.join(NB_DIR, "normal_traffic_summary_log_agg40_WU10_refined_rep1.csv"))
+# convenção "normal_" = mesma execução dos metrics_ atuais (§112); fallback no nome antigo (§140)
+_sn = os.path.join(NB_DIR, "normal_traffic_summary_log_normal_agg40_WU10_refined_rep1.csv")
+if not os.path.exists(_sn):
+    _sn = os.path.join(NB_DIR, "normal_traffic_summary_log_agg40_WU10_refined_rep1.csv")
+t_n, r_n = timeout_info(_sn)
 ax2_normal = ax_normal.twinx()
 plot_single(ax_normal, ax2_normal, df_normal, "#7a3fd6", has_attack_window=False)
 finish_panel(ax_normal, ax2_normal, "#7a3fd6",
