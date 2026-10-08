@@ -16,6 +16,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import stats
 import numpy as np
+from EntCusumZV3 import (Z_K_RECOMENDADO, Z_FRAC_RECOMENDADA, ENTROPIA_BINS_RECOMENDADO,
+                         ENTROPIA_JS_RECOMENDADO, bordas_log_baseline, divergencia_js,
+                         histograma_faixas, z_robusto_params)
 import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
@@ -28,6 +31,11 @@ from matplotlib.patches import Patch
 # ataque WU=200.000 a 0/1/5% (0% = controle sem ataque), 180 s, 3 reps (usa a
 # de erro normal mediano). Gera 69 (0%), 70 (1%), 71 (5%).
 C320 = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--c320=")), None)
+# --novos (§139): Z robusto contra o baseline (fração > Z_FRAC de amostras com
+# z > Z_K) e entropia por divergência de Jensen-Shannon com faixas log do
+# baseline -- ambos do EntCusumZV3 (§138). O combinado passa a usar o Z novo.
+# Saída com sufixo _novos; versões sem a opção ficam intocadas.
+NOVOS = "--novos" in sys.argv
 NORMAL = "--normal" in sys.argv or C320 == 0
 # --200s (§130): reexecução de 1 rep com 200 s (ataque continua em 20-160 s),
 # para ver os detectores depois do fim do ataque. Gera 67 (combinado) / 68
@@ -99,6 +107,10 @@ for i, v in enumerate(vals):
         c = 0.0
     cus[i] = c
 vmin, vmax = vals.min(), vals.max()
+if NOVOS:
+    z_med, z_esc = z_robusto_params(base.values)
+    bordas_ent = bordas_log_baseline(base.values, ENTROPIA_BINS_RECOMENDADO)
+    p_base = histograma_faixas(base.values, bordas_ent)
 jan, prev, ent_prev = [], None, None
 for t0 in np.arange(0, DUR - 20 + 1, 10):
     msk = (tempo >= t0) & (tempo < t0 + 20)
@@ -112,13 +124,22 @@ for t0 in np.arange(0, DUR - 20 + 1, 10):
     prev = (w.mean(), w.std(ddof=1))
     cs = cus[np.where(msk)[0][-1]] / sd
     al_c = bool(disparo[msk].any()) if RESET else cs > H
-    jan.append(dict(fim=t0 + 20, media=w.mean(), cusum=al_c, z=zmax > Z_LIM, ent=dH > DH_LIM,
+    if NOVOS:
+        frac_z = float(((w - z_med) / z_esc > Z_K_RECOMENDADO).mean())
+        al_z = frac_z > Z_FRAC_RECOMENDADA
+        al_e = divergencia_js(histograma_faixas(w, bordas_ent), p_base) > ENTROPIA_JS_RECOMENDADO
+    else:
+        al_z, al_e = zmax > Z_LIM, dH > DH_LIM
+    jan.append(dict(fim=t0 + 20, media=w.mean(), cusum=al_c, z=al_z, ent=al_e,
                     n_disparos=int(disparo[msk].sum()),
-                    comb=(w.mean() > RAZAO * mu) and (zmax > Z_LIM or al_c),
+                    comb=(w.mean() > RAZAO * mu) and (al_z or al_c),
                     comb5=(w.mean() > RAZAO * mu) and (zmax > Z_LIM or cs > 5)))
 jan = pd.DataFrame(jan)
-DETS = [("cusum", f"CUSUM c/ reset\n(> {H}σ)" if RESET else f"CUSUM\n(> {H}σ)"), ("z", f"Z-score\n(> {Z_LIM:g})".replace(".", ",")),
-        ("ent", f"Entropia\n(ΔH > {DH_LIM:g})".replace(".", ",")),
+DETS = [("cusum", f"CUSUM c/ reset\n(> {H}σ)" if RESET else f"CUSUM\n(> {H}σ)"),
+        ("z", (f"Z robusto\n(> {100 * Z_FRAC_RECOMENDADA:g}% c/ z > {Z_K_RECOMENDADO:g})" if NOVOS
+               else f"Z-score\n(> {Z_LIM:g})").replace(".", ",")),
+        ("ent", (f"Entropia JS\n(> {ENTROPIA_JS_RECOMENDADO:g})" if NOVOS
+                 else f"Entropia\n(ΔH > {DH_LIM:g})").replace(".", ",")),
         ("comb", f"Combinado\n(média > {RAZAO:g}× e\nZ ou CUSUM)".replace(".", ","))]
 
 fig = plt.figure(figsize=(15, 6.6))
@@ -233,10 +254,15 @@ else:
           f"4 atacantes × 7,5 rps · ataque de {a0:.0f} a {a1:.0f} s\n")
 fig.text(0.01, 0.01, linha1 +
          f"Detectores (EntCusumZV3): janelas de 20 s, passo 10 s, veredito no fim da janela · baseline = RTT dos primeiros 20 s · "
-         f"CUSUM κ = 0,5σ, h = {H}σ" + (" com reset (zera ao alarmar; janela = ataque se houve alarme nela)" if RESET else "") + ("\n" if RESET else " · ") + f"Z = maior |z| da janela contra a janela anterior · entropia de 10 faixas do RTT\n"
-         f"Combinado = média da janela > {RAZAO:g}× o baseline E (Z > {Z_LIM:g} OU CUSUM > h) · tempo do RTT corrigido dos saltos de relógio do WSL2".replace("1.8", "1,8").replace("3.5", "3,5"),
+         f"CUSUM κ = 0,5σ, h = {H}σ" + (" com reset (zera ao alarmar; janela = ataque se houve alarme nela)" if RESET else "") + ("\n" if RESET else " · ") + (f"Z robusto = (RTT − mediana)/(1,4826·MAD) do baseline, alarme se > {100 * Z_FRAC_RECOMENDADA:g}".replace(".", ",") + f"% das amostras com z > {Z_K_RECOMENDADO:g} · "
+    f"entropia: divergência de Jensen-Shannon janela×baseline, {ENTROPIA_BINS_RECOMENDADO} faixas log + transbordo (§138)\n" if NOVOS else
+    "Z = maior |z| da janela contra a janela anterior · entropia de 10 faixas do RTT\n") +
+         (f"Combinado = média da janela > {RAZAO:g}× o baseline E (" + ("Z robusto" if NOVOS else f"Z > {Z_LIM:g}") +
+          " OU CUSUM > h) · tempo do RTT corrigido dos saltos de relógio do WSL2").replace("1.8", "1,8").replace("3.5", "3,5"),
          fontsize=7.8, color="#6b7280")
 fig.subplots_adjust(left=0.05, right=0.93, top=0.89, bottom=0.29 if C320 is not None else 0.27 if RESET else 0.25)
+if NOVOS:
+    OUT = OUT.replace(".png", "_novos.png")
 fig.savefig(OUT, dpi=150)
 print("Salvo:", OUT, "| execução:", suf)
 print("SCALE_UPs:", list(m[m.decision == "SCALE_UP"].elapsed_time_s), "SCALE_DOWNs:", list(m[m.decision == "SCALE_DOWN"].elapsed_time_s))

@@ -1,0 +1,881 @@
+metodo,valor,parte,fpr,tpr,tpr_dano
+Z robusto k=3.5 (fração > f),0.0005,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0005,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0006,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0006,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00072,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00072,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00086,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00086,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00104,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00104,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00124,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00124,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00149,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00149,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00179,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00179,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00214,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00214,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00257,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00257,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00309,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00309,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0037,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0037,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00444,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00444,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00532,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00532,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00638,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00638,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00765,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00765,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00918,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.00918,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01101,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01101,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0132,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.0132,avaliacao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01583,selecao,100.0,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01583,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01899,selecao,98.42105263157895,100.0,100.0
+Z robusto k=3.5 (fração > f),0.01899,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=3.5 (fração > f),0.02278,selecao,96.84210526315789,100.0,100.0
+Z robusto k=3.5 (fração > f),0.02278,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=3.5 (fração > f),0.02731,selecao,94.21052631578948,100.0,100.0
+Z robusto k=3.5 (fração > f),0.02731,avaliacao,97.16312056737588,100.0,100.0
+Z robusto k=3.5 (fração > f),0.03276,selecao,91.05263157894737,100.0,100.0
+Z robusto k=3.5 (fração > f),0.03276,avaliacao,90.0709219858156,100.0,100.0
+Z robusto k=3.5 (fração > f),0.03929,selecao,86.84210526315789,100.0,100.0
+Z robusto k=3.5 (fração > f),0.03929,avaliacao,87.94326241134752,100.0,100.0
+Z robusto k=3.5 (fração > f),0.04712,selecao,81.57894736842105,100.0,100.0
+Z robusto k=3.5 (fração > f),0.04712,avaliacao,83.68794326241135,100.0,100.0
+Z robusto k=3.5 (fração > f),0.05651,selecao,74.73684210526316,99.82300884955752,100.0
+Z robusto k=3.5 (fração > f),0.05651,avaliacao,73.75886524822695,100.0,100.0
+Z robusto k=3.5 (fração > f),0.06777,selecao,63.68421052631579,99.82300884955752,100.0
+Z robusto k=3.5 (fração > f),0.06777,avaliacao,55.319148936170215,100.0,100.0
+Z robusto k=3.5 (fração > f),0.08127,selecao,33.68421052631579,99.64601769911505,100.0
+Z robusto k=3.5 (fração > f),0.08127,avaliacao,24.113475177304963,99.38837920489297,100.0
+Z robusto k=3.5 (fração > f),0.09747,selecao,12.631578947368421,98.23008849557522,100.0
+Z robusto k=3.5 (fração > f),0.09747,avaliacao,10.638297872340425,98.77675840978593,100.0
+Z robusto k=3.5 (fração > f),0.1169,selecao,5.2631578947368425,93.80530973451327,100.0
+Z robusto k=3.5 (fração > f),0.1169,avaliacao,0.7092198581560284,93.88379204892966,100.0
+Z robusto k=3.5 (fração > f),0.1402,selecao,2.6315789473684212,87.07964601769912,100.0
+Z robusto k=3.5 (fração > f),0.1402,avaliacao,0.7092198581560284,87.1559633027523,100.0
+Z robusto k=3.5 (fração > f),0.16814,selecao,1.0526315789473684,80.35398230088495,100.0
+Z robusto k=3.5 (fração > f),0.16814,avaliacao,0.0,79.51070336391437,100.0
+Z robusto k=3.5 (fração > f),0.20165,selecao,0.0,75.22123893805309,100.0
+Z robusto k=3.5 (fração > f),0.20165,avaliacao,0.0,75.22935779816514,100.0
+Z robusto k=3.5 (fração > f),0.24183,selecao,0.0,67.07964601769912,100.0
+Z robusto k=3.5 (fração > f),0.24183,avaliacao,0.0,66.05504587155963,100.0
+Z robusto k=3.5 (fração > f),0.29003,selecao,0.0,59.64601769911504,100.0
+Z robusto k=3.5 (fração > f),0.29003,avaliacao,0.0,58.71559633027523,100.0
+Z robusto k=3.5 (fração > f),0.34783,selecao,0.0,50.61946902654867,100.0
+Z robusto k=3.5 (fração > f),0.34783,avaliacao,0.0,49.84709480122324,100.0
+Z robusto k=3.5 (fração > f),0.41715,selecao,0.0,43.89380530973451,98.96373056994818
+Z robusto k=3.5 (fração > f),0.41715,avaliacao,0.0,42.50764525993884,98.13084112149532
+Z robusto k=3.5 (fração > f),0.50029,selecao,0.0,31.504424778761063,80.31088082901555
+Z robusto k=3.5 (fração > f),0.50029,avaliacao,0.0,31.804281345565748,85.04672897196262
+Z robusto k=3.5 (fração > f),0.6,selecao,0.0,20.530973451327434,56.476683937823836
+Z robusto k=3.5 (fração > f),0.6,avaliacao,0.0,20.18348623853211,57.94392523364486
+Z robusto k=5 (fração > f),0.0005,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.0005,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.0006,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.0006,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00072,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00072,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00086,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00086,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00104,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00104,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00124,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00124,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00149,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00149,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00179,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00179,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00214,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00214,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00257,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00257,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00309,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00309,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.0037,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.0037,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00444,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00444,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00532,selecao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00532,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00638,selecao,98.94736842105263,100.0,100.0
+Z robusto k=5 (fração > f),0.00638,avaliacao,100.0,100.0,100.0
+Z robusto k=5 (fração > f),0.00765,selecao,97.36842105263158,100.0,100.0
+Z robusto k=5 (fração > f),0.00765,avaliacao,98.58156028368795,100.0,100.0
+Z robusto k=5 (fração > f),0.00918,selecao,95.78947368421052,100.0,100.0
+Z robusto k=5 (fração > f),0.00918,avaliacao,98.58156028368795,100.0,100.0
+Z robusto k=5 (fração > f),0.01101,selecao,94.73684210526316,100.0,100.0
+Z robusto k=5 (fração > f),0.01101,avaliacao,95.74468085106383,100.0,100.0
+Z robusto k=5 (fração > f),0.0132,selecao,93.15789473684211,100.0,100.0
+Z robusto k=5 (fração > f),0.0132,avaliacao,94.32624113475177,100.0,100.0
+Z robusto k=5 (fração > f),0.01583,selecao,89.47368421052632,100.0,100.0
+Z robusto k=5 (fração > f),0.01583,avaliacao,90.0709219858156,100.0,100.0
+Z robusto k=5 (fração > f),0.01899,selecao,82.63157894736842,100.0,100.0
+Z robusto k=5 (fração > f),0.01899,avaliacao,82.26950354609929,100.0,100.0
+Z robusto k=5 (fração > f),0.02278,selecao,79.47368421052632,100.0,100.0
+Z robusto k=5 (fração > f),0.02278,avaliacao,79.43262411347517,100.0,100.0
+Z robusto k=5 (fração > f),0.02731,selecao,72.10526315789474,100.0,100.0
+Z robusto k=5 (fração > f),0.02731,avaliacao,73.04964539007092,100.0,100.0
+Z robusto k=5 (fração > f),0.03276,selecao,67.36842105263158,100.0,100.0
+Z robusto k=5 (fração > f),0.03276,avaliacao,58.156028368794324,100.0,100.0
+Z robusto k=5 (fração > f),0.03929,selecao,50.0,100.0,100.0
+Z robusto k=5 (fração > f),0.03929,avaliacao,41.13475177304964,100.0,100.0
+Z robusto k=5 (fração > f),0.04712,selecao,28.42105263157895,99.82300884955752,100.0
+Z robusto k=5 (fração > f),0.04712,avaliacao,21.27659574468085,100.0,100.0
+Z robusto k=5 (fração > f),0.05651,selecao,15.263157894736842,99.46902654867256,100.0
+Z robusto k=5 (fração > f),0.05651,avaliacao,11.347517730496454,99.38837920489297,100.0
+Z robusto k=5 (fração > f),0.06777,selecao,7.368421052631579,98.40707964601769,100.0
+Z robusto k=5 (fração > f),0.06777,avaliacao,3.5460992907801416,98.77675840978593,100.0
+Z robusto k=5 (fração > f),0.08127,selecao,4.2105263157894735,96.10619469026548,100.0
+Z robusto k=5 (fração > f),0.08127,avaliacao,0.7092198581560284,95.71865443425077,100.0
+Z robusto k=5 (fração > f),0.09747,selecao,1.0526315789473684,89.73451327433628,100.0
+Z robusto k=5 (fração > f),0.09747,avaliacao,0.0,90.51987767584097,100.0
+Z robusto k=5 (fração > f),0.1169,selecao,0.0,84.77876106194691,100.0
+Z robusto k=5 (fração > f),0.1169,avaliacao,0.0,85.01529051987768,100.0
+Z robusto k=5 (fração > f),0.1402,selecao,0.0,78.76106194690266,100.0
+Z robusto k=5 (fração > f),0.1402,avaliacao,0.0,78.59327217125383,100.0
+Z robusto k=5 (fração > f),0.16814,selecao,0.0,75.57522123893806,100.0
+Z robusto k=5 (fração > f),0.16814,avaliacao,0.0,74.92354740061162,100.0
+Z robusto k=5 (fração > f),0.20165,selecao,0.0,68.67256637168141,100.0
+Z robusto k=5 (fração > f),0.20165,avaliacao,0.0,68.19571865443424,100.0
+Z robusto k=5 (fração > f),0.24183,selecao,0.0,63.008849557522126,100.0
+Z robusto k=5 (fração > f),0.24183,avaliacao,0.0,62.38532110091743,100.0
+Z robusto k=5 (fração > f),0.29003,selecao,0.0,55.92920353982301,100.0
+Z robusto k=5 (fração > f),0.29003,avaliacao,0.0,54.74006116207951,100.0
+Z robusto k=5 (fração > f),0.34783,selecao,0.0,48.31858407079646,99.48186528497409
+Z robusto k=5 (fração > f),0.34783,avaliacao,0.0,48.01223241590214,100.0
+Z robusto k=5 (fração > f),0.41715,selecao,0.0,40.35398230088496,95.33678756476684
+Z robusto k=5 (fração > f),0.41715,avaliacao,0.0,41.28440366972477,96.26168224299066
+Z robusto k=5 (fração > f),0.50029,selecao,0.0,29.38053097345133,76.16580310880829
+Z robusto k=5 (fração > f),0.50029,avaliacao,0.0,28.74617737003058,78.50467289719626
+Z robusto k=5 (fração > f),0.6,selecao,0.0,19.469026548672566,53.36787564766839
+Z robusto k=5 (fração > f),0.6,avaliacao,0.0,17.431192660550458,49.532710280373834
+Z robusto k=7 (fração > f),0.0005,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.0005,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.0006,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.0006,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00072,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00072,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00086,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00086,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00104,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00104,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00124,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00124,avaliacao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00149,selecao,100.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00149,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=7 (fração > f),0.00179,selecao,99.47368421052632,100.0,100.0
+Z robusto k=7 (fração > f),0.00179,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=7 (fração > f),0.00214,selecao,99.47368421052632,100.0,100.0
+Z robusto k=7 (fração > f),0.00214,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=7 (fração > f),0.00257,selecao,98.94736842105263,100.0,100.0
+Z robusto k=7 (fração > f),0.00257,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=7 (fração > f),0.00309,selecao,98.42105263157895,100.0,100.0
+Z robusto k=7 (fração > f),0.00309,avaliacao,99.29078014184397,100.0,100.0
+Z robusto k=7 (fração > f),0.0037,selecao,95.78947368421052,100.0,100.0
+Z robusto k=7 (fração > f),0.0037,avaliacao,95.74468085106383,100.0,100.0
+Z robusto k=7 (fração > f),0.00444,selecao,92.63157894736842,100.0,100.0
+Z robusto k=7 (fração > f),0.00444,avaliacao,94.32624113475177,100.0,100.0
+Z robusto k=7 (fração > f),0.00532,selecao,88.42105263157895,100.0,100.0
+Z robusto k=7 (fração > f),0.00532,avaliacao,92.19858156028369,100.0,100.0
+Z robusto k=7 (fração > f),0.00638,selecao,87.36842105263158,100.0,100.0
+Z robusto k=7 (fração > f),0.00638,avaliacao,88.65248226950355,100.0,100.0
+Z robusto k=7 (fração > f),0.00765,selecao,83.15789473684211,100.0,100.0
+Z robusto k=7 (fração > f),0.00765,avaliacao,82.97872340425532,100.0,100.0
+Z robusto k=7 (fração > f),0.00918,selecao,80.0,100.0,100.0
+Z robusto k=7 (fração > f),0.00918,avaliacao,79.43262411347517,100.0,100.0
+Z robusto k=7 (fração > f),0.01101,selecao,75.78947368421052,100.0,100.0
+Z robusto k=7 (fração > f),0.01101,avaliacao,71.63120567375887,100.0,100.0
+Z robusto k=7 (fração > f),0.0132,selecao,71.05263157894737,100.0,100.0
+Z robusto k=7 (fração > f),0.0132,avaliacao,66.66666666666667,100.0,100.0
+Z robusto k=7 (fração > f),0.01583,selecao,66.3157894736842,100.0,100.0
+Z robusto k=7 (fração > f),0.01583,avaliacao,58.156028368794324,100.0,100.0
+Z robusto k=7 (fração > f),0.01899,selecao,54.73684210526316,100.0,100.0
+Z robusto k=7 (fração > f),0.01899,avaliacao,42.5531914893617,100.0,100.0
+Z robusto k=7 (fração > f),0.02278,selecao,37.89473684210526,100.0,100.0
+Z robusto k=7 (fração > f),0.02278,avaliacao,29.78723404255319,100.0,100.0
+Z robusto k=7 (fração > f),0.02731,selecao,24.210526315789473,100.0,100.0
+Z robusto k=7 (fração > f),0.02731,avaliacao,14.893617021276595,100.0,100.0
+Z robusto k=7 (fração > f),0.03276,selecao,15.789473684210526,100.0,100.0
+Z robusto k=7 (fração > f),0.03276,avaliacao,12.056737588652481,100.0,100.0
+Z robusto k=7 (fração > f),0.03929,selecao,8.947368421052632,99.64601769911505,100.0
+Z robusto k=7 (fração > f),0.03929,avaliacao,7.092198581560283,100.0,100.0
+Z robusto k=7 (fração > f),0.04712,selecao,5.7894736842105265,98.93805309734513,100.0
+Z robusto k=7 (fração > f),0.04712,avaliacao,4.964539007092198,99.38837920489297,100.0
+Z robusto k=7 (fração > f),0.05651,selecao,3.6842105263157894,97.16814159292035,100.0
+Z robusto k=7 (fração > f),0.05651,avaliacao,0.0,97.24770642201835,100.0
+Z robusto k=7 (fração > f),0.06777,selecao,0.0,94.15929203539822,100.0
+Z robusto k=7 (fração > f),0.06777,avaliacao,0.0,95.41284403669725,100.0
+Z robusto k=7 (fração > f),0.08127,selecao,0.0,89.38053097345133,100.0
+Z robusto k=7 (fração > f),0.08127,avaliacao,0.0,89.29663608562691,100.0
+Z robusto k=7 (fração > f),0.09747,selecao,0.0,85.30973451327434,100.0
+Z robusto k=7 (fração > f),0.09747,avaliacao,0.0,84.70948012232417,100.0
+Z robusto k=7 (fração > f),0.1169,selecao,0.0,78.93805309734513,100.0
+Z robusto k=7 (fração > f),0.1169,avaliacao,0.0,79.20489296636086,100.0
+Z robusto k=7 (fração > f),0.1402,selecao,0.0,75.57522123893806,100.0
+Z robusto k=7 (fração > f),0.1402,avaliacao,0.0,76.14678899082568,100.0
+Z robusto k=7 (fração > f),0.16814,selecao,0.0,71.68141592920354,100.0
+Z robusto k=7 (fração > f),0.16814,avaliacao,0.0,70.9480122324159,100.0
+Z robusto k=7 (fração > f),0.20165,selecao,0.0,66.01769911504425,100.0
+Z robusto k=7 (fração > f),0.20165,avaliacao,0.0,64.52599388379205,100.0
+Z robusto k=7 (fração > f),0.24183,selecao,0.0,60.88495575221239,100.0
+Z robusto k=7 (fração > f),0.24183,avaliacao,0.0,60.24464831804281,100.0
+Z robusto k=7 (fração > f),0.29003,selecao,0.0,53.097345132743364,100.0
+Z robusto k=7 (fração > f),0.29003,avaliacao,0.0,53.211009174311926,100.0
+Z robusto k=7 (fração > f),0.34783,selecao,0.0,47.43362831858407,99.48186528497409
+Z robusto k=7 (fração > f),0.34783,avaliacao,0.0,47.706422018348626,100.0
+Z robusto k=7 (fração > f),0.41715,selecao,0.0,38.76106194690266,91.70984455958549
+Z robusto k=7 (fração > f),0.41715,avaliacao,0.0,37.920489296636084,89.7196261682243
+Z robusto k=7 (fração > f),0.50029,selecao,0.0,26.72566371681416,71.50259067357513
+Z robusto k=7 (fração > f),0.50029,avaliacao,0.0,26.91131498470948,72.89719626168224
+Z robusto k=7 (fração > f),0.6,selecao,0.0,17.345132743362832,47.66839378238342
+Z robusto k=7 (fração > f),0.6,avaliacao,0.0,14.678899082568808,41.12149532710281
+Z robusto k=10 (fração > f),0.0005,selecao,93.15789473684211,100.0,100.0
+Z robusto k=10 (fração > f),0.0005,avaliacao,94.32624113475177,100.0,100.0
+Z robusto k=10 (fração > f),0.0006,selecao,92.63157894736842,100.0,100.0
+Z robusto k=10 (fração > f),0.0006,avaliacao,94.32624113475177,100.0,100.0
+Z robusto k=10 (fração > f),0.00072,selecao,92.63157894736842,100.0,100.0
+Z robusto k=10 (fração > f),0.00072,avaliacao,94.32624113475177,100.0,100.0
+Z robusto k=10 (fração > f),0.00086,selecao,91.57894736842105,100.0,100.0
+Z robusto k=10 (fração > f),0.00086,avaliacao,92.19858156028369,100.0,100.0
+Z robusto k=10 (fração > f),0.00104,selecao,90.52631578947368,100.0,100.0
+Z robusto k=10 (fração > f),0.00104,avaliacao,92.19858156028369,100.0,100.0
+Z robusto k=10 (fração > f),0.00124,selecao,90.52631578947368,100.0,100.0
+Z robusto k=10 (fração > f),0.00124,avaliacao,90.78014184397163,100.0,100.0
+Z robusto k=10 (fração > f),0.00149,selecao,90.52631578947368,100.0,100.0
+Z robusto k=10 (fração > f),0.00149,avaliacao,90.0709219858156,100.0,100.0
+Z robusto k=10 (fração > f),0.00179,selecao,86.84210526315789,100.0,100.0
+Z robusto k=10 (fração > f),0.00179,avaliacao,87.23404255319149,100.0,100.0
+Z robusto k=10 (fração > f),0.00214,selecao,86.3157894736842,100.0,100.0
+Z robusto k=10 (fração > f),0.00214,avaliacao,86.52482269503547,100.0,100.0
+Z robusto k=10 (fração > f),0.00257,selecao,83.15789473684211,100.0,100.0
+Z robusto k=10 (fração > f),0.00257,avaliacao,84.39716312056737,100.0,100.0
+Z robusto k=10 (fração > f),0.00309,selecao,82.63157894736842,100.0,100.0
+Z robusto k=10 (fração > f),0.00309,avaliacao,82.26950354609929,100.0,100.0
+Z robusto k=10 (fração > f),0.0037,selecao,77.36842105263158,100.0,100.0
+Z robusto k=10 (fração > f),0.0037,avaliacao,72.34042553191489,100.0,100.0
+Z robusto k=10 (fração > f),0.00444,selecao,75.78947368421052,100.0,100.0
+Z robusto k=10 (fração > f),0.00444,avaliacao,70.2127659574468,100.0,100.0
+Z robusto k=10 (fração > f),0.00532,selecao,69.47368421052632,100.0,100.0
+Z robusto k=10 (fração > f),0.00532,avaliacao,65.95744680851064,100.0,100.0
+Z robusto k=10 (fração > f),0.00638,selecao,63.1578947368421,100.0,100.0
+Z robusto k=10 (fração > f),0.00638,avaliacao,57.4468085106383,100.0,100.0
+Z robusto k=10 (fração > f),0.00765,selecao,59.473684210526315,100.0,100.0
+Z robusto k=10 (fração > f),0.00765,avaliacao,53.90070921985816,100.0,100.0
+Z robusto k=10 (fração > f),0.00918,selecao,51.578947368421055,100.0,100.0
+Z robusto k=10 (fração > f),0.00918,avaliacao,39.716312056737586,100.0,100.0
+Z robusto k=10 (fração > f),0.01101,selecao,42.63157894736842,100.0,100.0
+Z robusto k=10 (fração > f),0.01101,avaliacao,30.49645390070922,100.0,100.0
+Z robusto k=10 (fração > f),0.0132,selecao,27.894736842105264,100.0,100.0
+Z robusto k=10 (fração > f),0.0132,avaliacao,20.56737588652482,100.0,100.0
+Z robusto k=10 (fração > f),0.01583,selecao,20.0,100.0,100.0
+Z robusto k=10 (fração > f),0.01583,avaliacao,17.02127659574468,100.0,100.0
+Z robusto k=10 (fração > f),0.01899,selecao,12.631578947368421,100.0,100.0
+Z robusto k=10 (fração > f),0.01899,avaliacao,10.638297872340425,100.0,100.0
+Z robusto k=10 (fração > f),0.02278,selecao,9.473684210526315,100.0,100.0
+Z robusto k=10 (fração > f),0.02278,avaliacao,6.382978723404255,100.0,100.0
+Z robusto k=10 (fração > f),0.02731,selecao,5.2631578947368425,100.0,100.0
+Z robusto k=10 (fração > f),0.02731,avaliacao,4.964539007092198,100.0,100.0
+Z robusto k=10 (fração > f),0.03276,selecao,3.1578947368421053,99.11504424778761,100.0
+Z robusto k=10 (fração > f),0.03276,avaliacao,1.4184397163120568,99.69418960244649,100.0
+Z robusto k=10 (fração > f),0.03929,selecao,0.5263157894736842,98.05309734513274,100.0
+Z robusto k=10 (fração > f),0.03929,avaliacao,0.7092198581560284,98.1651376146789,100.0
+Z robusto k=10 (fração > f),0.04712,selecao,0.0,96.46017699115045,100.0
+Z robusto k=10 (fração > f),0.04712,avaliacao,0.0,96.3302752293578,100.0
+Z robusto k=10 (fração > f),0.05651,selecao,0.0,92.38938053097345,100.0
+Z robusto k=10 (fração > f),0.05651,avaliacao,0.0,94.80122324159021,100.0
+Z robusto k=10 (fração > f),0.06777,selecao,0.0,88.67256637168141,100.0
+Z robusto k=10 (fração > f),0.06777,avaliacao,0.0,90.51987767584097,100.0
+Z robusto k=10 (fração > f),0.08127,selecao,0.0,85.13274336283186,100.0
+Z robusto k=10 (fração > f),0.08127,avaliacao,0.0,85.3211009174312,100.0
+Z robusto k=10 (fração > f),0.09747,selecao,0.0,80.53097345132744,100.0
+Z robusto k=10 (fração > f),0.09747,avaliacao,0.0,80.1223241590214,100.0
+Z robusto k=10 (fração > f),0.1169,selecao,0.0,77.34513274336283,100.0
+Z robusto k=10 (fração > f),0.1169,avaliacao,0.0,77.67584097859327,100.0
+Z robusto k=10 (fração > f),0.1402,selecao,0.0,74.15929203539822,100.0
+Z robusto k=10 (fração > f),0.1402,avaliacao,0.0,73.39449541284404,100.0
+Z robusto k=10 (fração > f),0.16814,selecao,0.0,68.31858407079646,100.0
+Z robusto k=10 (fração > f),0.16814,avaliacao,0.0,67.88990825688073,100.0
+Z robusto k=10 (fração > f),0.20165,selecao,0.0,63.716814159292035,100.0
+Z robusto k=10 (fração > f),0.20165,avaliacao,0.0,62.99694189602447,100.0
+Z robusto k=10 (fração > f),0.24183,selecao,0.0,58.93805309734513,100.0
+Z robusto k=10 (fração > f),0.24183,avaliacao,0.0,57.79816513761468,100.0
+Z robusto k=10 (fração > f),0.29003,selecao,0.0,51.150442477876105,99.48186528497409
+Z robusto k=10 (fração > f),0.29003,avaliacao,0.0,51.37614678899082,100.0
+Z robusto k=10 (fração > f),0.34783,selecao,0.0,46.017699115044245,98.96373056994818
+Z robusto k=10 (fração > f),0.34783,avaliacao,0.0,46.17737003058104,99.06542056074767
+Z robusto k=10 (fração > f),0.41715,selecao,0.0,34.86725663716814,86.01036269430051
+Z robusto k=10 (fração > f),0.41715,avaliacao,0.0,36.08562691131498,86.91588785046729
+Z robusto k=10 (fração > f),0.50029,selecao,0.0,25.309734513274336,67.35751295336787
+Z robusto k=10 (fração > f),0.50029,avaliacao,0.0,24.770642201834864,68.22429906542057
+Z robusto k=10 (fração > f),0.6,selecao,0.0,15.044247787610619,40.932642487046635
+Z robusto k=10 (fração > f),0.6,avaliacao,0.0,13.45565749235474,37.38317757009346
+Z robusto k=15 (fração > f),0.0005,selecao,79.47368421052632,100.0,100.0
+Z robusto k=15 (fração > f),0.0005,avaliacao,80.85106382978724,100.0,100.0
+Z robusto k=15 (fração > f),0.0006,selecao,78.94736842105263,100.0,100.0
+Z robusto k=15 (fração > f),0.0006,avaliacao,79.43262411347517,100.0,100.0
+Z robusto k=15 (fração > f),0.00072,selecao,77.89473684210526,100.0,100.0
+Z robusto k=15 (fração > f),0.00072,avaliacao,78.01418439716312,100.0,100.0
+Z robusto k=15 (fração > f),0.00086,selecao,74.73684210526316,100.0,100.0
+Z robusto k=15 (fração > f),0.00086,avaliacao,75.88652482269504,100.0,100.0
+Z robusto k=15 (fração > f),0.00104,selecao,73.6842105263158,100.0,100.0
+Z robusto k=15 (fração > f),0.00104,avaliacao,72.34042553191489,100.0,100.0
+Z robusto k=15 (fração > f),0.00124,selecao,73.15789473684211,100.0,100.0
+Z robusto k=15 (fração > f),0.00124,avaliacao,71.63120567375887,100.0,100.0
+Z robusto k=15 (fração > f),0.00149,selecao,71.57894736842105,100.0,100.0
+Z robusto k=15 (fração > f),0.00149,avaliacao,69.50354609929079,100.0,100.0
+Z robusto k=15 (fração > f),0.00179,selecao,68.94736842105263,100.0,100.0
+Z robusto k=15 (fração > f),0.00179,avaliacao,65.2482269503546,100.0,100.0
+Z robusto k=15 (fração > f),0.00214,selecao,66.3157894736842,100.0,100.0
+Z robusto k=15 (fração > f),0.00214,avaliacao,63.12056737588652,100.0,100.0
+Z robusto k=15 (fração > f),0.00257,selecao,61.578947368421055,100.0,100.0
+Z robusto k=15 (fração > f),0.00257,avaliacao,58.156028368794324,100.0,100.0
+Z robusto k=15 (fração > f),0.00309,selecao,60.0,100.0,100.0
+Z robusto k=15 (fração > f),0.00309,avaliacao,51.773049645390074,100.0,100.0
+Z robusto k=15 (fração > f),0.0037,selecao,50.526315789473685,100.0,100.0
+Z robusto k=15 (fração > f),0.0037,avaliacao,46.808510638297875,100.0,100.0
+Z robusto k=15 (fração > f),0.00444,selecao,40.0,100.0,100.0
+Z robusto k=15 (fração > f),0.00444,avaliacao,37.5886524822695,100.0,100.0
+Z robusto k=15 (fração > f),0.00532,selecao,34.73684210526316,100.0,100.0
+Z robusto k=15 (fração > f),0.00532,avaliacao,26.24113475177305,100.0,100.0
+Z robusto k=15 (fração > f),0.00638,selecao,27.894736842105264,100.0,100.0
+Z robusto k=15 (fração > f),0.00638,avaliacao,21.27659574468085,100.0,100.0
+Z robusto k=15 (fração > f),0.00765,selecao,22.105263157894736,100.0,100.0
+Z robusto k=15 (fração > f),0.00765,avaliacao,17.02127659574468,100.0,100.0
+Z robusto k=15 (fração > f),0.00918,selecao,16.31578947368421,100.0,100.0
+Z robusto k=15 (fração > f),0.00918,avaliacao,11.347517730496454,100.0,100.0
+Z robusto k=15 (fração > f),0.01101,selecao,11.052631578947368,100.0,100.0
+Z robusto k=15 (fração > f),0.01101,avaliacao,7.092198581560283,100.0,100.0
+Z robusto k=15 (fração > f),0.0132,selecao,5.7894736842105265,100.0,100.0
+Z robusto k=15 (fração > f),0.0132,avaliacao,5.673758865248227,100.0,100.0
+Z robusto k=15 (fração > f),0.01583,selecao,1.5789473684210527,100.0,100.0
+Z robusto k=15 (fração > f),0.01583,avaliacao,1.4184397163120568,100.0,100.0
+Z robusto k=15 (fração > f),0.01899,selecao,0.5263157894736842,100.0,100.0
+Z robusto k=15 (fração > f),0.01899,avaliacao,0.7092198581560284,99.38837920489297,100.0
+Z robusto k=15 (fração > f),0.02278,selecao,0.0,99.29203539823008,100.0
+Z robusto k=15 (fração > f),0.02278,avaliacao,0.7092198581560284,99.38837920489297,100.0
+Z robusto k=15 (fração > f),0.02731,selecao,0.0,98.40707964601769,100.0
+Z robusto k=15 (fração > f),0.02731,avaliacao,0.7092198581560284,98.47094801223241,100.0
+Z robusto k=15 (fração > f),0.03276,selecao,0.0,96.99115044247787,100.0
+Z robusto k=15 (fração > f),0.03276,avaliacao,0.0,97.85932721712538,100.0
+Z robusto k=15 (fração > f),0.03929,selecao,0.0,94.69026548672566,100.0
+Z robusto k=15 (fração > f),0.03929,avaliacao,0.0,95.41284403669725,100.0
+Z robusto k=15 (fração > f),0.04712,selecao,0.0,92.21238938053098,100.0
+Z robusto k=15 (fração > f),0.04712,avaliacao,0.0,93.27217125382263,100.0
+Z robusto k=15 (fração > f),0.05651,selecao,0.0,89.02654867256638,100.0
+Z robusto k=15 (fração > f),0.05651,avaliacao,0.0,90.21406727828746,100.0
+Z robusto k=15 (fração > f),0.06777,selecao,0.0,85.13274336283186,100.0
+Z robusto k=15 (fração > f),0.06777,avaliacao,0.0,85.93272171253822,100.0
+Z robusto k=15 (fração > f),0.08127,selecao,0.0,82.65486725663717,100.0
+Z robusto k=15 (fração > f),0.08127,avaliacao,0.0,81.9571865443425,100.0
+Z robusto k=15 (fração > f),0.09747,selecao,0.0,78.05309734513274,100.0
+Z robusto k=15 (fração > f),0.09747,avaliacao,0.0,78.2874617737003,100.0
+Z robusto k=15 (fração > f),0.1169,selecao,0.0,75.04424778761062,100.0
+Z robusto k=15 (fração > f),0.1169,avaliacao,0.0,75.53516819571865,100.0
+Z robusto k=15 (fração > f),0.1402,selecao,0.0,71.32743362831859,100.0
+Z robusto k=15 (fração > f),0.1402,avaliacao,0.0,69.72477064220183,100.0
+Z robusto k=15 (fração > f),0.16814,selecao,0.0,66.3716814159292,100.0
+Z robusto k=15 (fração > f),0.16814,avaliacao,0.0,65.74923547400611,100.0
+Z robusto k=15 (fração > f),0.20165,selecao,0.0,60.70796460176991,100.0
+Z robusto k=15 (fração > f),0.20165,avaliacao,0.0,60.85626911314985,100.0
+Z robusto k=15 (fração > f),0.24183,selecao,0.0,56.10619469026549,100.0
+Z robusto k=15 (fração > f),0.24183,avaliacao,0.0,56.57492354740061,100.0
+Z robusto k=15 (fração > f),0.29003,selecao,0.0,49.203539823008846,99.48186528497409
+Z robusto k=15 (fração > f),0.29003,avaliacao,0.0,49.84709480122324,100.0
+Z robusto k=15 (fração > f),0.34783,selecao,0.0,43.008849557522126,94.30051813471502
+Z robusto k=15 (fração > f),0.34783,avaliacao,0.0,43.42507645259939,94.39252336448598
+Z robusto k=15 (fração > f),0.41715,selecao,0.0,31.68141592920354,78.75647668393782
+Z robusto k=15 (fração > f),0.41715,avaliacao,0.0,33.027522935779814,80.37383177570094
+Z robusto k=15 (fração > f),0.50029,selecao,0.0,21.5929203539823,57.512953367875646
+Z robusto k=15 (fração > f),0.50029,avaliacao,0.0,19.26605504587156,53.271028037383175
+Z robusto k=15 (fração > f),0.6,selecao,0.0,13.274336283185841,36.26943005181347
+Z robusto k=15 (fração > f),0.6,avaliacao,0.0,11.926605504587156,32.71028037383178
+Z robusto k=20 (fração > f),0.0005,selecao,68.94736842105263,100.0,100.0
+Z robusto k=20 (fração > f),0.0005,avaliacao,68.79432624113475,100.0,100.0
+Z robusto k=20 (fração > f),0.0006,selecao,67.89473684210526,100.0,100.0
+Z robusto k=20 (fração > f),0.0006,avaliacao,68.79432624113475,100.0,100.0
+Z robusto k=20 (fração > f),0.00072,selecao,66.84210526315789,100.0,100.0
+Z robusto k=20 (fração > f),0.00072,avaliacao,68.08510638297872,100.0,100.0
+Z robusto k=20 (fração > f),0.00086,selecao,64.21052631578948,100.0,100.0
+Z robusto k=20 (fração > f),0.00086,avaliacao,66.66666666666667,100.0,100.0
+Z robusto k=20 (fração > f),0.00104,selecao,62.10526315789474,100.0,100.0
+Z robusto k=20 (fração > f),0.00104,avaliacao,63.829787234042556,100.0,100.0
+Z robusto k=20 (fração > f),0.00124,selecao,59.473684210526315,100.0,100.0
+Z robusto k=20 (fração > f),0.00124,avaliacao,62.4113475177305,100.0,100.0
+Z robusto k=20 (fração > f),0.00149,selecao,56.31578947368421,100.0,100.0
+Z robusto k=20 (fração > f),0.00149,avaliacao,56.02836879432624,100.0,100.0
+Z robusto k=20 (fração > f),0.00179,selecao,50.0,100.0,100.0
+Z robusto k=20 (fração > f),0.00179,avaliacao,50.354609929078016,100.0,100.0
+Z robusto k=20 (fração > f),0.00214,selecao,46.8421052631579,100.0,100.0
+Z robusto k=20 (fração > f),0.00214,avaliacao,42.5531914893617,100.0,100.0
+Z robusto k=20 (fração > f),0.00257,selecao,38.94736842105263,100.0,100.0
+Z robusto k=20 (fração > f),0.00257,avaliacao,34.751773049645394,100.0,100.0
+Z robusto k=20 (fração > f),0.00309,selecao,36.31578947368421,100.0,100.0
+Z robusto k=20 (fração > f),0.00309,avaliacao,26.24113475177305,100.0,100.0
+Z robusto k=20 (fração > f),0.0037,selecao,30.0,100.0,100.0
+Z robusto k=20 (fração > f),0.0037,avaliacao,24.113475177304963,100.0,100.0
+Z robusto k=20 (fração > f),0.00444,selecao,23.157894736842106,100.0,100.0
+Z robusto k=20 (fração > f),0.00444,avaliacao,17.73049645390071,100.0,100.0
+Z robusto k=20 (fração > f),0.00532,selecao,15.263157894736842,100.0,100.0
+Z robusto k=20 (fração > f),0.00532,avaliacao,12.76595744680851,100.0,100.0
+Z robusto k=20 (fração > f),0.00638,selecao,10.526315789473685,100.0,100.0
+Z robusto k=20 (fração > f),0.00638,avaliacao,7.801418439716312,100.0,100.0
+Z robusto k=20 (fração > f),0.00765,selecao,8.421052631578947,100.0,100.0
+Z robusto k=20 (fração > f),0.00765,avaliacao,4.964539007092198,100.0,100.0
+Z robusto k=20 (fração > f),0.00918,selecao,3.6842105263157894,100.0,100.0
+Z robusto k=20 (fração > f),0.00918,avaliacao,2.127659574468085,99.69418960244649,100.0
+Z robusto k=20 (fração > f),0.01101,selecao,1.0526315789473684,100.0,100.0
+Z robusto k=20 (fração > f),0.01101,avaliacao,0.7092198581560284,99.69418960244649,100.0
+Z robusto k=20 (fração > f),0.0132,selecao,0.5263157894736842,99.64601769911505,100.0
+Z robusto k=20 (fração > f),0.0132,avaliacao,0.7092198581560284,99.08256880733946,100.0
+Z robusto k=20 (fração > f),0.01583,selecao,0.0,99.29203539823008,100.0
+Z robusto k=20 (fração > f),0.01583,avaliacao,0.7092198581560284,98.77675840978593,100.0
+Z robusto k=20 (fração > f),0.01899,selecao,0.0,98.58407079646018,100.0
+Z robusto k=20 (fração > f),0.01899,avaliacao,0.7092198581560284,98.47094801223241,100.0
+Z robusto k=20 (fração > f),0.02278,selecao,0.0,97.52212389380531,100.0
+Z robusto k=20 (fração > f),0.02278,avaliacao,0.7092198581560284,98.1651376146789,100.0
+Z robusto k=20 (fração > f),0.02731,selecao,0.0,96.28318584070796,100.0
+Z robusto k=20 (fração > f),0.02731,avaliacao,0.7092198581560284,97.55351681957187,100.0
+Z robusto k=20 (fração > f),0.03276,selecao,0.0,94.69026548672566,100.0
+Z robusto k=20 (fração > f),0.03276,avaliacao,0.0,95.41284403669725,100.0
+Z robusto k=20 (fração > f),0.03929,selecao,0.0,92.92035398230088,100.0
+Z robusto k=20 (fração > f),0.03929,avaliacao,0.0,92.96636085626912,100.0
+Z robusto k=20 (fração > f),0.04712,selecao,0.0,88.31858407079646,100.0
+Z robusto k=20 (fração > f),0.04712,avaliacao,0.0,91.43730886850153,100.0
+Z robusto k=20 (fração > f),0.05651,selecao,0.0,85.84070796460178,100.0
+Z robusto k=20 (fração > f),0.05651,avaliacao,0.0,87.1559633027523,100.0
+Z robusto k=20 (fração > f),0.06777,selecao,0.0,82.83185840707965,100.0
+Z robusto k=20 (fração > f),0.06777,avaliacao,0.0,81.65137614678899,100.0
+Z robusto k=20 (fração > f),0.08127,selecao,0.0,78.58407079646018,100.0
+Z robusto k=20 (fração > f),0.08127,avaliacao,0.0,78.59327217125383,100.0
+Z robusto k=20 (fração > f),0.09747,selecao,0.0,76.10619469026548,100.0
+Z robusto k=20 (fração > f),0.09747,avaliacao,0.0,76.14678899082568,100.0
+Z robusto k=20 (fração > f),0.1169,selecao,0.0,71.68141592920354,100.0
+Z robusto k=20 (fração > f),0.1169,avaliacao,0.0,71.86544342507645,100.0
+Z robusto k=20 (fração > f),0.1402,selecao,0.0,68.31858407079646,100.0
+Z robusto k=20 (fração > f),0.1402,avaliacao,0.0,67.58409785932722,100.0
+Z robusto k=20 (fração > f),0.16814,selecao,0.0,63.89380530973451,100.0
+Z robusto k=20 (fração > f),0.16814,avaliacao,0.0,64.52599388379205,100.0
+Z robusto k=20 (fração > f),0.20165,selecao,0.0,58.230088495575224,100.0
+Z robusto k=20 (fração > f),0.20165,avaliacao,0.0,59.02140672782875,100.0
+Z robusto k=20 (fração > f),0.24183,selecao,0.0,53.097345132743364,99.48186528497409
+Z robusto k=20 (fração > f),0.24183,avaliacao,0.0,54.43425076452599,100.0
+Z robusto k=20 (fração > f),0.29003,selecao,0.0,48.31858407079646,99.48186528497409
+Z robusto k=20 (fração > f),0.29003,avaliacao,0.0,48.62385321100918,100.0
+Z robusto k=20 (fração > f),0.34783,selecao,0.0,40.0,90.15544041450777
+Z robusto k=20 (fração > f),0.34783,avaliacao,0.0,38.53211009174312,87.85046728971963
+Z robusto k=20 (fração > f),0.41715,selecao,0.0,28.141592920353983,72.53886010362694
+Z robusto k=20 (fração > f),0.41715,avaliacao,0.0,28.134556574923547,74.76635514018692
+Z robusto k=20 (fração > f),0.50029,selecao,0.0,18.4070796460177,50.259067357512954
+Z robusto k=20 (fração > f),0.50029,avaliacao,0.0,17.125382262996943,47.66355140186916
+Z robusto k=20 (fração > f),0.6,selecao,0.0,11.327433628318584,31.60621761658031
+Z robusto k=20 (fração > f),0.6,avaliacao,0.0,10.091743119266056,28.97196261682243
+Z robusto k=30 (fração > f),0.0005,selecao,50.0,100.0,100.0
+Z robusto k=30 (fração > f),0.0005,avaliacao,45.39007092198582,100.0,100.0
+Z robusto k=30 (fração > f),0.0006,selecao,46.31578947368421,100.0,100.0
+Z robusto k=30 (fração > f),0.0006,avaliacao,42.5531914893617,100.0,100.0
+Z robusto k=30 (fração > f),0.00072,selecao,43.68421052631579,100.0,100.0
+Z robusto k=30 (fração > f),0.00072,avaliacao,39.00709219858156,100.0,100.0
+Z robusto k=30 (fração > f),0.00086,selecao,38.421052631578945,100.0,100.0
+Z robusto k=30 (fração > f),0.00086,avaliacao,34.04255319148936,100.0,100.0
+Z robusto k=30 (fração > f),0.00104,selecao,35.78947368421053,100.0,100.0
+Z robusto k=30 (fração > f),0.00104,avaliacao,30.49645390070922,100.0,100.0
+Z robusto k=30 (fração > f),0.00124,selecao,32.10526315789474,100.0,100.0
+Z robusto k=30 (fração > f),0.00124,avaliacao,27.659574468085108,100.0,100.0
+Z robusto k=30 (fração > f),0.00149,selecao,28.94736842105263,100.0,100.0
+Z robusto k=30 (fração > f),0.00149,avaliacao,22.69503546099291,99.69418960244649,100.0
+Z robusto k=30 (fração > f),0.00179,selecao,24.210526315789473,100.0,100.0
+Z robusto k=30 (fração > f),0.00179,avaliacao,17.02127659574468,99.69418960244649,100.0
+Z robusto k=30 (fração > f),0.00214,selecao,17.894736842105264,100.0,100.0
+Z robusto k=30 (fração > f),0.00214,avaliacao,12.76595744680851,99.69418960244649,100.0
+Z robusto k=30 (fração > f),0.00257,selecao,14.736842105263158,99.82300884955752,100.0
+Z robusto k=30 (fração > f),0.00257,avaliacao,7.801418439716312,99.38837920489297,100.0
+Z robusto k=30 (fração > f),0.00309,selecao,11.052631578947368,99.82300884955752,100.0
+Z robusto k=30 (fração > f),0.00309,avaliacao,5.673758865248227,99.38837920489297,100.0
+Z robusto k=30 (fração > f),0.0037,selecao,7.368421052631579,99.82300884955752,100.0
+Z robusto k=30 (fração > f),0.0037,avaliacao,2.8368794326241136,99.38837920489297,100.0
+Z robusto k=30 (fração > f),0.00444,selecao,3.6842105263157894,99.46902654867256,100.0
+Z robusto k=30 (fração > f),0.00444,avaliacao,2.8368794326241136,99.38837920489297,100.0
+Z robusto k=30 (fração > f),0.00532,selecao,1.5789473684210527,98.93805309734513,100.0
+Z robusto k=30 (fração > f),0.00532,avaliacao,2.8368794326241136,99.08256880733946,100.0
+Z robusto k=30 (fração > f),0.00638,selecao,1.0526315789473684,98.76106194690266,100.0
+Z robusto k=30 (fração > f),0.00638,avaliacao,1.4184397163120568,99.08256880733946,100.0
+Z robusto k=30 (fração > f),0.00765,selecao,0.5263157894736842,98.40707964601769,100.0
+Z robusto k=30 (fração > f),0.00765,avaliacao,0.7092198581560284,98.77675840978593,100.0
+Z robusto k=30 (fração > f),0.00918,selecao,0.0,97.69911504424779,100.0
+Z robusto k=30 (fração > f),0.00918,avaliacao,0.7092198581560284,98.1651376146789,100.0
+Z robusto k=30 (fração > f),0.01101,selecao,0.0,97.52212389380531,100.0
+Z robusto k=30 (fração > f),0.01101,avaliacao,0.7092198581560284,97.24770642201835,100.0
+Z robusto k=30 (fração > f),0.0132,selecao,0.0,96.46017699115045,100.0
+Z robusto k=30 (fração > f),0.0132,avaliacao,0.7092198581560284,96.3302752293578,100.0
+Z robusto k=30 (fração > f),0.01583,selecao,0.0,95.75221238938053,100.0
+Z robusto k=30 (fração > f),0.01583,avaliacao,0.7092198581560284,95.71865443425077,100.0
+Z robusto k=30 (fração > f),0.01899,selecao,0.0,94.69026548672566,100.0
+Z robusto k=30 (fração > f),0.01899,avaliacao,0.7092198581560284,95.41284403669725,100.0
+Z robusto k=30 (fração > f),0.02278,selecao,0.0,93.98230088495575,100.0
+Z robusto k=30 (fração > f),0.02278,avaliacao,0.7092198581560284,94.80122324159021,100.0
+Z robusto k=30 (fração > f),0.02731,selecao,0.0,91.85840707964601,100.0
+Z robusto k=30 (fração > f),0.02731,avaliacao,0.0,92.66055045871559,100.0
+Z robusto k=30 (fração > f),0.03276,selecao,0.0,87.61061946902655,100.0
+Z robusto k=30 (fração > f),0.03276,avaliacao,0.0,90.8256880733945,100.0
+Z robusto k=30 (fração > f),0.03929,selecao,0.0,84.60176991150442,100.0
+Z robusto k=30 (fração > f),0.03929,avaliacao,0.0,88.37920489296636,100.0
+Z robusto k=30 (fração > f),0.04712,selecao,0.0,81.41592920353982,100.0
+Z robusto k=30 (fração > f),0.04712,avaliacao,0.0,84.09785932721712,100.0
+Z robusto k=30 (fração > f),0.05651,selecao,0.0,79.29203539823008,100.0
+Z robusto k=30 (fração > f),0.05651,avaliacao,0.0,80.42813455657492,100.0
+Z robusto k=30 (fração > f),0.06777,selecao,0.0,75.57522123893806,100.0
+Z robusto k=30 (fração > f),0.06777,avaliacao,0.0,76.75840978593273,100.0
+Z robusto k=30 (fração > f),0.08127,selecao,0.0,73.09734513274336,100.0
+Z robusto k=30 (fração > f),0.08127,avaliacao,0.0,74.61773700305811,100.0
+Z robusto k=30 (fração > f),0.09747,selecao,0.0,70.4424778761062,100.0
+Z robusto k=30 (fração > f),0.09747,avaliacao,0.0,71.86544342507645,100.0
+Z robusto k=30 (fração > f),0.1169,selecao,0.0,67.2566371681416,100.0
+Z robusto k=30 (fração > f),0.1169,avaliacao,0.0,68.50152905198777,100.0
+Z robusto k=30 (fração > f),0.1402,selecao,0.0,63.008849557522126,100.0
+Z robusto k=30 (fração > f),0.1402,avaliacao,0.0,66.05504587155963,100.0
+Z robusto k=30 (fração > f),0.16814,selecao,0.0,58.93805309734513,100.0
+Z robusto k=30 (fração > f),0.16814,avaliacao,0.0,59.9388379204893,100.0
+Z robusto k=30 (fração > f),0.20165,selecao,0.0,54.51327433628319,99.48186528497409
+Z robusto k=30 (fração > f),0.20165,avaliacao,0.0,55.657492354740064,99.06542056074767
+Z robusto k=30 (fração > f),0.24183,selecao,0.0,48.849557522123895,97.92746113989638
+Z robusto k=30 (fração > f),0.24183,avaliacao,0.0,50.45871559633027,98.13084112149532
+Z robusto k=30 (fração > f),0.29003,selecao,0.0,41.769911504424776,89.11917098445596
+Z robusto k=30 (fração > f),0.29003,avaliacao,0.0,44.03669724770642,91.58878504672897
+Z robusto k=30 (fração > f),0.34783,selecao,0.0,32.21238938053097,78.23834196891191
+Z robusto k=30 (fração > f),0.34783,avaliacao,0.0,33.333333333333336,80.37383177570094
+Z robusto k=30 (fração > f),0.41715,selecao,0.0,23.1858407079646,61.6580310880829
+Z robusto k=30 (fração > f),0.41715,avaliacao,0.0,21.10091743119266,57.94392523364486
+Z robusto k=30 (fração > f),0.50029,selecao,0.0,14.513274336283185,40.41450777202073
+Z robusto k=30 (fração > f),0.50029,avaliacao,0.0,13.761467889908257,38.3177570093458
+Z robusto k=30 (fração > f),0.6,selecao,0.0,8.31858407079646,24.352331606217618
+Z robusto k=30 (fração > f),0.6,avaliacao,0.0,7.033639143730887,21.49532710280374
+"Entropia ΔH vs baseline, 10 faixas log",0.0032,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0032,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0038,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0038,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0045,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0045,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0054,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0054,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0064,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0064,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0076,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0076,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0091,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0091,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0108,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0108,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0129,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0129,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0154,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0154,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0183,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0183,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0219,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0219,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0261,selecao,99.47368421052632,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0261,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0311,selecao,99.47368421052632,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0311,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.037,selecao,99.47368421052632,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.037,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0442,selecao,98.94736842105263,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0442,avaliacao,97.16312056737588,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0526,selecao,97.36842105263158,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0526,avaliacao,95.74468085106383,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0628,selecao,93.15789473684211,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0628,avaliacao,92.19858156028369,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0748,selecao,88.94736842105263,99.82300884955752,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0748,avaliacao,87.94326241134752,100.0,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.0892,selecao,79.47368421052632,99.64601769911505,99.48186528497409
+"Entropia ΔH vs baseline, 10 faixas log",0.0892,avaliacao,81.56028368794327,99.69418960244649,100.0
+"Entropia ΔH vs baseline, 10 faixas log",0.1063,selecao,67.36842105263158,98.23008849557522,97.92746113989638
+"Entropia ΔH vs baseline, 10 faixas log",0.1063,avaliacao,65.2482269503546,98.47094801223241,99.06542056074767
+"Entropia ΔH vs baseline, 10 faixas log",0.1268,selecao,51.578947368421055,96.99115044247787,96.89119170984456
+"Entropia ΔH vs baseline, 10 faixas log",0.1268,avaliacao,48.93617021276596,96.94189602446484,96.26168224299066
+"Entropia ΔH vs baseline, 10 faixas log",0.1511,selecao,38.421052631578945,93.45132743362832,92.74611398963731
+"Entropia ΔH vs baseline, 10 faixas log",0.1511,avaliacao,34.04255319148936,94.4954128440367,93.45794392523365
+"Entropia ΔH vs baseline, 10 faixas log",0.1802,selecao,31.57894736842105,87.43362831858407,87.04663212435233
+"Entropia ΔH vs baseline, 10 faixas log",0.1802,avaliacao,26.24113475177305,88.9908256880734,87.85046728971963
+"Entropia ΔH vs baseline, 10 faixas log",0.2148,selecao,22.105263157894736,79.82300884955752,78.23834196891191
+"Entropia ΔH vs baseline, 10 faixas log",0.2148,avaliacao,17.02127659574468,79.81651376146789,80.37383177570094
+"Entropia ΔH vs baseline, 10 faixas log",0.2561,selecao,15.789473684210526,70.61946902654867,72.53886010362694
+"Entropia ΔH vs baseline, 10 faixas log",0.2561,avaliacao,10.638297872340425,66.05504587155963,69.1588785046729
+"Entropia ΔH vs baseline, 10 faixas log",0.3053,selecao,11.052631578947368,54.51327433628319,63.21243523316062
+"Entropia ΔH vs baseline, 10 faixas log",0.3053,avaliacao,5.673758865248227,53.211009174311926,56.074766355140184
+"Entropia ΔH vs baseline, 10 faixas log",0.364,selecao,6.842105263157895,41.769911504424776,52.84974093264249
+"Entropia ΔH vs baseline, 10 faixas log",0.364,avaliacao,2.8368794326241136,40.0611620795107,48.598130841121495
+"Entropia ΔH vs baseline, 10 faixas log",0.4339,selecao,5.2631578947368425,30.79646017699115,45.59585492227979
+"Entropia ΔH vs baseline, 10 faixas log",0.4339,avaliacao,0.7092198581560284,27.522935779816514,39.25233644859813
+"Entropia ΔH vs baseline, 10 faixas log",0.5173,selecao,2.1052631578947367,22.47787610619469,37.82383419689119
+"Entropia ΔH vs baseline, 10 faixas log",0.5173,avaliacao,0.7092198581560284,19.26605504587156,37.38317757009346
+"Entropia ΔH vs baseline, 10 faixas log",0.6167,selecao,1.0526315789473684,15.044247787610619,33.67875647668394
+"Entropia ΔH vs baseline, 10 faixas log",0.6167,avaliacao,0.7092198581560284,13.761467889908257,30.8411214953271
+"Entropia ΔH vs baseline, 10 faixas log",0.7352,selecao,0.5263157894736842,10.619469026548673,28.497409326424872
+"Entropia ΔH vs baseline, 10 faixas log",0.7352,avaliacao,0.0,10.091743119266056,24.299065420560748
+"Entropia ΔH vs baseline, 10 faixas log",0.8765,selecao,0.0,8.849557522123893,24.352331606217618
+"Entropia ΔH vs baseline, 10 faixas log",0.8765,avaliacao,0.0,7.6452599388379205,20.560747663551403
+"Entropia ΔH vs baseline, 10 faixas log",1.045,selecao,0.0,7.787610619469026,21.243523316062177
+"Entropia ΔH vs baseline, 10 faixas log",1.045,avaliacao,0.0,6.116207951070336,15.88785046728972
+"Entropia ΔH vs baseline, 10 faixas log",1.2458,selecao,0.0,5.486725663716814,15.025906735751295
+"Entropia ΔH vs baseline, 10 faixas log",1.2458,avaliacao,0.0,5.198776758409786,14.953271028037383
+"Entropia ΔH vs baseline, 10 faixas log",1.4852,selecao,0.0,4.778761061946903,13.989637305699482
+"Entropia ΔH vs baseline, 10 faixas log",1.4852,avaliacao,0.0,4.587155963302752,14.018691588785046
+"Entropia ΔH vs baseline, 10 faixas log",1.7706,selecao,0.0,4.247787610619469,12.435233160621761
+"Entropia ΔH vs baseline, 10 faixas log",1.7706,avaliacao,0.0,3.058103975535168,9.345794392523365
+"Entropia ΔH vs baseline, 10 faixas log",2.1108,selecao,0.0,3.0088495575221237,8.808290155440414
+"Entropia ΔH vs baseline, 10 faixas log",2.1108,avaliacao,0.0,3.058103975535168,9.345794392523365
+"Entropia ΔH vs baseline, 10 faixas log",2.5164,selecao,0.0,0.8849557522123894,2.5906735751295336
+"Entropia ΔH vs baseline, 10 faixas log",2.5164,avaliacao,0.0,0.3058103975535168,0.9345794392523364
+"Entropia ΔH vs baseline, 10 faixas log",3.0,selecao,0.0,0.0,0.0
+"Entropia ΔH vs baseline, 10 faixas log",3.0,avaliacao,0.0,0.0,0.0
+"Entropia JS vs baseline, 10 faixas log",0.00032,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00032,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00039,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00039,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00048,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00048,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00058,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00058,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00071,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00071,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00088,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00088,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00108,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00108,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00132,selecao,99.47368421052632,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00132,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00162,selecao,99.47368421052632,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00162,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00198,selecao,97.89473684210526,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00198,avaliacao,98.58156028368795,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00243,selecao,93.6842105263158,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00243,avaliacao,96.45390070921985,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00298,selecao,88.94736842105263,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00298,avaliacao,90.0709219858156,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00365,selecao,81.57894736842105,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00365,avaliacao,82.26950354609929,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00448,selecao,72.63157894736842,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00448,avaliacao,71.63120567375887,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.0055,selecao,65.26315789473684,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.0055,avaliacao,57.4468085106383,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00674,selecao,56.31578947368421,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00674,avaliacao,47.5177304964539,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00826,selecao,49.473684210526315,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.00826,avaliacao,41.13475177304964,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01013,selecao,44.21052631578947,99.82300884955752,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01013,avaliacao,34.04255319148936,100.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01242,selecao,35.78947368421053,99.46902654867256,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01242,avaliacao,28.368794326241133,99.08256880733946,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01523,selecao,32.63157894736842,98.40707964601769,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01523,avaliacao,22.69503546099291,98.47094801223241,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01868,selecao,26.842105263157894,96.8141592920354,100.0
+"Entropia JS vs baseline, 10 faixas log",0.01868,avaliacao,17.02127659574468,95.71865443425077,100.0
+"Entropia JS vs baseline, 10 faixas log",0.02291,selecao,18.94736842105263,94.33628318584071,100.0
+"Entropia JS vs baseline, 10 faixas log",0.02291,avaliacao,14.184397163120567,95.41284403669725,100.0
+"Entropia JS vs baseline, 10 faixas log",0.02809,selecao,16.31578947368421,91.32743362831859,100.0
+"Entropia JS vs baseline, 10 faixas log",0.02809,avaliacao,13.47517730496454,92.66055045871559,100.0
+"Entropia JS vs baseline, 10 faixas log",0.03444,selecao,12.105263157894736,87.61061946902655,100.0
+"Entropia JS vs baseline, 10 faixas log",0.03444,avaliacao,12.76595744680851,88.07339449541284,100.0
+"Entropia JS vs baseline, 10 faixas log",0.04224,selecao,8.421052631578947,84.24778761061947,100.0
+"Entropia JS vs baseline, 10 faixas log",0.04224,avaliacao,9.21985815602837,84.09785932721712,100.0
+"Entropia JS vs baseline, 10 faixas log",0.05179,selecao,7.368421052631579,80.0,100.0
+"Entropia JS vs baseline, 10 faixas log",0.05179,avaliacao,4.25531914893617,79.81651376146789,100.0
+"Entropia JS vs baseline, 10 faixas log",0.06351,selecao,5.2631578947368425,75.39823008849558,100.0
+"Entropia JS vs baseline, 10 faixas log",0.06351,avaliacao,2.8368794326241136,75.22935779816514,100.0
+"Entropia JS vs baseline, 10 faixas log",0.07788,selecao,3.6842105263157894,71.85840707964601,100.0
+"Entropia JS vs baseline, 10 faixas log",0.07788,avaliacao,2.127659574468085,70.9480122324159,100.0
+"Entropia JS vs baseline, 10 faixas log",0.09549,selecao,3.6842105263157894,67.78761061946902,100.0
+"Entropia JS vs baseline, 10 faixas log",0.09549,avaliacao,2.127659574468085,66.36085626911316,100.0
+"Entropia JS vs baseline, 10 faixas log",0.1171,selecao,3.1578947368421053,62.123893805309734,100.0
+"Entropia JS vs baseline, 10 faixas log",0.1171,avaliacao,2.127659574468085,61.46788990825688,100.0
+"Entropia JS vs baseline, 10 faixas log",0.14359,selecao,1.5789473684210527,54.86725663716814,100.0
+"Entropia JS vs baseline, 10 faixas log",0.14359,avaliacao,0.7092198581560284,55.04587155963303,100.0
+"Entropia JS vs baseline, 10 faixas log",0.17607,selecao,1.5789473684210527,49.38053097345133,99.48186528497409
+"Entropia JS vs baseline, 10 faixas log",0.17607,avaliacao,0.7092198581560284,49.54128440366973,100.0
+"Entropia JS vs baseline, 10 faixas log",0.2159,selecao,1.0526315789473684,42.47787610619469,95.33678756476684
+"Entropia JS vs baseline, 10 faixas log",0.2159,avaliacao,0.0,42.50764525993884,94.39252336448598
+"Entropia JS vs baseline, 10 faixas log",0.26474,selecao,1.0526315789473684,31.68141592920354,81.34715025906736
+"Entropia JS vs baseline, 10 faixas log",0.26474,avaliacao,0.0,31.192660550458715,81.30841121495327
+"Entropia JS vs baseline, 10 faixas log",0.32463,selecao,0.0,23.008849557522122,63.21243523316062
+"Entropia JS vs baseline, 10 faixas log",0.32463,avaliacao,0.0,24.159021406727827,67.28971962616822
+"Entropia JS vs baseline, 10 faixas log",0.39807,selecao,0.0,14.867256637168142,41.968911917098445
+"Entropia JS vs baseline, 10 faixas log",0.39807,avaliacao,0.0,13.149847094801224,37.38317757009346
+"Entropia JS vs baseline, 10 faixas log",0.48813,selecao,0.0,11.68141592920354,33.16062176165803
+"Entropia JS vs baseline, 10 faixas log",0.48813,avaliacao,0.0,10.397553516819572,29.906542056074766
+"Entropia JS vs baseline, 10 faixas log",0.59855,selecao,0.0,8.31858407079646,24.352331606217618
+"Entropia JS vs baseline, 10 faixas log",0.59855,avaliacao,0.0,6.422018348623853,19.626168224299064
+"Entropia JS vs baseline, 10 faixas log",0.73396,selecao,0.0,5.84070796460177,17.098445595854923
+"Entropia JS vs baseline, 10 faixas log",0.73396,avaliacao,0.0,5.504587155963303,16.822429906542055
+"Entropia JS vs baseline, 10 faixas log",0.9,selecao,0.0,3.185840707964602,9.32642487046632
+"Entropia JS vs baseline, 10 faixas log",0.9,avaliacao,0.0,3.058103975535168,9.345794392523365
+"Entropia ΔH vs baseline, 20 faixas log",0.0032,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0032,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0038,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0038,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0045,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0045,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0054,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0054,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0064,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0064,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0076,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0076,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0091,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0091,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0108,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0108,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0129,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0129,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0154,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0154,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0183,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0183,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0219,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0219,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0261,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0261,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0311,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0311,avaliacao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.037,selecao,100.0,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.037,avaliacao,99.29078014184397,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0442,selecao,99.47368421052632,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0442,avaliacao,97.87234042553192,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0526,selecao,97.36842105263158,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0526,avaliacao,96.45390070921985,100.0,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0628,selecao,96.3157894736842,99.64601769911505,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0628,avaliacao,95.0354609929078,99.38837920489297,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0748,selecao,88.94736842105263,99.11504424778761,99.48186528497409
+"Entropia ΔH vs baseline, 20 faixas log",0.0748,avaliacao,90.78014184397163,99.08256880733946,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.0892,selecao,82.10526315789474,98.23008849557522,98.96373056994818
+"Entropia ΔH vs baseline, 20 faixas log",0.0892,avaliacao,83.68794326241135,98.77675840978593,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.1063,selecao,70.0,95.929203539823,98.96373056994818
+"Entropia ΔH vs baseline, 20 faixas log",0.1063,avaliacao,66.66666666666667,96.94189602446484,100.0
+"Entropia ΔH vs baseline, 20 faixas log",0.1268,selecao,56.31578947368421,91.68141592920354,95.85492227979275
+"Entropia ΔH vs baseline, 20 faixas log",0.1268,avaliacao,53.191489361702125,93.57798165137615,99.06542056074767
+"Entropia ΔH vs baseline, 20 faixas log",0.1511,selecao,40.0,85.48672566371681,94.81865284974093
+"Entropia ΔH vs baseline, 20 faixas log",0.1511,avaliacao,36.170212765957444,86.85015290519878,95.32710280373831
+"Entropia ΔH vs baseline, 20 faixas log",0.1802,selecao,30.526315789473685,77.16814159292035,92.74611398963731
+"Entropia ΔH vs baseline, 20 faixas log",0.1802,avaliacao,25.53191489361702,78.2874617737003,93.45794392523365
+"Entropia ΔH vs baseline, 20 faixas log",0.2148,selecao,22.105263157894736,68.31858407079646,91.70984455958549
+"Entropia ΔH vs baseline, 20 faixas log",0.2148,avaliacao,17.02127659574468,68.50152905198777,88.78504672897196
+"Entropia ΔH vs baseline, 20 faixas log",0.2561,selecao,15.789473684210526,55.92920353982301,85.49222797927462
+"Entropia ΔH vs baseline, 20 faixas log",0.2561,avaliacao,11.347517730496454,56.269113149847094,87.85046728971963
+"Entropia ΔH vs baseline, 20 faixas log",0.3053,selecao,12.105263157894736,49.203539823008846,80.31088082901555
+"Entropia ΔH vs baseline, 20 faixas log",0.3053,avaliacao,5.673758865248227,45.87155963302752,82.24299065420561
+"Entropia ΔH vs baseline, 20 faixas log",0.364,selecao,7.368421052631579,39.64601769911504,75.64766839378238
+"Entropia ΔH vs baseline, 20 faixas log",0.364,avaliacao,3.5460992907801416,37.00305810397553,73.83177570093459
+"Entropia ΔH vs baseline, 20 faixas log",0.4339,selecao,4.7368421052631575,33.097345132743364,71.50259067357513
+"Entropia ΔH vs baseline, 20 faixas log",0.4339,avaliacao,0.7092198581560284,31.192660550458715,68.22429906542057
+"Entropia ΔH vs baseline, 20 faixas log",0.5173,selecao,2.1052631578947367,24.95575221238938,62.69430051813472
+"Entropia ΔH vs baseline, 20 faixas log",0.5173,avaliacao,0.7092198581560284,25.68807339449541,61.6822429906542
+"Entropia ΔH vs baseline, 20 faixas log",0.6167,selecao,1.0526315789473684,20.17699115044248,54.92227979274612
+"Entropia ΔH vs baseline, 20 faixas log",0.6167,avaliacao,0.7092198581560284,18.654434250764528,47.66355140186916
+"Entropia ΔH vs baseline, 20 faixas log",0.7352,selecao,0.5263157894736842,16.63716814159292,46.1139896373057
+"Entropia ΔH vs baseline, 20 faixas log",0.7352,avaliacao,0.0,14.37308868501529,38.3177570093458
+"Entropia ΔH vs baseline, 20 faixas log",0.8765,selecao,0.0,14.336283185840708,39.37823834196891
+"Entropia ΔH vs baseline, 20 faixas log",0.8765,avaliacao,0.0,12.53822629969419,32.71028037383178
+"Entropia ΔH vs baseline, 20 faixas log",1.045,selecao,0.0,11.150442477876107,31.60621761658031
+"Entropia ΔH vs baseline, 20 faixas log",1.045,avaliacao,0.0,10.703363914373089,29.906542056074766
+"Entropia ΔH vs baseline, 20 faixas log",1.2458,selecao,0.0,9.734513274336283,28.497409326424872
+"Entropia ΔH vs baseline, 20 faixas log",1.2458,avaliacao,0.0,8.868501529051988,26.16822429906542
+"Entropia ΔH vs baseline, 20 faixas log",1.4852,selecao,0.0,8.672566371681416,25.38860103626943
+"Entropia ΔH vs baseline, 20 faixas log",1.4852,avaliacao,0.0,6.422018348623853,19.626168224299064
+"Entropia ΔH vs baseline, 20 faixas log",1.7706,selecao,0.0,6.902654867256637,20.207253886010363
+"Entropia ΔH vs baseline, 20 faixas log",1.7706,avaliacao,0.0,5.198776758409786,15.88785046728972
+"Entropia ΔH vs baseline, 20 faixas log",2.1108,selecao,0.0,4.778761061946903,13.989637305699482
+"Entropia ΔH vs baseline, 20 faixas log",2.1108,avaliacao,0.0,4.587155963302752,14.018691588785046
+"Entropia ΔH vs baseline, 20 faixas log",2.5164,selecao,0.0,4.247787610619469,12.435233160621761
+"Entropia ΔH vs baseline, 20 faixas log",2.5164,avaliacao,0.0,3.058103975535168,9.345794392523365
+"Entropia ΔH vs baseline, 20 faixas log",3.0,selecao,0.0,3.0088495575221237,8.808290155440414
+"Entropia ΔH vs baseline, 20 faixas log",3.0,avaliacao,0.0,3.058103975535168,9.345794392523365
+"Entropia JS vs baseline, 20 faixas log",0.00032,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00032,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00039,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00039,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00048,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00048,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00058,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00058,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00071,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00071,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00088,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00088,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00108,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00108,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00132,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00132,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00162,selecao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00162,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00198,selecao,99.47368421052632,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00198,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00243,selecao,98.94736842105263,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00243,avaliacao,100.0,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00298,selecao,97.36842105263158,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00298,avaliacao,97.87234042553192,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00365,selecao,92.10526315789474,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00365,avaliacao,95.74468085106383,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00448,selecao,86.84210526315789,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00448,avaliacao,84.39716312056737,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.0055,selecao,74.73684210526316,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.0055,avaliacao,75.177304964539,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00674,selecao,65.26315789473684,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00674,avaliacao,63.12056737588652,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00826,selecao,57.36842105263158,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.00826,avaliacao,48.93617021276596,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01013,selecao,50.526315789473685,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01013,avaliacao,40.42553191489362,100.0,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01242,selecao,44.21052631578947,99.82300884955752,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01242,avaliacao,35.46099290780142,99.69418960244649,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01523,selecao,38.421052631578945,99.29203539823008,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01523,avaliacao,29.078014184397162,98.77675840978593,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01868,selecao,34.21052631578947,98.40707964601769,100.0
+"Entropia JS vs baseline, 20 faixas log",0.01868,avaliacao,25.53191489361702,97.24770642201835,100.0
+"Entropia JS vs baseline, 20 faixas log",0.02291,selecao,28.42105263157895,95.39823008849558,100.0
+"Entropia JS vs baseline, 20 faixas log",0.02291,avaliacao,19.148936170212767,95.71865443425077,100.0
+"Entropia JS vs baseline, 20 faixas log",0.02809,selecao,22.105263157894736,93.45132743362832,100.0
+"Entropia JS vs baseline, 20 faixas log",0.02809,avaliacao,17.73049645390071,94.4954128440367,100.0
+"Entropia JS vs baseline, 20 faixas log",0.03444,selecao,17.36842105263158,89.91150442477876,100.0
+"Entropia JS vs baseline, 20 faixas log",0.03444,avaliacao,15.602836879432624,89.29663608562691,100.0
+"Entropia JS vs baseline, 20 faixas log",0.04224,selecao,12.105263157894736,85.30973451327434,100.0
+"Entropia JS vs baseline, 20 faixas log",0.04224,avaliacao,12.76595744680851,85.01529051987768,100.0
+"Entropia JS vs baseline, 20 faixas log",0.05179,selecao,8.421052631578947,81.23893805309734,100.0
+"Entropia JS vs baseline, 20 faixas log",0.05179,avaliacao,10.638297872340425,80.42813455657492,100.0
+"Entropia JS vs baseline, 20 faixas log",0.06351,selecao,5.7894736842105265,76.63716814159292,100.0
+"Entropia JS vs baseline, 20 faixas log",0.06351,avaliacao,3.5460992907801416,77.06422018348624,100.0
+"Entropia JS vs baseline, 20 faixas log",0.07788,selecao,4.2105263157894735,72.03539823008849,100.0
+"Entropia JS vs baseline, 20 faixas log",0.07788,avaliacao,2.8368794326241136,72.17125382262996,100.0
+"Entropia JS vs baseline, 20 faixas log",0.09549,selecao,3.6842105263157894,69.02654867256638,100.0
+"Entropia JS vs baseline, 20 faixas log",0.09549,avaliacao,2.127659574468085,67.58409785932722,100.0
+"Entropia JS vs baseline, 20 faixas log",0.1171,selecao,3.6842105263157894,63.716814159292035,100.0
+"Entropia JS vs baseline, 20 faixas log",0.1171,avaliacao,2.127659574468085,62.691131498470945,100.0
+"Entropia JS vs baseline, 20 faixas log",0.14359,selecao,2.1052631578947367,56.991150442477874,100.0
+"Entropia JS vs baseline, 20 faixas log",0.14359,avaliacao,1.4184397163120568,56.88073394495413,100.0
+"Entropia JS vs baseline, 20 faixas log",0.17607,selecao,1.5789473684210527,50.08849557522124,99.48186528497409
+"Entropia JS vs baseline, 20 faixas log",0.17607,avaliacao,0.7092198581560284,50.15290519877676,100.0
+"Entropia JS vs baseline, 20 faixas log",0.2159,selecao,1.5789473684210527,42.65486725663717,95.33678756476684
+"Entropia JS vs baseline, 20 faixas log",0.2159,avaliacao,0.0,43.42507645259939,96.26168224299066
+"Entropia JS vs baseline, 20 faixas log",0.26474,selecao,1.0526315789473684,32.389380530973455,81.86528497409327
+"Entropia JS vs baseline, 20 faixas log",0.26474,avaliacao,0.0,31.498470948012233,81.30841121495327
+"Entropia JS vs baseline, 20 faixas log",0.32463,selecao,0.5263157894736842,23.36283185840708,64.24870466321244
+"Entropia JS vs baseline, 20 faixas log",0.32463,avaliacao,0.0,24.159021406727827,67.28971962616822
+"Entropia JS vs baseline, 20 faixas log",0.39807,selecao,0.0,14.867256637168142,41.968911917098445
+"Entropia JS vs baseline, 20 faixas log",0.39807,avaliacao,0.0,14.067278287461773,38.3177570093458
+"Entropia JS vs baseline, 20 faixas log",0.48813,selecao,0.0,11.858407079646017,33.16062176165803
+"Entropia JS vs baseline, 20 faixas log",0.48813,avaliacao,0.0,10.703363914373089,30.8411214953271
+"Entropia JS vs baseline, 20 faixas log",0.59855,selecao,0.0,8.672566371681416,25.38860103626943
+"Entropia JS vs baseline, 20 faixas log",0.59855,avaliacao,0.0,6.422018348623853,19.626168224299064
+"Entropia JS vs baseline, 20 faixas log",0.73396,selecao,0.0,5.84070796460177,17.098445595854923
+"Entropia JS vs baseline, 20 faixas log",0.73396,avaliacao,0.0,5.504587155963303,16.822429906542055
+"Entropia JS vs baseline, 20 faixas log",0.9,selecao,0.0,3.185840707964602,9.32642487046632
+"Entropia JS vs baseline, 20 faixas log",0.9,avaliacao,0.0,3.058103975535168,9.345794392523365

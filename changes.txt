@@ -5798,3 +5798,98 @@ CORREÇÃO do §119: lá foi ESTIMADO (indiretamente, pela elevação da média)
   ataques vem principalmente de fila/saturação de CPU e da cauda de ~1 s
   (requisições com ~1.000-1.100 ms vistas nos rtt_logs, compatíveis com
   retransmissão TCP), não do tempo de serviço de cada requisição de ataque.
+
+================================================================================
+§135. Gráfico 24 com intervalo de confiança (pedido do orientador)
+================================================================================
+Antes: commit de checkpoint local 21432d8 (todo o estado até §134).
+Criado plot_normal_referencia_ic_loadbalancer.py ->
+  24_normal_referencia_instancias_ic_(loadbalancer).png (24 original
+  intocado). Usa as 10 reps de normal_baseline agg40 refined (40 rps, WU=10):
+  média por instante (grade de 5 s) + faixa do IC 95% pela t de Student;
+  zoom 0-6% embutido (na escala 0-260% a faixa some). CPU média do teste
+  3,71% (IC 95% 3,66-3,75%), 0 timeouts.
+ACHADO: o 24 original (gerado em 27/09) usou a versão ANTIGA da rep1 (dados
+  de 20/08, CPU ~7%); a rep1 foi recoletada no lote 1 (30/09, commit
+  712eb5a) e hoje dá ~3,8%. O comentário do script original ("dado idêntico
+  ao original, não recoletado") ficou desatualizado. O 27 (gerado depois do
+  lote 1) já usa a rep1 nova. Resumo de tráfego: usada a convenção "normal_"
+  (mesma execução dos metrics_ atuais, §112).
+
+================================================================================
+§136. Gráfico 27 com desvio padrão (pedido do orientador)
+================================================================================
+Criado plot_comparacao_completa_v2_dp_loadbalancer.py ->
+  27_comparacao_completa_v2_dp_(loadbalancer).png (com remoção de outliers)
+  e 27_comparacao_completa_v2_dp_com_outliers_(loadbalancer).png
+  (--com-outliers). 27 original intocado. Painéis idênticos ao 27 (mesma rep
+  representativa e linha de instâncias) + área semitransparente com média ±
+  1 DP da CPU entre as reps do painel (5 reps; painel normal: 10 reps de
+  agg40). Outliers: regra de Tukey por instante (fora de Q1-1,5·IQR,
+  Q3+1,5·IQR entre as reps), removidos antes de média/DP: 263 de 3.596
+  pontos. Pedido explícito do usuário/orientador -- contraria a decisão do
+  §68 (não usar IQR); com 5 reps os quartis se apoiam em 1-2 valores.
+  Corrigido no próprio script um defeito de ordenação do índice de tempo
+  (grades de 5 s ligeiramente diferentes entre reps criavam uma diagonal
+  espúria na área).
+
+================================================================================
+§137. Gráfico 58 em progressão 10·2^n / log2 (pedido do orientador, opção A)
+================================================================================
+Criado plot_atacantes_intensidade_heatmap_att4_log2.py ->
+  58_atacantes_intensidade_heatmap_att4_log2_10x2n.png (58 original
+  intocado). Só os cenários com carga normal 10·2^n rps: S5 (n=1), S1, S6,
+  S7, S8, S9, S10, S11 (n=8); S2/S3/S4 (100/200/300) removidos por não
+  pertencerem à progressão. Rótulos "S8 (320 = 10·2⁵ rps)", eixo "carga
+  normal agregada = 10·2ⁿ rps (escala log₂)" e linha explicativa no título.
+  Valores das células idênticos aos do 58.
+
+================================================================================
+§138. Z-score e entropia NOVOS no EntCusumZV3 + calibração (pedido do
+  orientador: "Z muito sensível", "alterar parâmetros da entropia")
+================================================================================
+Criado calibracao_z_entropia.py (protocolo do §129: NEG 331 / POS 892 / POS_D
+  300, 13 janelas t0=20..140, tempo corrigido §128, seleção reps ímpares /
+  avaliação pares; faixa aceitável FPR <= 5% e dano >= 95%). Critério de
+  escolha UNIFICADO: maior índice de Youden (detecção de todos os ataques -
+  FPR) dentro da faixa aceitável (o centro log da faixa é reportado como
+  referência). Com esse critério o CUSUM do §129 daria ~1.800σ, coerente com
+  os 2000σ recomendados lá. Saídas: resultados/T20_janelas_z_entropia.csv.gz,
+  T20a_varredura_z_entropia.csv, T20b_escolhidos_z_entropia.csv.
+Z NOVO (robusto contra o baseline, por fração): z = (RTT - mediana_base) /
+  (1,4826·MAD_base); janela alarma se > f das amostras tiverem z > k.
+  Escolhido k=15, f=0,019 (1,9%). Avaliação (reps pares): FPR 0,7% (1 run,
+  16-25 rps), detecção 99,4% de todos os ataques, 100% dos com dano; FPR
+  0% em 400-640 rps (onde o CUSUM tem ~26%). k=20/f=0,016 é equivalente.
+  Antes: Z>3,5 contra a janela anterior -> ~99% das janelas sem ataque.
+ENTROPIA NOVA: 10 faixas log entre mín. e p99,9 do baseline + 1 faixa de
+  transbordo; divergência de Jensen-Shannon (base 2) janela x baseline >
+  0,078. Avaliação: FPR 2,1%, 70,9% de todos os ataques, 100% dos com dano.
+  ΔH (|H janela - H baseline|) com as mesmas faixas NÃO tem limiar aceitável
+  (FPR >= 15,8%). Antes: 10 faixas lineares mín-máx do arquivo, ΔH>1,5 vs
+  janela anterior -> nunca alarmava.
+EntCusumZV3.py: novos parâmetros z_modo ('janela_anterior' padrão |
+  'robusto_baseline'), z_k, z_frac, entropia_modo ('arquivo' padrão |
+  'js_baseline'), entropia_bins, entropia_limiar; constantes
+  Z_K_RECOMENDADO, Z_FRAC_RECOMENDADA, ENTROPIA_BINS_RECOMENDADO,
+  ENTROPIA_JS_RECOMENDADO; funções bordas_log_baseline, histograma_faixas,
+  entropia_shannon, divergencia_js, z_robusto_params (fonte única, usadas pela
+  calibração e pelos gráficos). Padrões preservam o comportamento original:
+  saída idêntica à versão anterior conferida em 2 arquivos (ataque e
+  normal); calibração refeita importando as funções do módulo -> md5 de T20a
+  e T20b idênticos. No modo novo, colunas do xlsx 'Max Z' = fração de
+  amostras com z > k e 'Δ Ent.' = JS.
+
+================================================================================
+§139. Gráficos 65-71 com Z robusto e entropia JS (sufixo _novos)
+================================================================================
+plot_s4_10pct_cpu_rtt_cusum.py ganhou --novos (combinável com --normal,
+  --200s, --reset, --c320=): faixas de Z e entropia com os métodos do §138; o
+  combinado passa a usar o Z novo; CUSUM segue h=1000σ. Gerados 65, 66, 67
+  (reset), 68 (reset), 69, 70, 71 com sufixo _novos; versões anteriores
+  intocadas (65 sem --novos regenerado com md5 idêntico).
+Resultados: 66/68 (sem ataque) -- Z robusto e JS 0 alarmes falsos (Z antigo:
+  13/13 e 17/17). 67 -- Z robusto 13/13 no ataque e 1/3 depois; JS 13/13 e
+  0/3 depois. 71 (baseline contaminado, §121/§133) -- Z robusto 2/13 e JS
+  3/13 no início do ataque (CUSUM e combinado continuam 0/13): mediana/MAD
+  resistem melhor ao pico de arranque.

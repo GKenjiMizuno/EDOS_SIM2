@@ -5,11 +5,56 @@ import os
 import matplotlib.pyplot as plt
 import config
 
+# --- Z-score e entropia NOVOS (changes.txt §138), calibrados no §138 com o
+# protocolo do §129 (calibracao_z_entropia.py). Parâmetros recomendados:
+Z_K_RECOMENDADO = 15.0          # z robusto = (x - mediana_base) / (1,4826 · MAD_base)
+Z_FRAC_RECOMENDADA = 0.019      # janela alarma se > 1,9% das amostras tiverem z > k
+ENTROPIA_BINS_RECOMENDADO = 10  # faixas log-espaçadas entre mín. e p99,9 do baseline (+1 de transbordo)
+ENTROPIA_JS_RECOMENDADO = 0.078  # janela alarma se JS(janela || baseline) > limiar (base 2, 0..1)
+
+
+def bordas_log_baseline(baseline_vals, n_bins=ENTROPIA_BINS_RECOMENDADO):
+    """n_bins faixas log entre o mín. e o p99,9 do baseline + 1 faixa de transbordo (> p99,9).
+    Devolve as bordas inferiores de cada faixa (len = n_bins + 1)."""
+    b = np.asarray(baseline_vals, dtype=float)
+    lo, hi = max(b.min(), 1e-3), np.percentile(b, 99.9)
+    return np.concatenate([np.geomspace(lo, hi, n_bins + 1)[:-1], [hi]])
+
+
+def histograma_faixas(vals, bordas):
+    """Proporção por faixa; abaixo do mín. vai para a 1ª, acima do p99,9 para o transbordo."""
+    idx = np.clip(np.searchsorted(bordas, np.asarray(vals, dtype=float), side="right") - 1, 0, len(bordas) - 1)
+    c = np.bincount(idx, minlength=len(bordas)).astype(float)
+    return c / c.sum()
+
+
+def entropia_shannon(p):
+    p = np.asarray(p)[np.asarray(p) > 0]
+    return float(-(p * np.log2(p)).sum())
+
+
+def divergencia_js(p, q):
+    """Jensen-Shannon (base 2, entre 0 e 1) = H(M) - (H(P) + H(Q)) / 2, M = (P + Q) / 2."""
+    p, q = np.asarray(p, dtype=float), np.asarray(q, dtype=float)
+    return entropia_shannon(0.5 * (p + q)) - 0.5 * (entropia_shannon(p) + entropia_shannon(q))
+
+
+def z_robusto_params(baseline_vals):
+    """(mediana, escala) do baseline para o z robusto; escala = 1,4826 · MAD (cai no desvio se MAD = 0)."""
+    b = np.asarray(baseline_vals, dtype=float)
+    med = np.median(b)
+    esc = 1.4826 * np.median(np.abs(b - med))
+    return med, (esc if esc > 0 else b.std())
+
+
 def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
                              window_seconds=20, overlap_percent=50,
                              z_threshold=3.5, baseline_ratio=1.8, show_plot=True,
                              time_col='timestamp', value_col='rtt', value_label='RTT',
-                             value_unit='ms', min_samples_per_window=10, cusum_h_sigma=5.0):
+                             value_unit='ms', min_samples_per_window=10, cusum_h_sigma=5.0,
+                             z_modo='janela_anterior', z_k=Z_K_RECOMENDADO, z_frac=Z_FRAC_RECOMENDADA,
+                             entropia_modo='arquivo', entropia_bins=ENTROPIA_BINS_RECOMENDADO,
+                             entropia_limiar=ENTROPIA_JS_RECOMENDADO):
     """
     Detector de burst por janela deslizante (entropia de Shannon + Z-score +
     CUSUM) sobre uma série temporal escalar qualquer -- por padrão RTT
@@ -21,6 +66,19 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
     ficam idênticos aos de sempre ("Média RTT", "Status Burst", etc.),
     porque generate_presentation_graphs.py/wedos_graphs.py/
     wedos_ent_cusum_report.py leem esses nomes literalmente.
+
+    z_modo (§138): 'janela_anterior' (padrão, comportamento original: maior
+    |z| da janela contra média/desvio da janela anterior > z_threshold) ou
+    'robusto_baseline' (z = (x - mediana_base)/(1,4826·MAD_base); alarme se a
+    fração de amostras com z > z_k passar de z_frac). O original dispara em
+    ~99% das janelas sem ataque (milhares de amostras/janela + cauda pesada).
+    entropia_modo (§138): 'arquivo' (padrão, original: 10 faixas lineares do
+    mín. ao máx. do arquivo; ΔH contra a janela anterior > 1,5 -- degenerado,
+    91-99% das amostras na 1ª faixa) ou 'js_baseline' (entropia_bins faixas
+    log entre mín. e p99,9 do baseline + transbordo; alarme se a divergência
+    de Jensen-Shannon janela x baseline passar de entropia_limiar).
+    Os padrões preservam o comportamento original (resultados antigos
+    reproduzíveis); os valores recomendados estão nas constantes do módulo.
 
     min_samples_per_window: mínimo de amostras dentro da janela para ela
     ser analisada (janelas mais esparsas são puladas). RTT tem uma linha
@@ -85,6 +143,11 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
         # estimar desvio-padrão de janela com confiança — a razão sobre a
         # média (mais estável) funciona melhor com essa quantidade de dado.
         valor_threshold = global_mean * baseline_ratio
+        if z_modo == 'robusto_baseline':
+            z_med, z_esc = z_robusto_params(baseline)
+        if entropia_modo == 'js_baseline':
+            bordas_ent = bordas_log_baseline(baseline, entropia_bins)
+            p_base = histograma_faixas(baseline, bordas_ent)
         print(f"[INFO] Baseline pré-ataque: média={global_mean:.1f}{value_unit}, "
               f"desvio={global_std:.1f}{value_unit} ({len(baseline)} amostras) "
               f"-> piso de burst = {valor_threshold:.1f}{value_unit} ({baseline_ratio}x a média)")
@@ -134,18 +197,29 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
             valor_medio = janela[value_col].mean()
             valor_std = janela[value_col].std()
 
-            # Entropia (faixa de bins fixa, ver comentário acima)
-            hist, _ = np.histogram(janela[value_col], bins=10, range=(val_min, val_max), density=True)
-            probs = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros(10)
-            entropia = stats.entropy(probs[probs > 0], base=2) if np.any(probs > 0) else 0.0
-            delta_entropia = abs(entropia - entropia_anterior) if entropia_anterior is not None else 0.0
-            alarme_entropia = 'Sim' if delta_entropia > delta_entropia_threshold else 'Não'
+            # Entropia
+            if entropia_modo == 'js_baseline':
+                p_jan = histograma_faixas(janela[value_col].values, bordas_ent)
+                entropia = entropia_shannon(p_jan)
+                delta_entropia = divergencia_js(p_jan, p_base)  # coluna 'Δ Ent.' = JS neste modo
+                alarme_entropia = 'Sim' if delta_entropia > entropia_limiar else 'Não'
+            else:
+                # Original (faixa de bins fixa do arquivo, ver comentário acima)
+                hist, _ = np.histogram(janela[value_col], bins=10, range=(val_min, val_max), density=True)
+                probs = hist / np.sum(hist) if np.sum(hist) > 0 else np.zeros(10)
+                entropia = stats.entropy(probs[probs > 0], base=2) if np.any(probs > 0) else 0.0
+                delta_entropia = abs(entropia - entropia_anterior) if entropia_anterior is not None else 0.0
+                alarme_entropia = 'Sim' if delta_entropia > delta_entropia_threshold else 'Não'
             entropia_anterior = entropia
 
-            # Z-score tunável
+            # Z-score
             max_z = 0.0
             alarme_z = 'Não'
-            if stats_anterior and stats_anterior['std'] > 0:
+            if z_modo == 'robusto_baseline':
+                zs = (janela[value_col].values - z_med) / z_esc
+                max_z = float((zs > z_k).mean())  # coluna 'Max Z' = fração de amostras com z > k neste modo
+                alarme_z = 'Sim' if max_z > z_frac else 'Não'
+            elif stats_anterior and stats_anterior['std'] > 0:
                 zs = np.abs((janela[value_col] - stats_anterior['media']) / stats_anterior['std'])
                 max_z = zs.max()
                 alarme_z = 'Sim' if max_z > z_threshold else 'Não'
@@ -167,9 +241,9 @@ def analisar_bursts_tunavel(input_file='rtt_log.csv', output_prefix=None,
                 f'Média {value_label}': f"{valor_medio:.1f}",
                 'Std': f"{valor_std:.1f}",
                 'Entropia': f"{entropia:.2f}",
-                'Δ Ent.': f"{delta_entropia:.2f}",
+                'Δ Ent.': f"{delta_entropia:.4f}" if entropia_modo == 'js_baseline' else f"{delta_entropia:.2f}",
                 'Al. Ent.': alarme_entropia,
-                'Max Z': f"{max_z:.2f}",
+                'Max Z': f"{max_z:.4f}" if z_modo == 'robusto_baseline' else f"{max_z:.2f}",
                 'Al. Z': alarme_z,
                 'CUSUM': f"{cusum_atual:.0f}",
                 'Al. CUSUM': alarme_cusum,
