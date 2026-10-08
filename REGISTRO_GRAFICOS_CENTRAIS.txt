@@ -32,3 +32,8 @@ deteccao_pos_lb) gravaram só em diretórios próprios.
   gerado: 2026-09-29 10:50  md5 PNG: 3bbce6ef0351ba4499c6a775bd48f1fa
   o que mostra: Curva de capacidade: CPU de pico do tráfego normal isolado, 20-2560 rps, WU=10, 4 clientes, 1 rep, mesma sessão. 1280/2560 marcados como teto do gerador do cliente (§112).
   fonte: experiment_results/normal_isolado_pos_lb  (8 metrics; impressão digital nomes+tamanhos md5=bf0bce9628dee608f8b396bb28efb9b9)
+
+ATUALIZAÇÃO 08/10/2026 (changes.txt §142): os PNGs foram reorganizados em
+subpastas de graficos_apresentacao/04_pos_loadbalancer/ (conteúdo idêntico):
+  17 e 60 -> 01_capacidade_trafego_normal/
+  27 e 58 -> 02_caracterizacao_ataque/

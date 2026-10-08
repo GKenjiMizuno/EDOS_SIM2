@@ -34,7 +34,7 @@ import config
 
 NB_DIR = "experiment_results/normal_baseline"
 PRE_DIR = "experiment_results/_pre_loadbalancer_fix/normal_baseline"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 AGGREGATE_TARGETS = [20, 40, 80, 160, 320, 640, 1280, 2560]

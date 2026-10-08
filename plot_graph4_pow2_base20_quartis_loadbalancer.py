@@ -31,7 +31,7 @@ import pandas as pd
 # como corte de dado -- ver script original e memória feedback_no_iqr_outliers).
 
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

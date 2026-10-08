@@ -18,7 +18,7 @@ from scipy import stats
 # metrics_ atuais; convenção explicada no §112), com fallback para o antigo.
 
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

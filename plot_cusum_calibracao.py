@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-OUT = "graficos_apresentacao/04_pos_loadbalancer"
+OUT = "graficos_apresentacao/04_pos_loadbalancer/03_deteccao_estatistica"
 D = "experiment_results/deteccao_pos_lb/"
 os.makedirs(OUT, exist_ok=True)
 

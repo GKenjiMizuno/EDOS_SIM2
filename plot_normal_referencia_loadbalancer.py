@@ -17,7 +17,7 @@ import pandas as pd
 # reps e IC 95%: plot_normal_referencia_ic_loadbalancer.py (§135).
 
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BLUE = "#2a78d6"

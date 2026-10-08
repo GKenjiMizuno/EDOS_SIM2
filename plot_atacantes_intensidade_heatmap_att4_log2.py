@@ -38,7 +38,7 @@ import config
 # borda de aviso quando o real cai abaixo de 50% do nominal.
 
 GRID_DIR = "experiment_results/atacantes_intensidade_grid"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/02_caracterizacao_ataque"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 NORMAL_SCENARIOS = {

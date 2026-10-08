@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Regenera todos os gráficos de graficos_apresentacao/04_pos_loadbalancer/ a
 # partir dos dados versionados em experiment_results/ (changes.txt §140).
+# Subpastas (§142): 01_capacidade_trafego_normal, 02_caracterizacao_ataque,
+# 03_deteccao_estatistica/{01_antes,02_depois}_ajuste_z_entropia.
 # Rodar a partir da raiz do repositório:  bash gerar_graficos_definitivos.sh
 # Conferência: bash gerar_graficos_definitivos.sh && md5sum -c MANIFESTO_GRAFICOS.md5
 #
@@ -50,4 +52,5 @@ for novos in "" "--novos"; do
 done
 python3 plot_s4_10pct_cpu_rtt_cusum.py --200s                                 # 67 (sem reset)
 python3 plot_s4_10pct_cpu_rtt_cusum.py --200s --normal                        # 68 (sem reset)
+python3 plot_deteccao_antes_depois.py                                         # 72 (resumo antes x depois)
 echo "concluído"

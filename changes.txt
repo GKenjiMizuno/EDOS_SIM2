@@ -5943,3 +5943,39 @@ Criado a partir de develop_loadbalancer ef5d7d5 -> commit 03d3771, tag
   rtt_log brutos) NÃO foi exercitada nesta verificação.
 Em develop_loadbalancer os PNGs antigos continuam como estavam. Não foi
   enviado ao GitHub (pedido do usuário: só local por enquanto).
+
+================================================================================
+§142. Gráfico 72 (antes x depois do ajuste de Z/entropia) + reorganização de
+  04_pos_loadbalancer em subpastas
+================================================================================
+Criado plot_deteccao_antes_depois.py -> 72_deteccao_antes_depois_ajuste_z_
+  entropia.png: % de execuções com >= 1 alarme nas 13 janelas, ANTES (Z>3,5 vs
+  janela anterior; entropia ΔH>1,5 faixas do arquivo; CUSUM 5σ) x DEPOIS (Z
+  robusto; entropia JS; CUSUM 1000σ); combinado = média>1,8x E (Z OU CUSUM)
+  de cada versão. Só reps PARES (avaliação), tempo corrigido (§128), IC 95%
+  Wilson. Tabelas: resultados/T21_antes_depois_execucoes.csv e
+  T21_antes_depois_resumo.csv. Resultados (n: 141 sem ataque / 327 com
+  ataque / 107 com dano):
+                 alarme falso    detecção todos   detecção com dano
+    Z-score      100% -> 0,7%    100% -> 99,4%    100% -> 100%
+    Entropia       0% -> 2,1%    0,3% -> 70,9%    0,9% -> 100%
+    CUSUM       77,3% -> 5,0%   99,7% -> 95,4%    100% -> 100%
+    Combinado    4,3% -> 4,3%   90,8% -> 90,8%    100% -> 100%
+  (combinado igual porque a regra da média decide nos dois casos).
+Reorganização (git mv, conteúdo idêntico) de graficos_apresentacao/
+  04_pos_loadbalancer/:
+  01_capacidade_trafego_normal/  11, 17, 20, 24, 24_ic, 42, 57, 59, 60, 61
+  02_caracterizacao_ataque/      06, 27, 27_dp (2 versões), 48, 55, 56, 58, 58_log2
+  03_deteccao_estatistica/       62, 63, 64 (calibração do CUSUM)
+    01_antes_ajuste_z_entropia/  65, 66, 67 (2), 68 (2), 69, 70, 71
+    02_depois_ajuste_z_entropia/ 65-71 _novos, 72
+  _versoes_antigas/              63_cusum_1000sigma_deteccao_wedos.png (sem script)
+  Scripts atualizados para gravar direto em cada subpasta (OUT_DIR; no
+  plot_s4_10pct_cpu_rtt_cusum.py a pasta depende de --novos);
+  gerar_graficos_definitivos.sh inclui o 72. Verificação: regeneração completa
+  -> 40 PNGs nas pastas certas, nenhum na raiz; md5 por nome igual ao de antes
+  da mudança, exceto os 8 já desatualizados do §140 (restaurados) e o 72 novo.
+  REGISTRO_GRAFICOS_CENTRAIS.txt com nota dos novos caminhos.
+  O branch base_graficos_tcc / tag tcc-dados-definitivos NÃO mudam (seguem
+  com a estrutura plana e sem o 72); para congelar esta versão, criar um
+  branch/tag novo.

@@ -36,6 +36,10 @@ C320 = next((float(a.split("=")[1]) for a in sys.argv if a.startswith("--c320=")
 # baseline -- ambos do EntCusumZV3 (§138). O combinado passa a usar o Z novo.
 # Saída com sufixo _novos; versões sem a opção ficam intocadas.
 NOVOS = "--novos" in sys.argv
+# pasta de saída (§142): antes/depois do ajuste de Z-score e entropia
+PASTA = "graficos_apresentacao/04_pos_loadbalancer/03_deteccao_estatistica/" + (
+    "02_depois_ajuste_z_entropia" if NOVOS else "01_antes_ajuste_z_entropia")
+os.makedirs(PASTA, exist_ok=True)
 NORMAL = "--normal" in sys.argv or C320 == 0
 # --200s (§130): reexecução de 1 rep com 200 s (ataque continua em 20-160 s),
 # para ver os detectores depois do fim do ataque. Gera 67 (combinado) / 68
@@ -51,22 +55,22 @@ NOVO = V200 or C320 is not None  # contagem "no ataque / depois" e rodapé novos
 if C320 is not None:
     D = "experiment_results/confirmacao_320"
     num = {0: 69, 1: 70, 5: 71}[int(C320)]
-    OUT = f"graficos_apresentacao/04_pos_loadbalancer/{num}_320rps_wu10k_atk{C320:g}pct_cpu_e_rtt_detectores_reset.png"
+    OUT = f"{PASTA}/{num}_320rps_wu10k_atk{C320:g}pct_cpu_e_rtt_detectores_reset.png"
     REPS = [f"agg320_nwu10000_atk{C320:g}pct_awu200000_rep{i}" for i in (1, 2, 3)]
 elif V200:
     D = "experiment_results/s4_200s"
-    OUT = ("graficos_apresentacao/04_pos_loadbalancer/68_s4_normal_isolado_200s_cpu_e_rtt_detectores.png" if NORMAL else
-           "graficos_apresentacao/04_pos_loadbalancer/67_s4_10pct_wu400k_200s_cpu_e_rtt_detectores.png")
+    OUT = (f"{PASTA}/68_s4_normal_isolado_200s_cpu_e_rtt_detectores.png" if NORMAL else
+           f"{PASTA}/67_s4_10pct_wu400k_200s_cpu_e_rtt_detectores.png")
     REPS = ["normal_agg300_WU10_200s_rep1" if NORMAL else "S4_atk10pct_wu400000_200s_rep1"]
     if RESET:
         OUT = OUT.replace(".png", "_reset.png")
 elif NORMAL:
     D = "experiment_results/normal_baseline"
-    OUT = "graficos_apresentacao/04_pos_loadbalancer/66_s4_normal_isolado_cpu_e_rtt_detectores.png"
+    OUT = f"{PASTA}/66_s4_normal_isolado_cpu_e_rtt_detectores.png"
     REPS = ["normal_agg300_WU10_refined_rep10"]
 else:
     D = "experiment_results/wedos_grid"
-    OUT = "graficos_apresentacao/04_pos_loadbalancer/65_s4_10pct_wu400k_cpu_e_rtt_cusum.png"
+    OUT = f"{PASTA}/65_s4_10pct_wu400k_cpu_e_rtt_cusum.png"
     REPS = ["S4_atk10pct_wu400000_stage1a_rep1"] + [f"S4_atk10pct_wu400000_mlfill_rep{i}" for i in (2, 3, 4, 5)]
 H = 1000
 ATK_COLOR, INSTANCE_COLOR, OK_COLOR = "#d03b3b", "#555555", "#1baf7a"

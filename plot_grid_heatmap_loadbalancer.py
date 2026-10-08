@@ -21,7 +21,7 @@ import pandas as pd
 # Padrão de nome combinado com o usuário: "<número>_(loadbalancer)".
 
 GRID_DIR = "experiment_results/clients_rps_grid"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 AGGREGATE_TARGETS = [16, 32, 64, 128, 256, 512]

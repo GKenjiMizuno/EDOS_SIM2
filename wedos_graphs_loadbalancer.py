@@ -22,7 +22,7 @@ import numpy as np
 import config
 import wedos_graphs as wg
 
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/02_caracterizacao_ataque"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 

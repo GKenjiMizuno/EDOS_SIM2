@@ -14,7 +14,7 @@ import config
 # a mesma lógica e salva no diretório dedicado graficos_apresentacao/04_pos_loadbalancer/.
 
 GRID_DIR = "experiment_results/atacantes_intensidade_grid"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/02_caracterizacao_ataque"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 NORMAL_SCENARIOS = {

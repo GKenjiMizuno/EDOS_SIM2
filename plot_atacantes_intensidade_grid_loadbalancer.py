@@ -15,7 +15,7 @@ import config
 # lado do original intocado.
 
 GRID_DIR = "experiment_results/atacantes_intensidade_grid"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/02_caracterizacao_ataque"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 NORMAL_SCENARIOS = {

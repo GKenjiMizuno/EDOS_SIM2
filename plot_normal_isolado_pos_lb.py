@@ -21,7 +21,7 @@ import config
 # (4 threads Python, changes.txt §112), não comportamento do servidor.
 
 RESULTS_DIR = "experiment_results/normal_isolado_pos_lb"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/01_capacidade_trafego_normal"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 AGGREGATE_TARGETS = [20, 40, 80, 160, 320, 640, 1280, 2560]

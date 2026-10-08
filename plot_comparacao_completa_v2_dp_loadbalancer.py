@@ -25,7 +25,7 @@ from matplotlib.patches import Patch
 COM_OUTLIERS = "--com-outliers" in sys.argv
 DESEMPATE_DIR = "experiment_results/desempate_combinado_isolado"
 NB_DIR = "experiment_results/normal_baseline"
-OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer"
+OUT_DIR = "graficos_apresentacao/04_pos_loadbalancer/02_caracterizacao_ataque"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 RPS_VALUES = [1, 5, 10]
