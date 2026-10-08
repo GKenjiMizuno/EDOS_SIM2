@@ -5924,3 +5924,22 @@ Correções de código (sem alterar PNGs no develop; originais restaurados):
   - plot_comparacao_completa_v2_loadbalancer.py (27): mesma troca de
     convenção para o texto de timeouts do painel normal (0 nos dois
     arquivos); PNG do 27 conferido idêntico (md5 9b4bf386...).
+
+================================================================================
+§141. Branch base_graficos_tcc + tag tcc-dados-definitivos (só local)
+================================================================================
+Criado a partir de develop_loadbalancer ef5d7d5 -> commit 03d3771, tag
+  anotada tcc-dados-definitivos. Conteúdo: todo o repositório (código +
+  experiment_results versionados) com os 38 PNGs de 04_pos_loadbalancer
+  exatamente como o código os gera a partir dos dados definitivos:
+  - 06, 11, 20, 24, 42, 48, 55, 56 regenerados (desatualizados, §140);
+  - 63_cusum_1000sigma_deteccao_wedos.png removido (sem script, §140);
+  - novos: MANIFESTO_GRAFICOS.txt (comando, dados e md5 de cada gráfico,
+    ambiente: Python 3.12.3, matplotlib 3.6.3, numpy 1.26.4, pandas 2.1.4,
+    scipy 1.11.4), MANIFESTO_GRAFICOS.md5 e gerar_manifesto_graficos.py.
+  Verificação: bash gerar_graficos_definitivos.sh && md5sum -c
+  MANIFESTO_GRAFICOS.md5 -> 38/38 OK (regeneração completa repetida após o
+  commit dos PNGs). A opção --completo (recalcular as tabelas de detecção dos
+  rtt_log brutos) NÃO foi exercitada nesta verificação.
+Em develop_loadbalancer os PNGs antigos continuam como estavam. Não foi
+  enviado ao GitHub (pedido do usuário: só local por enquanto).
