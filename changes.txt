@@ -6007,3 +6007,23 @@ Verificação:
     decisões e médias idênticas, validacao.csv inalterado;
   - gráficos: os scripts usam só as constantes/funções do módulo -> 72, 67
     reset _novos e 65 regenerados sem nenhuma alteração de PNG.
+
+================================================================================
+§144. Bateria EDoS furtivo: WU do normal {10,100,1000,10000} x intensidade,
+  320 rps, tempo espaçado (pedido do orientador)
+================================================================================
+Criado run_edos_furtivo_wu.py -> experiment_results/edos_furtivo_wu/.
+  Normal 320 rps (4 clientes x 80), WU normal {10,100,1000,10000}; ataque 4
+  atacantes WU=200.000, intensidade {0,1,5,10,15,20,25}% (0% = normal
+  isolado para comparação). 1 rep (exploração), 28 configurações.
+  Tempo (Opção B, sem aquecimento do autoscaler): --duration 240
+  --attack-start 60 --pulse-duration 120 -> ataque 60-180 s, 60 s de
+  pré-ataque (baseline estabiliza após o pico de arranque) e 60 s de
+  pós-ataque (detectores/instâncias esfriam). Captura desligada (cap_net_raw
+  ausente), como nas demais baterias pós-LB.
+Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
+  ataque pode ficar furtivo ao detector de RTT (razão de custo
+  ataque/normal cai de 20000x em WU=10 para 20x em WU=10000). Caveat: RTT
+  furtivo exige mais volume de ataque -> troca com detectabilidade por
+  volume. Próximo: gráficos de detecção parametrizados (baseline e janela de
+  ataque configuráveis) + heatmap detecção x WU normal x intensidade.
