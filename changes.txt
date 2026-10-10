@@ -6027,3 +6027,35 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   furtivo exige mais volume de ataque -> troca com detectabilidade por
   volume. Próximo: gráficos de detecção parametrizados (baseline e janela de
   ataque configuráveis) + heatmap detecção x WU normal x intensidade.
+
+§145. Gráficos do EDoS furtivo (plot_edos_furtivo.py), análise da bateria §144
+  Script novo plot_edos_furtivo.py: lê experiment_results/edos_furtivo_wu/ e
+  gera, em graficos_apresentacao/04_pos_loadbalancer/03_deteccao_estatistica/
+  03_edos_furtivo_wu_normal/, 28 painéis por célula (CPU+instâncias | RTT log +
+  veredito dos 4 detectores a cada 10 s, estilo dos gráficos 65-71) e 1
+  heatmap-resumo (WU normal x intensidade) para o Combinado e o CUSUM, com
+  moldura vermelha nas células FURTIVAS (escalou mas 0 alarmes) e laranja nas
+  que escalaram com algum alarme. Flag --heatmap-only.
+  Parâmetros: baseline = RTT em t < 60 s (janela de pré-ataque completa, sem
+  aparar o pico de arranque -- escolha do usuário, Opção B: o espaçamento
+  dilui o pico); janela de ataque 60-180 s; detectores na config recomendada
+  do §143 (CUSUM 1000σ com reset, Z robusto, entropia JS, combinado); tempo do
+  RTT corrigido dos saltos de relógio (§128). Rodapé/legenda separados para não
+  sobrepor.
+  RESULTADO (1 rep, exploração):
+  - Subir a WU do normal NÃO tornou o ataque furtivo ao detector combinado em
+    nenhuma célula. Em WU={10,100,1000} todas as intensidades que escalaram
+    foram detectadas 100% (11/11 janelas) por todos os métodos.
+  - Única célula furtiva encontrada: WU_normal=10000, intensidade 5% -- escalou
+    (até 3 instâncias, CPU pico 81%) mas CUSUM deu 0/11 alarmes (FURTIVO ao
+    CUSUM). Porém Z robusto 11/11, entropia 9/11 e combinado 2/11 ainda pegam.
+    Ou seja: furtivo só ao CUSUM isolado, não ao conjunto.
+  - Em WU=10000 o CUSUM degrada no limiar do escalonamento: 1% 0/11 (não
+    escalou), 5% 0/11 (escalou, furtivo), 10% 2/11, 15% 3/11; só volta a 11/11
+    em >=20%. O Z robusto permanece 11/11 em toda a faixa que escalou.
+  - Interpretação: subir a WU do normal eleva o RTT-base (~5-7 ms vs ~2 ms) e
+    aproxima o RTT do ataque do baseline, enfraquecendo o CUSUM (que acumula
+    desvio da média); mas o ataque ainda infla a cauda/variância do RTT, que o
+    Z robusto e a entropia capturam. Confirma o trade-off do §144: furtividade
+    por RTT exige aproximar o custo ataque/normal, mas aí precisa de mais
+    volume, que os outros detectores veem.
