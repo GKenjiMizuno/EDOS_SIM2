@@ -6119,3 +6119,21 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   {0,5,10,15,20,30}% (intensidade maior porque requisição leve precisa de mais
   volume p/ escalar). 1 rep, tempo espaçado (240 s, ataque 60-180). 21 execuções.
   Saída: experiment_results/edos_furtivo_wu_baixo/. Gráficos: plot adaptado.
+
+§150. Gráficos da bateria WU_ataque mínimo (plot_edos_furtivo_baixo.py)
+  Lê experiment_results/edos_furtivo_wu_baixo/ (§149). Reaproveita painel/
+  detectores de plot_edos_furtivo_wu_rps (redireciona D/OUT_DIR). Gera 21 painéis
+  + 1 heatmap (Combinado e CUSUM lado a lado, WU_ataque x intensidade) em
+  .../03_deteccao_estatistica/05_edos_furtivo_wu_baixo/. Baseline aparado [15,60).
+  RESULTADO (1 rep) -- ACHOU furtivo-e-escalando:
+  - WU_ataque=10000 (razão 2x vs normal 5000): FURTIVO (escala 1->2, combinado
+    0/11) em intensidade 15%, 20%, 30%. Robusto ao baseline (cheio também 0/11).
+  - WU_ataque=20000 (razão 4x): furtivo só em 15%.
+  - WU_ataque>=30000 (razão >=6x): deixa de ser furtivo (combinado dispara).
+  => Fronteira: quanto MENOR o contraste de RTT (WU_ataque perto do normal), mais
+    larga a faixa furtiva. Confirma a inversão do §148 e fecha o trade-off:
+    furtivo ao RTT exige WU baixo -> precisa de volume (15-30% = 48-96 rps) ->
+    furtivo ao detector de RTT mas VISÍVEL a um detector de volume. Não dá os dois.
+  - Caveat: a 64 rps de ataque WU=10000 (razão 2x) é a ponta "quase volumétrica"
+    do espectro; discutir com orientador se conta como W-EDoS clássico. 1 rep:
+    confirmar células furtivas com repetições.
