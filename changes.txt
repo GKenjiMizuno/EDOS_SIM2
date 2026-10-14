@@ -6111,3 +6111,11 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   - Ruído de 1 rep é visível (células não-monotônicas); fronteiras precisam de
     reps p/ confirmar, mas a conclusão ampla (sem célula furtiva-e-escalando) é
     robusta.
+
+§149. Bateria EDoS furtivo WU_ataque mínimo (run_edos_furtivo_baixo.py)
+  Mapeia a fronteira de furtividade com contraste de RTT mínimo (continuação do
+  §148, pedido do usuário). Fixo: 320 rps agregado, WU_normal=5000. Varia
+  WU_ataque {10000,20000,30000,40000} (razão 2-8x, sempre > normal) x intensidade
+  {0,5,10,15,20,30}% (intensidade maior porque requisição leve precisa de mais
+  volume p/ escalar). 1 rep, tempo espaçado (240 s, ataque 60-180). 21 execuções.
+  Saída: experiment_results/edos_furtivo_wu_baixo/. Gráficos: plot adaptado.
