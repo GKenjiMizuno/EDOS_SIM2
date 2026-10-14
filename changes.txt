@@ -6137,3 +6137,9 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   - Caveat: a 64 rps de ataque WU=10000 (razão 2x) é a ponta "quase volumétrica"
     do espectro; discutir com orientador se conta como W-EDoS clássico. 1 rep:
     confirmar células furtivas com repetições.
+
+§151. Confirmação das células furtivas (run_edos_furtivo_confirma.py)
+  Roda reps 2-5 das 4 células furtivas do §150 (rep1 já existe): 320 rps,
+  WU_normal=5000, (WU_ataque,intens) em (10000,15) (10000,20) (10000,30)
+  (20000,15). 16 execuções, mesma pasta edos_furtivo_wu_baixo. Objetivo: medir
+  em quantas das 5 reps o ataque fica furtivo-e-escalando (robustez ao ruído).
