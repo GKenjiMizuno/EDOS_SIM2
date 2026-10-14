@@ -6084,3 +6084,30 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   Objetivo: mapear fronteira escala-mas-furtivo via diluição + contraste de RTT.
   Saída: experiment_results/edos_furtivo_wu_rps/.
   Obs: run_edos_furtivo_rps.py (§146, só RPS) foi substituído por este 3D.
+
+§148. Gráficos de detecção da bateria 3D (plot_edos_furtivo_wu_rps.py)
+  Lê experiment_results/edos_furtivo_wu_rps/ (§147) e gera, em
+  graficos_apresentacao/04_pos_loadbalancer/03_deteccao_estatistica/
+  04_edos_furtivo_wu_rps/: 40 painéis por célula (CPU+instâncias | RTT log +
+  veredito dos 4 detectores) e 2 heatmaps (Combinado e CUSUM), grade 2x2 de
+  (RPS x WU_normal), cada um WU_ataque x intensidade, com moldura vermelha nas
+  células FURTIVAS (escalou, 0 alarmes) e laranja nas que escalaram com algum
+  alarme. Baseline APARADO do arranque: t em [15,60) (não [0,60)), para corrigir
+  a contaminação do σ/cauda pelo pico de cold-start; o rodapé e o resumo trazem
+  também a contagem do combinado com baseline cheio [0,60) para comparação.
+  RESULTADO (1 rep):
+  - NENHUMA célula ficou furtiva ao combinado: não há (RPS,WU_n,WU_a,intens) que
+    escale E evada o detector combinado (0 molduras vermelhas). Mais próximas:
+    agg320/nwu5000/awu50000/atk10% (escalou, comb 1/11) e awu100000/atk5%
+    (escalou, comb 2/11) -- quase furtivas, mas pegas.
+  - A hipótese "WU_ataque maior = mais furtivo" se INVERTEU: WU_ataque maior ->
+    MAIS detectável (contraste de RTT domina a diluição). As células que evadem
+    (0%) estão em WU_ataque baixo (50000, perto do normal), mas aí precisa de
+    mais volume p/ escalar, que trai pela média/Z -> o trade-off fecha a janela.
+  - Validação do aparo: células trocam de "quase furtiva" (baseline cheio) para
+    "detectada" (aparado). Ex.: agg320/nwu10000/awu100000/atk10% comb 11/11
+    aparado vs 1/11 cheio -- a contaminação do arranque daria furtividade falsa.
+  - 160 rps quase não escala (só WU_a=200000/10%); base fria exige mais ataque.
+  - Ruído de 1 rep é visível (células não-monotônicas); fronteiras precisam de
+    reps p/ confirmar, mas a conclusão ampla (sem célula furtiva-e-escalando) é
+    robusta.
