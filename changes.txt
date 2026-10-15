@@ -6177,3 +6177,18 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   copia_robusto.py); runner pula metrics_ existentes (resumível). A rodar: 192
   (189 ataques + 3 baselines 160/{10,100,1000}), ~14-15 h.
   NÃO reaproveitado: ataque_wu_teste (duração 55 s, protocolo incompatível).
+
+§154. Gráficos da bateria robusta (plot_edos_furtivo_robusto.py)
+  Lê edos_furtivo_robusto/ (§153). Reaproveita painel/detectores de
+  plot_edos_furtivo_wu_rps. Gera 236 painéis + 2 heatmaps (Combinado e CUSUM),
+  grade 2x4 (RPS x WU_normal), cada um WU_ataque x intensidade, em
+  .../03_deteccao_estatistica/06_edos_furtivo_robusto/. Baseline aparado [15,60).
+  RESULTADO (1 rep, 228 células de ataque):
+  - 3 células FURTIVAS-e-escalaram (combinado 0/11):
+    160rps/WU_n10000/WU_a20000/25%; 320rps/WU_n1000/WU_a20000/20%;
+    320rps/WU_n10000/WU_a50000/15%.
+  - Padrão geral confirma o trade-off: escalonamento concentra-se em WU_ataque
+    alto e/ou intensidade alta (canto inferior-direito), justamente onde a
+    detecção é 100%. A furtividade só aparece numa banda diagonal estreita --
+    WU_ataque alto o bastante p/ escalar mas baixo o bastante (razão moderada)
+    p/ não cruzar o piso da média. Resultado é ruidoso (1 rep).
