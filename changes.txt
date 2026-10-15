@@ -6192,3 +6192,8 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
     detecção é 100%. A furtividade só aparece numa banda diagonal estreita --
     WU_ataque alto o bastante p/ escalar mas baixo o bastante (razão moderada)
     p/ não cruzar o piso da média. Resultado é ruidoso (1 rep).
+
+§155. Confirmação das 3 furtivas da bateria robusta (run_edos_robusto_confirma.py)
+  Reps 2-5 de (160,10000,20000,25%), (320,1000,20000,20%), (320,10000,50000,15%)
+  na pasta edos_furtivo_robusto. 12 execuções, protocolo 240s + 10s cooldown.
+  Mede em quantas das 5 reps o ataque fica furtivo-e-escalando.
