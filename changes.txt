@@ -6143,3 +6143,16 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   WU_normal=5000, (WU_ataque,intens) em (10000,15) (10000,20) (10000,30)
   (20000,15). 16 execuções, mesma pasta edos_furtivo_wu_baixo. Objetivo: medir
   em quantas das 5 reps o ataque fica furtivo-e-escalando (robustez ao ruído).
+
+§151 (resultado da confirmação, 5 reps por célula):
+  WU_a=10000 (2x) 15%: escalou 3/5 · FURTIVO-e-escalou 3/5 · combinado médio 0,0/11
+  WU_a=10000 (2x) 20%: escalou 4/5 · FURTIVO-e-escalou 4/5 · combinado médio 0,4/11  <- melhor
+  WU_a=10000 (2x) 30%: escalou 4/5 · FURTIVO-e-escalou 3/5 · combinado médio 1,4/11
+  WU_a=20000 (4x) 15%: escalou 5/5 · FURTIVO-e-escalou 3/5 · combinado médio 0,6/11
+  Conclusão: a furtividade é robusta (não era ruído de 1 rep). Quando escala, o
+  combinado fica ~0 na grande maioria. Trade-off DENTRO da zona furtiva:
+  - razão 2x (WU10000): muito furtivo (comb ~0) mas escala no limiar (3-4/5);
+  - razão 4x (WU20000/15%): escala sempre (5/5) mas pego mais vezes (furtivo 3/5).
+  Ponto doce: WU_ataque=10000 a 20% (4/5 furtivo-e-escalando). Z e entropia ~0
+  nas reps furtivas; o gate da média (>1,8x) é o que segura o combinado em 0
+  mesmo quando o CUSUM cru acumula. Tabela: confirma_5reps.csv.
