@@ -6197,3 +6197,15 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   Reps 2-5 de (160,10000,20000,25%), (320,1000,20000,20%), (320,10000,50000,15%)
   na pasta edos_furtivo_robusto. 12 execuções, protocolo 240s + 10s cooldown.
   Mede em quantas das 5 reps o ataque fica furtivo-e-escalando.
+
+§155 (resultado da confirmação, 5 reps):
+  160/WUn10000/WUa20000/25% (razão 2x): escalou 2/5 · FURTIVO 2/5 · comb médio 0,6
+  320/WUn1000/WUa20000/20% (razão 20x): escalou 5/5 · FURTIVO 2/5 · comb médio 1,4
+  320/WUn10000/WUa50000/15% (razão 5x): escalou 5/5 · FURTIVO 1/5 · comb médio 1,0
+  Conclusão: NENHUMA das 3 é robustamente furtiva (nenhuma >=4/5 como o ponto doce
+  do §151, WUn5000/WUa10000/20% = 4/5). As células razão 5x e 20x eram em boa parte
+  RUÍDO de 1 rep (furtivo só 1/5 e 2/5; combinado dispara nas outras reps). A mais
+  furtiva-quando-escala é a de razão 2x (160/WUn10000/WUa20000), mas escala só 2/5
+  (limiar). Reforça o achado central: a furtividade robusta vive em razão de custo
+  ~2x (contraste de RTT mínimo); razões maiores "furtivas" no heatmap de 1 rep são
+  ruído. Tabela: confirma_robusto_5reps.csv.
