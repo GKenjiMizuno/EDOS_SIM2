@@ -6156,3 +6156,11 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   Ponto doce: WU_ataque=10000 a 20% (4/5 furtivo-e-escalando). Z e entropia ~0
   nas reps furtivas; o gate da média (>1,8x) é o que segura o combinado em 0
   mesmo quando o CUSUM cru acumula. Tabela: confirma_5reps.csv.
+
+§152. Gráfico-resumo da confirmação furtiva (plot_confirma_furtivo.py)
+  Lê confirma_5reps.csv (§151) e gera resumo_confirma_furtivo.png em
+  .../05_edos_furtivo_wu_baixo/: painel (a) desfecho das 5 reps por célula
+  (barras empilhadas: furtivo-e-escalou / escalou-detectado / não escalou);
+  painel (b) alarmes do combinado por rep (pontos, ~0 na maioria).
+  Mostra: WU10000/20% = 4/5 furtivo (melhor); WU10000/15% e /30% e WU20000/15%
+  = 3/5 furtivo. Combinado dispara em só 4 das 20 reps.
