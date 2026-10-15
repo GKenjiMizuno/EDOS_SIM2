@@ -6164,3 +6164,16 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   painel (b) alarmes do combinado por rep (pontos, ~0 na maioria).
   Mostra: WU10000/20% = 4/5 furtivo (melhor); WU10000/15% e /30% e WU20000/15%
   = 3/5 furtivo. Combinado dispara em só 4 das 20 reps.
+
+§153. Bateria ROBUSTA de furtividade (run_edos_furtivo_robusto.py)
+  Consolida o espaço de furtividade num único diretório edos_furtivo_robusto/
+  com protocolo uniforme (240 s, ataque 60-180 s, 4 clientes/atacantes, 1 rep,
+  10 s de cooldown entre runs). Grid: RPS {160,320} x WU_normal {10,100,1000,
+  10000} x WU_ataque {10000,20000,50000,100000,200000} x intensidade
+  {1,5,10,15,20,25}% (228 células, WU_a>WU_n; 12 inválidas WU_n=WU_a=10000 fora)
+  + 0% normal isolado por (RPS,WU_n) = 8 baselines. Total 236 células.
+  Reaproveitamento (evita repetir): 39 células de ataque + 5 baselines já em
+  240 s foram COPIADAS de edos_furtivo_wu/edos_furtivo_wu_rps (scratchpad/
+  copia_robusto.py); runner pula metrics_ existentes (resumível). A rodar: 192
+  (189 ataques + 3 baselines 160/{10,100,1000}), ~14-15 h.
+  NÃO reaproveitado: ataque_wu_teste (duração 55 s, protocolo incompatível).
