@@ -6209,3 +6209,11 @@ Hipótese: subir a WU do normal aproxima o custo/RTT do ataque do normal ->
   (limiar). Reforça o achado central: a furtividade robusta vive em razão de custo
   ~2x (contraste de RTT mínimo); razões maiores "furtivas" no heatmap de 1 rep são
   ruído. Tabela: confirma_robusto_5reps.csv.
+
+§156. Gráfico-resumo consolidado das furtivas confirmadas (plot_furtivo_confirmado.py)
+  Junta §151 (WU_n5000) e §155 (bateria robusta): 7 células confirmadas com 5 reps,
+  barras horizontais de furtivo-e-escalou/5 + losango de escalou/5, ordenadas pela
+  razão de custo WU_ataque/WU_normal. Saída em .../07_furtivo_confirmado/.
+  Leitura: furtividade robusta em razão BAIXA (2-4x); ponto doce WU_n5000/WU_a10000/
+  20% = 4/5. Cai a partir de 5x (1/5); o 20x (2/5) é ruído. losango mostra que
+  razões altas escalam 5/5 mas são pegas -> trade-off escala-vs-furtivo.
