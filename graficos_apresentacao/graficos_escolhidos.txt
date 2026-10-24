@@ -6,4 +6,12 @@ Graficos ataque wedos - 56, 55, 27, 24, 48,
 
 Gráficos escolhidos definitivos:
 
-17, 27, 58, 60
+17, 27, 58, 60, 68, 67
+
+# Repetir os testes fora do padrão: 17, 58
+
+17 - 256 RPS x 1 Cliente, 256 RPS X 2 clientes
+
+58: 
+    S7
+    

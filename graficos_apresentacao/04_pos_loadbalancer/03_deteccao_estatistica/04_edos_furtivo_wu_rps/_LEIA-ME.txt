@@ -1,0 +1,3 @@
+Exploracao agg x WU x intensidade (plot_edos_furtivo_wu_rps.py).
+Subpastas por cenario agg{rps}_nwu{WU_normal}. Heatmaps-resumo na raiz.
+AVISO: re-rodar o script regenera os PNGs FLAT na raiz.

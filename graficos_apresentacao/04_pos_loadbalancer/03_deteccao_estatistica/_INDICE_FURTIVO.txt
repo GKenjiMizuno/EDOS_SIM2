@@ -1,0 +1,16 @@
+PASTAS DE EDoS FURTIVO - indice (organizado 2026-10-19)
+=========================================================
+Progressao da exploracao de furtividade (do mais exploratorio ao definitivo):
+
+03_edos_furtivo_wu_normal/  - varre WU_normal (victim) isolado. Subpastas: nwu{X}.
+04_edos_furtivo_wu_rps/     - varre agg x WU x intensidade. Subpastas: agg{X}_nwu{Y}.
+05_edos_furtivo_wu_baixo/   - *** VITIMA DO TCC (320 rps, WU_normal=5000) ***
+                              familia definitiva. Subpastas por WU do ataque (razao).
+06_edos_furtivo_robusto/    - bateria robusta (238 paineis, 8 cenarios). Subpastas agg_nwu.
+07_furtivo_confirmado/      - resumo consolidado das furtivas confirmadas em 5 reps.
+
+RESULTADO FINAL para o texto: graficos_apresentacao/00_tcc_texto/deteccao_3_casos/
+  A baseline (sem ataque) | B furtivo (rep3, razao 2x, escalou 0/11) | C ruidoso (razao 8x, 11/11)
+
+Cada pasta tem um _LEIA-ME.txt. Os PNGs foram agrupados por cenario em subpastas
+para visualizacao; re-rodar os scripts de plot regenera os arquivos FLAT na raiz.

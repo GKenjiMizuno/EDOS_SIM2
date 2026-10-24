@@ -1,0 +1,3 @@
+Exploracao de WU_normal (plot_edos_furtivo.py).
+Subpastas por nwu{WU_normal}: nwu10 / nwu100 / nwu1000 / nwu10000.
+Heatmap-resumo na raiz. AVISO: re-rodar regenera FLAT na raiz.

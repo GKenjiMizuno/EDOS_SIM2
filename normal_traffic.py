@@ -43,7 +43,8 @@ def _send_one_normal(session, target_url, counters, counters_lock):
             rtt_measurements.append(rtt)
             rtt_measurements_total.append({
                 "timestamp": time.time(),
-                "rtt": rtt
+                "rtt": rtt,
+                "label": "normal"
             })
         with counters_lock:
             counters["ok"] += 1
@@ -124,10 +125,10 @@ def save_rtt_log(filename=None):
         filename = config.RTT_LOG_FILE
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "rtt"])
+        writer.writerow(["timestamp", "rtt", "label"])
 
         for entry in rtt_measurements_total:
-            writer.writerow([entry["timestamp"], entry["rtt"]])
+            writer.writerow([entry["timestamp"], entry["rtt"], entry.get("label", "")])
 
 
 

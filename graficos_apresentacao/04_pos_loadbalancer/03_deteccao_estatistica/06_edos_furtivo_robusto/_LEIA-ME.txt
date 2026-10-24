@@ -1,0 +1,8 @@
+Bateria ROBUSTA de furtividade (plot_edos_furtivo_robusto.py).
+238 paineis agrupados em subpastas por CENARIO agg{rps_agregado}_nwu{WU_normal}:
+  agg160_nwu10 / _nwu100 / _nwu1000 / _nwu10000
+  agg320_nwu10 / _nwu100 / _nwu1000 / _nwu10000
+Dentro de cada subpasta: um painel por intensidade(%) x WU_ataque(awu).
+Na raiz ficam os 2 heatmaps-resumo (combinado e cusum).
+AVISO: re-rodar o script regenera os PNGs FLAT na raiz desta pasta;
+reagrupar rodando o utilitario de organizacao da sessao.

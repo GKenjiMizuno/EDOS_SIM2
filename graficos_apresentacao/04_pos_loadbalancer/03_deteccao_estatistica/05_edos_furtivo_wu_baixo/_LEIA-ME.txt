@@ -1,0 +1,6 @@
+VITIMA DO TCC: 320 rps agregado, WU_normal=5000 (plot_edos_furtivo_baixo.py).
+Esta e a familia definitiva de furtividade. Subpastas por WU do ATAQUE (razao de custo):
+  awu10000 (razao 2x) / awu20000 (4x) / awu30000 (6x) / awu40000 (8x).
+Na raiz: heatmap_furtivo_wu_baixo, resumo_confirma_furtivo e o baseline atk0pct.
+O trio escolhido para o texto esta em graficos_apresentacao/00_tcc_texto/deteccao_3_casos/.
+AVISO: re-rodar o script regenera os PNGs FLAT na raiz.

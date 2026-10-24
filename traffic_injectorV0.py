@@ -39,7 +39,8 @@ def _send_one(session, target_url, counters, counters_lock):
             rtt_measurements.append(rtt)
             rtt_measurements_total.append({
                 "timestamp": time.time(),
-                "rtt": rtt
+                "rtt": rtt,
+                "label": "attack"
             })
         with counters_lock:
             counters["ok"] += 1
