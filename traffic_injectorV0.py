@@ -25,7 +25,7 @@ _load_balancer = load_balancer.LoadBalancer("Attack")
 _send_pool = ThreadPoolExecutor(max_workers=config.HTTP_ATTACK_MAX_CONCURRENT_SENDS)
 
 
-def _send_one(session, target_url, counters, counters_lock):
+def _send_one(session, target_url, counters, counters_lock, work):
     """
     Executa a requisição bloqueante de fato. Roda numa thread da _send_pool,
     desacoplada do laço de ritmo em http_request_worker.
@@ -40,7 +40,8 @@ def _send_one(session, target_url, counters, counters_lock):
             rtt_measurements_total.append({
                 "timestamp": time.time(),
                 "rtt": rtt,
-                "label": "attack"
+                "label": "attack",
+                "work": work
             })
         with counters_lock:
             counters["ok"] += 1
@@ -81,7 +82,7 @@ def http_request_worker(rps_per_worker):
         target_url = f"{base_url}?work={config.ATTACK_WORK_UNITS}&sleep={config.ATTACK_SLEEP}"
 
         try:
-            future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock)
+            future = _send_pool.submit(_send_one, session, target_url, counters, counters_lock, config.ATTACK_WORK_UNITS)
         except RuntimeError:
             # _send_pool já foi finalizada (ex.: encerramento do interpretador) — encerra o worker.
             break

@@ -70,6 +70,15 @@ ATTACK_SLEEP = 0.00
 
 NORMAL_WORK_UNITS = 10
 NORMAL_SLEEP =0.0
+
+# --- Trafego normal multi-endpoint (modelo Sotelo Monge 2017 / EDiSON) ---
+# Modo "single" (PADRAO, comportamento inalterado): toda requisicao normal usa
+# NORMAL_WORK_UNITS. Modo "mix": cada requisicao normal sorteia a carga (endpoint)
+# de NORMAL_WORK_UNITS_DIST por peso. O numero e as cargas dos endpoints sao livres;
+# os pesos nao precisam somar 1 (random.choices normaliza). Ativado via
+# --normal-work-dist no main_orchestrator (sem a flag, segue "single").
+NORMAL_WORK_UNITS_MODE = "single"
+NORMAL_WORK_UNITS_DIST = [(1000, 0.40), (5000, 0.30), (10000, 0.20), (50000, 0.10)]
 # --- TCPDUMP SNIFFER CONFIG ---
 # Sem TCPDUMP_INTERFACE aqui de propósito: era um nome de bridge Docker
 # gerado dinamicamente (br-xxxx, muda se a rede for recriada) e nunca era

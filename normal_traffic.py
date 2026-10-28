@@ -29,7 +29,20 @@ _load_balancer = load_balancer.LoadBalancer("Normal")
 _send_pool = ThreadPoolExecutor(max_workers=config.HTTP_NORMAL_MAX_CONCURRENT_SENDS)
 
 
-def _send_one_normal(session, target_url, counters, counters_lock):
+def _sample_normal_work():
+    """Carga (work units) de UMA requisicao normal. Modo 'single' -> NORMAL_WORK_UNITS;
+    modo 'mix' -> sorteio ponderado em NORMAL_WORK_UNITS_DIST (modelo multi-endpoint
+    estilo Sotelo Monge). Le a config na hora da chamada porque o CLI pode sobrescreve-la
+    depois do import."""
+    if getattr(config, "NORMAL_WORK_UNITS_MODE", "single") == "mix":
+        dist = config.NORMAL_WORK_UNITS_DIST
+        valores = [d[0] for d in dist]
+        pesos = [d[1] for d in dist]
+        return random.choices(valores, weights=pesos, k=1)[0]
+    return config.NORMAL_WORK_UNITS
+
+
+def _send_one_normal(session, target_url, counters, counters_lock, work):
     """
     Executa a requisição bloqueante de fato. Roda numa thread da _send_pool,
     desacoplada do laço de ritmo em normal_http_request_worker.
@@ -44,7 +57,8 @@ def _send_one_normal(session, target_url, counters, counters_lock):
             rtt_measurements_total.append({
                 "timestamp": time.time(),
                 "rtt": rtt,
-                "label": "normal"
+                "label": "normal",
+                "work": work
             })
         with counters_lock:
             counters["ok"] += 1
@@ -84,10 +98,11 @@ def normal_http_request_worker(rps_per_worker):
             # update_targets()) -- espera um pouco e tenta de novo, sem contar como erro.
             time.sleep(0.1)
             continue
-        target_url = f"{base_url}?work={config.NORMAL_WORK_UNITS}&sleep={config.NORMAL_SLEEP}"
+        work = _sample_normal_work()
+        target_url = f"{base_url}?work={work}&sleep={config.NORMAL_SLEEP}"
 
         try:
-            future = _send_pool.submit(_send_one_normal, session, target_url, counters, counters_lock)
+            future = _send_pool.submit(_send_one_normal, session, target_url, counters, counters_lock, work)
         except RuntimeError:
             # _send_pool já foi finalizada (ex.: encerramento do interpretador) — encerra o worker.
             break
@@ -125,10 +140,10 @@ def save_rtt_log(filename=None):
         filename = config.RTT_LOG_FILE
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["timestamp", "rtt", "label"])
+        writer.writerow(["timestamp", "rtt", "label", "work"])
 
         for entry in rtt_measurements_total:
-            writer.writerow([entry["timestamp"], entry["rtt"], entry.get("label", "")])
+            writer.writerow([entry["timestamp"], entry["rtt"], entry.get("label", ""), entry.get("work", "")])
 
 
 

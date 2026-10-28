@@ -32,6 +32,10 @@ def parse_args():
     parser.add_argument("--normal-rps", type=float, default=None)
     parser.add_argument("--normal-clients", type=int, default=None)
     parser.add_argument("--normal-work-units", type=int, default=None)
+    parser.add_argument("--normal-work-dist", type=str, default=None,
+                        help='Menu multi-endpoint "carga:peso,..." (ex.: '
+                             '1000:0.4,5000:0.3,10000:0.2,50000:0.1). Ativa o modo mix do '
+                             'trafego normal. Sem a flag, usa --normal-work-units (modo single).')
     parser.add_argument("--attack-start", type=int, default=None)
     parser.add_argument("--pulse-duration", type=int, default=None)
 
@@ -496,6 +500,15 @@ if __name__ == "__main__":
         if args.normal_work_units is not None:
             config.NORMAL_WORK_UNITS = args.normal_work_units
             print(f"Normal traffic work units set to: {config.NORMAL_WORK_UNITS}")
+
+        if args.normal_work_dist is not None:
+            dist = []
+            for par in args.normal_work_dist.split(","):
+                carga, peso = par.split(":")
+                dist.append((int(carga), float(peso)))
+            config.NORMAL_WORK_UNITS_DIST = dist
+            config.NORMAL_WORK_UNITS_MODE = "mix"
+            print(f"Normal traffic MIX de endpoints (modelo Sotelo Monge): {config.NORMAL_WORK_UNITS_DIST}")
 
         if args.attack_start is not None:
             config.ATTACK_START_TIME_SECONDS = args.attack_start
