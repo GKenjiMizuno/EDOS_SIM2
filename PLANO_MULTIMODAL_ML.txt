@@ -1,0 +1,91 @@
+================================================================================
+PLANO — SIMULADOR MULTIMODAL (multi-endpoint) + EDiSON + ML
+Branch: develop_multi_endpoint_traffic        Data: 2026-10-27
+================================================================================
+
+OBJETIVO DA ETAPA ATUAL
+-----------------------
+Rodar uma bateria com o NOVO tráfego normal (mistura de endpoints estilo Sotelo
+Monge 2017/EDiSON) e OBSERVAR o comportamento (RTT + simulation_metrics) do
+simulador multimodal. É uma etapa exploratória: só vira "oficial" se o usuário
+gostar do resultado.
+
+DECISÕES JÁ TOMADAS (confirmadas pelo usuário)
+----------------------------------------------
+1. Menu de endpoints (carga : peso) para o tráfego NORMAL:
+       1000:40%   5000:30%   10000:20%   50000:10%
+   (WU_n efetivo / média ponderada = 8.900). Número e cargas são configuráveis.
+2. ATAQUE concentrado só no MAIOR endpoint (work-units = 50000).
+3. Timing ISO2-B: 0-300s só normal (baseline [60,300)) / 300-600s ataque (5 min)
+   / 600-780s final (3 min). Cooldown de 60s entre runs (Docker esfriar).
+   -> ataque alongado p/ 5 min p/ equilibrar as classes no ML (~38% attack).
+4. SEM capturar flags TCP / TTL (degenerados em loopback; o resto das features de
+   fluxo é recuperável offline do traffic_capture).
+5. Artigo-base de ML: P1 = "An Improved Method for Detecting EDoS Attacks in the
+   Cloud With Hyperparameter Optimization and Metaheuristic Algorithms"
+   (Random Forest + XGBoost; EDoS como low-rate/furtivo; dataset próprio;
+   trata desbalanceamento). Secundário p/ seleção de features: P5 (Mutual Info).
+
+O QUE MUDOU NO SIMULADOR (retrocompatível, já commitado)
+--------------------------------------------------------
+- config.py: NORMAL_WORK_UNITS_MODE ("single"=padrão | "mix"), NORMAL_WORK_UNITS_DIST.
+- normal_traffic.py: _sample_normal_work() sorteia a carga por requisição no modo mix.
+- traffic_injectorV0.py + normal_traffic.py: coluna 'work' no rtt_log.csv.
+- main_orchestrator.py: flag --normal-work-dist "carga:peso,..." (ativa o modo mix).
+- run_edos_multi_endpoint_iso2.py: runner da bateria (menu no topo, editável).
+IMPORTANTE: SEM a flag --normal-work-dist, o simulador age EXATAMENTE como antes
+(modo single é o padrão). Reverter = não usar a flag, ou voltar p/ develop_loadbalancer.
+Commits: 4dc575e (feature) + d810b99 (timing ISO2-B).
+
+ANÁLISE DAS CARGAS (dados reais; veredito = BOM, manter o menu)
+---------------------------------------------------------------
+Escada de custo (agg320, baseline, mediana 3 reps das baterias single-mode):
+    WU=1000  -> CPU ~22%  (leve, nunca escala)
+    WU=5000  -> CPU ~38%  (médio, pico 63%)
+    WU=10000 -> CPU ~45%  (pesado, pico 67%, inst~1,2)
+    WU=50000 -> muito caro: força 2 instâncias JÁ com 1% de ataque
+Baseline da MISTURA medido (agg320, normal puro): CPU ~51% média, pico 56%,
+1 instância, ZERO scale-up -> ponto ideal: pressionado mas estável <60% (não
+escala sozinho) e perto o bastante p/ o ataque no 50000 empurrar p/ cima. É mais
+limpo que a vítima WU=10000 pura. No agg160 o baseline cai p/ ~25% (caso limpo).
+Enquadramento: a furtividade aqui NÃO é baixo impacto (50000 escala fácil) — é o
+ataque usar um endpoint LEGÍTIMO (idêntico por requisição ao tráfego pesado
+normal), premissa "network-similar" do EDiSON.
+
+BATERIA
+-------
+agg {160, 320} x intensidade {1,5,10,15,20,25}% + baseline 0% x 3 reps = 42 runs.
+~13 min/run (ISO2-B) -> ~9,3 h. Resumível (pula metrics_ já existente).
+Saída: experiment_results/edos_multi_endpoint_iso2/
+Sufixos: agg{rps}_mix_atk0pct_rep{r} (baseline) | agg{rps}_mix_atk{pct}pct_awu50000_rep{r}
+
+GARANTIA DE DADOS (ML/EDiSON-ready, tudo extraível OFFLINE, zero custo no sim)
+-----------------------------------------------------------------------------
+Cada run salva: metrics_ (infra: CPU/host CPU/mem/nº inst/decisão), rtt_log_
+(RTT+label+work), traffic_capture_ (por pacote, labeled -> features de fluxo),
+summaries normal/ataque (nC,nR,erros), label (ground truth) + janela de ataque.
+Regra anti-regressão de performance: NUNCA calcular feature no hot path do injetor
+— tudo em pós-processamento (como EntCusumZV3 e os plotters).
+
+ROADMAP (ordem acordada)
+------------------------
+1. RODAR esta bateria multimodal (agora).
+2. EDiSON sobre os dados coletados — SÓ infra + RTT (ainda não implementado).
+3. ML (RF/XGBoost, base P1) — com ou sem EDiSON, decidir depois.
+   Ângulo de contribuição: treinar só-fluxo x fluxo+infra e mostrar via feature
+   importance que a INFRA domina a detecção do furtivo (fecha o ponto do orientador).
+
+SE O USUÁRIO GOSTAR DO MULTIMODAL (etapa POSTERIOR, condicional)
+----------------------------------------------------------------
+Os gráficos definitivos (17, 27, 58, 60, 67, 68) e os normais/ataque de
+graficos_escolhidos.txt foram feitos com tráfego de CARGA ÚNICA. Para o documento
+ficar coerente com UM simulador só, será preciso RE-RODAR sob o modelo multimodal:
+  - o grid + heatmap de TRÁFEGO NORMAL (gráficos 11,17,20,42 / definitivos);
+  - os grids de ataque W-EDoS (56,55,27,24,48 / definitivos);
+  e REGERAR essas figuras. Tests "fora do padrão" a repetir (do arquivo):
+  17 = 256 RPS x 1 cliente e 256 RPS x 2 clientes ; 58 = S7.
+
+ESTADO ATUAL
+------------
+Bateria PARADA (resumível). Aguardando OK do usuário para retomar.
+================================================================================
