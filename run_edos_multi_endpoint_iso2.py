@@ -14,7 +14,9 @@ Para voltar ao simulador "de carga unica", basta NAO usar esta bateria (o modo
 single e o padrao do config/CLI) -- nada aqui altera o comportamento default.
 
 Grade: RPS agregado {160,320} x intensidade {1,5,10,15,20,25}% + baseline 0%,
-3 reps. = 2 x 7 x 3 = 42 runs. Timing/isolamento ISO2 identicos as outras baterias.
+3 reps. = 2 x 7 x 3 = 42 runs. Timing ISO2-B (ataque alongado p/ equilibrio de
+classe no ML): 0-300 so normal (baseline [60,300)), 300-600 ataque (5 min),
+600-780 final (3 min). Cooldown 60s entre runs (Docker esfriar). Resumivel.
 
 Uso: python3 run_edos_multi_endpoint_iso2.py [--dry-run]
 """
@@ -33,7 +35,7 @@ ENDPOINTS = [(1000, 0.40), (5000, 0.30), (10000, 0.20), (50000, 0.10)]
 INTENS = [1, 5, 10, 15, 20, 25]
 REPS = [1, 2, 3]
 
-DURACAO, ATAQUE_INICIO, ATAQUE_DURACAO = 630, 300, 150  # ISO2
+DURACAO, ATAQUE_INICIO, ATAQUE_DURACAO = 780, 300, 300  # ISO2-B: baseline 300 / ataque 300 / final 180
 COOLDOWN_S = 60
 INCLUIR_BASELINE = True
 
