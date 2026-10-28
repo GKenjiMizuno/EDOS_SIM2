@@ -1,0 +1,6 @@
+num_attackers,rps_per_worker,planned_total_rps,num_targets,total_requests,elapsed_time_s,real_rps,errors
+4,16.0,64.0,1,,,,
+,16.0,,,2377,150.002,15.846,0
+,16.0,,,2428,150.01,16.186,0
+,16.0,,,2491,150.021,16.604,0
+,16.0,,,2341,150.023,15.604,0
