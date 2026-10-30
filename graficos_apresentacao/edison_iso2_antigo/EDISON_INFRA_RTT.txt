@@ -1,0 +1,195 @@
+================================================================================
+EDiSON — DETECÇÃO W-EDoS POR FUSÃO INFRA + RTT
+Documentação completa: fonte, fórmulas, funcionamento e uso nos nossos testes
+Branch: develop_multi_endpoint_traffic        Data: 2026-10-29
+================================================================================
+
+Este documento acompanha os gráficos em graficos_apresentacao/edison_iso2_antigo/
+e os dados em experiment_results/edos_furtivo_robusto_iso2/ (bateria ISO2 antiga,
+tráfego normal de CARGA ÚNICA). O detector está implementado em edison.py e os
+painéis em plot_edison_iso2.py. Esta é a 1ª etapa do EDiSON: só infra + RTT, sobre
+os dados que JÁ temos. A etapa seguinte repete isto na bateria multi-endpoint.
+
+
+1. O QUE É E DE ONDE VEM (A FONTE)
+--------------------------------------------------------------------------------
+EDiSON é a arquitetura de detecção proposta em:
+
+   Marco Antonio Sotelo Monge, Jorge Maestre Vidal, Gregorio Martínez Pérez.
+   "Detection of economic denial of sustainability (EDoS) threats in
+    self-organizing networks."
+   Computer Communications, vol. 145 (2019), pp. 284-308. Elsevier.
+
+O paper define DUAS ameaças novas de EDoS e um detector para cada uma:
+  - W-EDoS (Workload-based): requisições caras em CPU que esgotam o workload da
+    vítima e FORÇAM o auto-scaling a subir instâncias -> custo extra. O tráfego é
+    "network-similar" (nº de clientes e de requisições parecem normais); o que
+    dispara é o WORKLOAD. É exatamente o nosso ataque.
+  - I-EDoS (Instantiation-based): força a criação de instâncias além do necessário
+    (no paper, envenenando os contadores de CPU do Ceilometer). Detectado por nº de
+    instâncias (DES) + produtividade por instância (clustering DBSCAN).
+
+AQUI implementamos SÓ o detector de W-EDoS (seções 5.2-5.3 do paper), que usa
+INFRA (CPU) + APLICAÇÃO (entropia do tempo de resposta). O I-EDoS (produtividade +
+DBSCAN) fica para depois, se fizer sentido.
+
+Resultado reportado no paper: AUC > 99% para W-EDoS no melhor caso; melhor ajuste
+com entropia de Rényi de ordem alfa=1 (= Shannon): AUC=0,955, TPR=0,911, FPR=0,04.
+
+
+2. COMO FUNCIONA — EXPLICAÇÃO SIMPLIFICADA (a ideia em 4 frases)
+--------------------------------------------------------------------------------
+(1) Observo duas coisas ao longo do tempo: quanto de CPU o sistema gasta (X_cpu) e
+    quão "desordenados" estão os tempos de resposta (X_app = entropia do RTT).
+(2) Para cada uma, PREVEJO o próximo valor a partir do comportamento normal
+    recente (média com tendência -> "Double Exponential Smoothing").
+(3) Se o valor REAL cair muito longe do previsto (fora de uma faixa de tolerância
+    que se adapta ao ruído do próprio sistema), aquela métrica está "inesperada".
+(4) Só grito "W-EDoS!" quando AS DUAS métricas estão inesperadas AO MESMO TEMPO.
+    Exigir as duas juntas é o que evita falso alarme: ruído isolado de CPU ou de
+    RTT não basta; o ataque mexe nas duas de uma vez.
+
+
+3. COMO FUNCIONA — DETALHADO (as fórmulas do paper)
+--------------------------------------------------------------------------------
+3.1 As duas métricas (seção 5.2.1)
+    X_cpu(t) : consumo de CPU ao nível do SO (infra).
+    X_app(t) : entropia de Rényi (normalizada) do tempo de resposta por requisição.
+               Mede a "desordem" da distribuição dos RTTs numa janela.
+
+    Entropia de Rényi de ordem alfa (eq. 10):
+        H_alfa(X) = 1/(1-alfa) * log( SOMA_i  P_i^alfa )
+    No limite alfa -> 1 vira a entropia de Shannon (eq. 11):
+        H(X) = - SOMA_i P_i * log(P_i)
+    Ambas são NORMALIZADAS por log(n) para caírem em [0, 1] (n = nº de faixas).
+    O paper usa a versão normalizada e conclui que alfa=1 (Shannon) é o melhor
+    ajuste -> é o que usamos.
+
+3.2 Previsão por Double Exponential Smoothing / DES (Holt) (seção 5.3)
+    Escolhido porque: assume série SEM sazonalidade, precisa de pouca série para
+    "aquecer" e é barato (descarta Holt-Winters e ARIMA). Equações recursivas:
+        Nível:     S_t = A * x_t + (1 - A) * (S_{t-1} + b_{t-1})        (eq. 14)
+        Tendência: b_t = gamma * (S_t - S_{t-1}) + (1 - gamma) * b_{t-1} (eq. 15)
+    com 0 < A, gamma < 1. A = suavização do nível (o "alfa" do SES, renomeado A no
+    paper para não confundir com o alfa de Rényi); gamma = suavização da tendência.
+    Inicialização (eq. 16): S_1 = x_1 ,  b_1 = (x_n - x_1)/(n-1).
+    Previsão m passos à frente (eq. 17/18):  X^_{t=n+m} = S_t + m * b_t.
+    (Usamos m=1: previsão de um passo à frente a cada observação.)
+
+3.3 Limiar adaptativo / intervalo de previsão - PI (seção 5.3)
+    Erro de previsão (distância ao previsto) (eq. 19):  eps_t = | x_t - X^_t |.
+    Intervalo de previsão adaptativo (eq. 20):
+        PI = X^_t  ±  eta * raiz( variância(eps_t) )
+    eta >= 0 ("K" no paper) calibra o quão restritivo é o limiar: eta grande = faixa
+    larga = menos sensível (menos falso positivo, menos detecção).
+
+3.4 Comportamento inesperado (Definição 7)
+    Uma observação x_t é "workload-based unexpected" quando CAI FORA do PI
+    (eps_t fora do intervalo), i.e. o real difere significativamente do previsto.
+    Observações inesperadas em sequência = a "duração" da possível ameaça.
+
+3.5 ALERTA W-EDoS = FUSÃO das duas métricas
+    O alerta é emitido quando, NO MESMO instante t, X_cpu E X_app estão as duas
+    inesperadas. Motivo (explícito no paper): juntar os dois sintomas FILTRA o
+    "efeito de ressalto" (rebound) do limiar adaptativo — depois de um degrau, o
+    limiar leva um tempo para se recalibrar e emitiria falsos positivos em réplica.
+    Como CPU e RTT não têm relação garantida, cada um sozinho gera outliers
+    suspeitos; exigir os dois juntos separa o W-EDoS real do ruído.
+
+
+4. COMO É USADO NOS NOSSOS TESTES (implementação em edison.py)
+--------------------------------------------------------------------------------
+4.1 Fonte dos dados (tudo offline, zero custo no simulador — como o EntCusumZV3):
+    X_cpu  <- coluna average_cpu_percent de metrics_<run>.csv (CPU média por
+             instância, amostrada a cada MONITOR_INTERVAL = 5 s).
+    X_app  <- entropia de Rényi (alfa=1, Shannon, normalizada) dos RTTs de
+             rtt_log_<run>.csv, calculada numa janela deslizante de 20 s terminando
+             em cada ponto da grade. Faixas do histograma = 10, log-espaçadas no
+             baseline (mesma máquina de histograma do EntCusumZV3 -> consistência).
+
+4.2 Grade comum e "aquecimento":
+    As duas séries são postas numa grade de 5 s (= intervalo do monitor). O DES é
+    inicializado (nível S, tendência b e desvio do erro sigma) SÓ com a janela de
+    baseline pré-ataque t em [60, 300) — assim não "espia o futuro" nem se contamina
+    com o ataque. O sigma do erro (largura da faixa) é estimado nesse baseline e
+    mantido fixo (filosofia do EntCusumZV3: limiar ancorado no baseline do próprio
+    run, que varia muito entre cenários de RPS/WU).
+
+4.3 Direção do "inesperado":
+    X_cpu: só conta como sintoma quando o real fica ACIMA da faixa (CPU abusiva —
+           o lado relevante para W-EDoS).
+    X_app: conta dos DOIS lados (a entropia do RTT pode SUBIR, quando os tempos se
+           espalham, ou CAIR, quando se concentram no endpoint pesado) — fiel ao
+           paper, que mostra os dois sentidos (Fig. 8).
+
+4.4 Parâmetros usados e justificativa:
+    alfa (Rényi) = 1  -> Shannon; melhor AUC no paper.
+    A (nível)    = 0,3
+    gamma (tend.)= 0,05  -> baixo de propósito: evita que a tendência "persiga" o
+                           degrau do ataque e o esconda (visto nos primeiros testes
+                           com gamma alto).
+    eta (= K)    = 2,5  -> CALIBRADO nos nossos dados (ver 4.5).
+    janela entropia = 20 s ; grade/passo = 5 s.
+
+4.5 Calibração do eta (varredura nos 195 runs ISO2 antigos):
+    baselines = 9 runs (atk0pct) ; ataques = 186 runs. Alerta fundido no ataque = TP.
+        eta=2,0 -> 16 FP (em 7/9 baselines) | 125/186 ataques pegos (67%)
+        eta=2,5 -> 11 FP (em 5/9 baselines) | 111/186 ataques pegos (60%)   <== usado
+        eta=3,0 ->  7 FP (em 3/9 baselines) |  98/186 ataques pegos (53%)
+    gamma (0,02 vs 0,05) quase não muda o resultado. eta=2,5 é o equilíbrio adotado.
+    (Alguns "FP" de baseline são, na verdade, o tráfego normal pesado escalando
+    sozinho — evento real, não erro do método; é a mesma zona de penhasco de 60%
+    já documentada.)
+
+4.6 Diferenças em relação ao testbed do paper (para honestidade metodológica):
+    - Auto-scaling: nosso gatilho é CPU>60% (sobe) / <25% (desce), 1..N instâncias;
+      o deles é 80%/40%, cluster 2..12, OpenStack Senlin/Heat/Ceilometer.
+    - CPU: nossa X_cpu é a CPU MÉDIA POR INSTÂNCIA; quando a frota escala, a carga
+      se dilui e a CPU por instância CAI — por isso o sinal de CPU do ataque é um
+      PICO no início (antes/na hora de escalar), não um platô alto.
+    - Dados: aqui rodamos sobre a bateria de CARGA ÚNICA (um WU normal por run);
+      a versão multi-endpoint (mistura de cargas, mais fiel ao paper) vem depois.
+    - I-EDoS (produtividade + DBSCAN) não implementado — fora do escopo infra+RTT.
+
+
+5. COMO LER OS GRÁFICOS (um par por run, em subpasta própria)
+--------------------------------------------------------------------------------
+Cada run tem uma pasta com DOIS PNGs:
+  edos_<run>.png    : o painel de sempre (CPU+instâncias | RTT/s com os vereditos
+                      CUSUM / Z / Entropia JS / Combinado sobre o RTT). Representa o
+                      EDoS e o que os detectores de RTT SOZINHOS enxergam.
+  edison_<run>.png  : o painel EDiSON, em 3 faixas:
+     (a) X_cpu observado (linha escura) vs. previsão DES (tracejado) + faixa do PI
+         adaptativo (sombreado); pontos vermelhos = CPU inesperada (acima da faixa).
+     (b) X_app = entropia Rényi do RTT: observado vs. previsão DES + PI; pontos
+         vermelhos = entropia inesperada (qualquer lado).
+     (c) faixa de sintomas e FUSÃO: Symp(X_cpu), Symp(X_app) e ALERTA EDiSON (roxo).
+         O alerta só acende onde AS DUAS acendem no mesmo t. À direita, a contagem
+         "x/30 no ataque". Linhas tracejadas verticais = início/fim do ataque.
+
+Exemplo-vitrine (agg320_nwu10000_atk15pct_awu100000_rep2): a frota escala para ~2,9
+instâncias (DANO real), o detector de RTT SOZINHO fica CEGO (combinado 0/14), mas o
+EDiSON ALERTA no início do ataque (fusão 3/30) e NÃO dá falso positivo no fim —
+quando a entropia volta a desviar sozinha, sem CPU junto, a fusão corretamente se
+cala. É o argumento central: a INFRA recupera a detecção que o RTT sozinho perde.
+
+
+6. LIMITAÇÕES / RESSALVAS HONESTAS
+--------------------------------------------------------------------------------
+- O DES adapta-se a degraus sustentados: o ataque é mais "inesperado" no INÍCIO
+  (cluster de alertas no onset), depois o previsto alcança o novo nível. Isso é
+  esperado e condiz com o paper (a persistência de inesperados marca a duração).
+- CPU média por instância dilui o sinal após escalar (ver 4.6): parte do poder vem
+  mais da entropia do RTT do que da CPU em alguns runs.
+- eta=2,5 pega ~60% dos ataques no onset — melhor que o RTT sozinho em muitos casos
+  furtivos, mas longe de 100%. Isso MOTIVA a etapa de ML (fundir mais sinais).
+- Os "FP" de baseline incluem escalonamento legítimo do tráfego normal pesado.
+
+
+7. COMO REPRODUZIR
+--------------------------------------------------------------------------------
+    python3 plot_edison_iso2.py --run agg320_nwu10000_atk15pct_awu100000_rep2  # um run
+    python3 plot_edison_iso2.py --all                                          # todos
+Saída: graficos_apresentacao/edison_iso2_antigo/<run>/{edos_,edison_}<run>.png
+Detector: edison.py (detectar(), des_forecast(), entropia_renyi_norm()).
+================================================================================

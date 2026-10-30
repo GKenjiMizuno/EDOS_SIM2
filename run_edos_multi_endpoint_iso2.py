@@ -29,7 +29,7 @@ import run_scaling_affected_rerun as base
 
 RESULTS_DIR = "experiment_results/edos_multi_endpoint_iso2"
 CLIENTES, ATACANTES = 4, 4
-RPS_LIST = [160, 320]
+RPS_LIST = [160, 240, 320]
 # Menu de endpoints (carga, peso). Numero e cargas livres -- editar aqui.
 ENDPOINTS = [(1000, 0.40), (5000, 0.30), (10000, 0.20), (50000, 0.10)]
 INTENS = [1, 5, 10, 15, 20, 25]
