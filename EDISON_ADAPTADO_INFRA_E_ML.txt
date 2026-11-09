@@ -1,0 +1,182 @@
+================================================================================
+ANALISADOR DE INFRAESTRUTURA INSPIRADO NO EDiSON — ADAPTAÇÃO AO TCC
+Descoberta, estrutura adaptada e papel na detecção (baseline p/ ML)
+Registro de 2026-11-09 (branch develop_multi_endpoint_traffic)
+================================================================================
+
+Documento de trabalho. Guarda (1) como o EDiSON do Sotelo Monge foi destrinchado
+e adaptado, (2) a DESCOBERTA sobre o papel correto da infra na detecção, e (3) os
+números já medidos nos dados multi-endpoint, para servir de base aos GRÁFICOS
+(ainda a fazer) e à etapa de ML. Complementa:
+  - graficos_apresentacao/edison_iso2_antigo/EDISON_INFRA_RTT.txt  (EDiSON original detalhado)
+  - memória: plano-multimodal-ml, infra-deteccao-fusao-plano, wedos-furtivo-ideal
+
+Fonte do EDiSON: Sotelo Monge, Maestre Vidal, Martínez Pérez (2019),
+"Traffic-flow analysis for source-side DDoS recognition on 5G environments",
+Computer Communications 145:284-308 (modelo EDiSON: C-EDoS / I-EDoS / W-EDoS).
+
+
+--------------------------------------------------------------------------------
+1. O EDiSON É CONFUSO PORQUE EMPACOTA 5 COISAS. O QUE MANTER / SIMPLIFICAR / CORTAR
+--------------------------------------------------------------------------------
+Parte do EDiSON                         | Decisão p/ o TCC
+----------------------------------------|---------------------------------------
+X_cpu (indicador de infra = CPU)        | MANTER — é o coração
+I-EDoS (DES de instâncias + DBSCAN de   | ABSORVER no X_infra; DBSCAN FORA
+  "produtividade")                      |
+Suavização Exponencial Dupla (Holt,     | DEGENERAR — no baseline a CPU é
+  nível+tendência, eq.14-18)            |   estacionária (tendência≈0), então a
+                                        |   previsão vira "a média do baseline"
+Intervalo de predição PI = X̂ ± η·σ      | MANTER como limiar SUPERIOR μ+η·σ
+  (eq.19-20)                            |   (= mesmo esquema baseline-relativo
+                                        |    dos detectores de RTT já existentes)
+X_app (entropia de Rényi do RTT)        | DESCARTAR — já há CUSUM/Z/Entropia/
+                                        |   Combinado (EntCusumZV3), mais simples
+Def.7 (fusão = AND dos dois indicadores)| NÃO usar como oráculo final (ver §3)
+
+
+--------------------------------------------------------------------------------
+2. ESTRUTURA ADAPTADA (SIMPLES E REPRODUTÍVEL)
+--------------------------------------------------------------------------------
+2.1 Indicador único de infra
+    X_infra(t) = n_instancias(t) × CPU_media_por_instancia(t)
+    = CARGA COMPUTACIONAL AGREGADA DA FROTA.
+    Um único número captura as DUAS formas do dano: a CPU subindo ANTES de escalar
+    E a frota crescendo DEPOIS de escalar (o custo econômico em si). Substitui,
+    sozinho, o X_cpu + o I-EDoS + o DBSCAN do EDiSON.
+    (Dado disponível direto no metrics_*.csv: num_instances × average_cpu_percent.)
+
+2.2 Faixa de normalidade (DES degenerado + PI)
+    Na janela de baseline t∈[60,300): calcular μ e σ de X_infra.
+      anomalia de infra  <=>  X_infra(t) > μ + η·σ   (sustentada por ≥2 amostras)
+    η = 3 (calibrado — ver §4). Só limite SUPERIOR (ataque só aumenta consumo).
+    É literalmente o mesmo esquema baseline-relativo dos detectores de RTT, aplicado
+    à CPU da frota — nada novo para explicar ou reproduzir.
+    OPCIONAL (mais fiel ao artigo): Holt explícito ajustado no baseline e congelado;
+    resultado praticamente igual porque a tendência do baseline é ~0.
+
+2.3 Camada opcional de EFICIÊNCIA (equivalente simplificado da "produtividade"
+    do I-EDoS, sem DBSCAN) — só se quiser distinguir ATAQUE de CARGA LEGÍTIMA:
+      eficiencia = vazao_util (req/s) ÷ CPU_agregada_consumida
+    Cai no W-EDoS (CPU sobe sem vazão proporcional); NÃO cai num pico de carga
+    legítimo. Exige medir vazão por janela (derivável do rtt_log/traffic_capture).
+    AINDA NÃO VALIDADA — ver §5 (pendências).
+
+
+--------------------------------------------------------------------------------
+3. A DESCOBERTA (o ponto central): O PAPEL CORRETO DA INFRA
+--------------------------------------------------------------------------------
+Tentação inicial (ERRADA): usar infra + estatístico como DETECTOR final (árvore/
+2×2) que "faz o furtivo ser detectável". Isso MINA a tese — se a fusão simples já
+pega o furtivo, pra que ML?
+
+Correção (validada): "a infra pega 90-98% do furtivo" é RECALL, não detector.
+RECALL ALTO ≠ PRECISÃO. No mundo real a CPU da frota sobe por mil causas que NÃO
+são ataque: mudança de perfil de consumo da aplicação, gargalo de rede, GC/noisy
+neighbor, instabilidade do servidor, deploy, pico de carga legítimo. Logo a infra
+é INESPECÍFICA e NÃO crava ataque sozinha.
+
+Papéis corretos (cada peça tem uma força e uma fraqueza):
+  Estatístico (RTT) : ESPECÍFICO, mas CEGO ao furtivo (0-7% de detecção).
+  Infra (EDiSON adap.): vê o DANO (recall alto), mas INESPECÍFICO (dispara benigno).
+  Fusão clássica (AND): alta confiança quando concordam, mas detecta ~0% do furtivo.
+  ML                : combina flow+infra num padrão multivariado → a RESPOSTA.
+
+Consequência para a fusão "AND" (Def.7 do EDiSON / ideia original do usuário de
+"só cravar quando os dois dispararem"):
+  - CORRETA para EDoS VOLUMÉTRICO/clássico (os dois disparam).
+  - FATAL para o furtivo: como o ataque mantém o RTT normal DE PROPÓSITO, exigir
+    que o estatístico também dispare zera a detecção do furtivo.
+  => O AND não é um erro de desenho: é o BASELINE QUE FALHA, e essa falha é o que
+     JUSTIFICA a ML. O W-EDoS cai no ponto cego da detecção clássica:
+       (a) não dá nada pro estatístico corroborar, E
+       (b) só move a infra, que é ambígua demais pra cravar sozinha.
+
+Confirmações do raciocínio do usuário (todas corretas):
+  - "Infra pode disparar por consumo da app / rede / instabilidade, não ataque" → inespecificidade.
+  - "Por isso tem os métodos, pra dar respaldo" → sim, na detecção CLÁSSICA; o furtivo nega esse respaldo.
+  - "O EDoS é pra ser furtivo mesmo, por isso vem a ML" → exato; a ML é a pergunta de pesquisa.
+
+PAPEL FINAL do analisador de infra no trabalho (NÃO é oráculo):
+  1. EVIDÊNCIA DO DANO — prova que o ataque força escalonamento real (custo
+     econômico) mesmo sem o RTT acusar.
+  2. BASELINES QUE FALHAM — infra-só, RTT-só e AND são os baselines contra os
+     quais a ML será comparada (devem falhar no furtivo).
+  3. FEATURES PARA A ML — X_infra, Δ vs baseline, z-score, nº instâncias, escalou?,
+     + estatísticas de fluxo/RTT = vetor de entrada do modelo.
+
+
+--------------------------------------------------------------------------------
+4. NÚMEROS JÁ MEDIDOS (base para os GRÁFICOS — bateria definitiva multi-endpoint)
+--------------------------------------------------------------------------------
+Dados: experiment_results/edos_multi_endpoint_iso2/ (combinado: normal+ataque),
+timing ISO2-B (780s, ataque 300-600), mistura {1000:40% 5000:30% 10000:20%
+50000:10%}, ataque só no endpoint WU=50000. Sinal de infra = CPU agregada da frota;
+baseline [60,300); limiar μ+3σ sustentado. RTT = detector Combinado (EntCusumZV3).
+Mediana de 5 reps. INFRA% = % das janelas do ataque acima do limiar; RTTcomb% =
+% das janelas do ataque com alarme combinado.
+
+(a) DETECÇÃO no ATAQUE — a infra vê o que o RTT não vê:
+ rps  int% | ΔCPUagg | INFRA% | RTTcomb% | quadrante
+ 160    1  |    +5   |    3   |    0     | normal
+ 160    5  |   +21   |   38   |    0     | (sobe, pré-dano)
+ 160   10  |   +40   |   95   |    7     | W-EDoS FURTIVO
+ 160   15  |   +58   |   98   |   69     | EDoS clássico (RTT já acusa)
+ 160   20  |   +79   |   98   |  100     | EDoS clássico
+ 160   25  |  +104   |   95   |   59     | EDoS clássico
+ 240    1  |    +4   |    3   |    0     | normal
+ 240    5  |   +22   |   15   |    0     | normal
+ 240   10  |   +45   |   90   |    0     | W-EDoS FURTIVO   <= caso central
+ 240   15  |   +69   |   98   |    0     | W-EDoS FURTIVO
+ 240   20  |   +98   |   98   |    7     | W-EDoS FURTIVO
+ 240   25  |  +128   |   98   |    7     | W-EDoS FURTIVO
+ 320    1  |    +8   |    2   |    0     | normal
+ 320    5  |   +24   |    0   |    0     | normal
+ 320   10  |   +48   |   15   |    0     | normal (baseline já perto de 60%)
+ 320   15  |   +74   |   98   |    3     | W-EDoS FURTIVO
+ 320   20  |  +101   |   97   |    3     | W-EDoS FURTIVO
+ 320   25  |  +125   |   98   |    7     | W-EDoS FURTIVO
+
+(b) FALSO-POSITIVO da infra em runs SÓ-NORMAL (atk0pct, sem ataque):
+ rps (120..320) | FP_infra 0-2% | FP_RTT 0%
+ => com o baseline-relativo (μ+3σ sustentado) a infra NÃO fica trigger-happy no
+    normal estável. A inespecificidade do §3 é um problema de CENÁRIO REAL (carga
+    legítima variável), não do tráfego normal estável do testbed.
+
+Interpretação p/ gráficos: no caso central (240 rps, 10-25%) INFRA 90-98% vs RTT
+0-7% = o quadrante "infra sim / RTT não" = assinatura do W-EDoS furtivo. ΔCPUagg
+de +45% a +128% = sinal enorme e fácil, enquanto o RTT mal se move.
+
+
+--------------------------------------------------------------------------------
+5. PENDÊNCIAS (próximos passos)
+--------------------------------------------------------------------------------
+GRÁFICOS a fazer (a partir dos números do §4):
+  - Painel por run: CPU agregada da frota + faixa de normalidade (μ+3σ) + tiras de
+    veredito, estilo dos painéis EDoS (CPU+instâncias | RTT+detectores).
+  - Heatmap RPS×intensidade colorido pelos 4 quadrantes (normal / FP-RTT /
+    EDoS-clássico / W-EDoS-furtivo), mediana de 5 reps.
+  - Tabela/figura de BASELINES que falham: infra-só, RTT-só, AND vs furtivo.
+
+CÓDIGO:
+  - infra_analyzer.py: baseline_stats, detecta_infra (μ+η·σ sustentado), extrai
+    features de infra por janela, alinhadas com as de fluxo/RTT. (Substitui
+    edison.py/plot_edison_iso2.py antigos, que ficam como referência.)
+  - Montar o DATASET da ML: por janela, flow (traffic_capture) + RTT (rtt_log) +
+    infra (metrics), com label ground-truth (benign/attack). Tudo offline.
+
+VALIDAÇÃO pendente (camada de eficiência, §2.3):
+  - Testar o discriminador de eficiência usando a bateria B (runs SÓ-NORMAL em
+    640/1280 rps que ESCALAM de verdade = "carga legítima que aciona a infra")
+    contra os runs de ataque. Se a eficiência ficar ALTA no legítimo e CAIR no
+    ataque, a separação ataque×carga-legítima fecha com prova.
+
+ML (etapa seguinte do roadmap):
+  - RF / XGBoost (artigo-base P1: "An Improved Method for Detecting EDoS Attacks…
+    Hyperparameter Optimization and Metaheuristic Algorithms"); secundário P5
+    (seleção por Mutual Information).
+  - Pergunta de pesquisa: um modelo aprende o padrão sutil que nenhum detector
+    isolado nem o AND consegue (pegar o furtivo SEM estourar falso-positivo)?
+  - Contribuição: SÓ-FLUXO × FLUXO+INFRA — mostrar via feature importance que a
+    infra domina a detecção do furtivo (e que o fluxo sozinho não basta).
+================================================================================

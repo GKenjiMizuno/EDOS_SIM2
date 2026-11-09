@@ -33,9 +33,10 @@ from EntCusumZV3 import (ENTROPIA_BINS_RECOMENDADO, ENTROPIA_JS_RECOMENDADO, Z_F
 D = "experiment_results/edos_multi_endpoint_iso2"
 OUT_DIR = "graficos_apresentacao/edos_multi_endpoint_iso2"
 os.makedirs(OUT_DIR, exist_ok=True)
-RPS_LIST = [160, 240, 320]
+RPS_LIST = [160, 240, 320]                       # RPS com grid de ataque (heatmap)
+RPS_BASELINE = [120, 160, 200, 240, 280, 320]    # RPS com baseline (curva de capacidade)
 INTENS = [1, 5, 10, 15, 20, 25]
-REPS = [1, 2, 3]
+REPS = [1, 2, 3, 4, 5]
 MENU = [(1000, 0.40), (5000, 0.30), (10000, 0.20), (50000, 0.10)]
 ATAQUE_WU = max(c for c, _ in MENU)       # ataque só no maior endpoint
 WU_N_EFETIVO = int(round(sum(c * p for c, p in MENU)))
@@ -289,13 +290,13 @@ def heatmap(df, col, nome_det, arquivo):
                 ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
                                            edgecolor="#f59e0b", lw=1.5, ls="--", zorder=5))
     cax = fig.add_axes([0.875, 0.25, 0.018, 0.5])
-    fig.colorbar(im, cax=cax, label="% das janelas do ataque com alarme (mediana 3 reps)")
+    fig.colorbar(im, cax=cax, label="% das janelas do ataque com alarme (mediana 5 reps)")
     fig.legend(handles=[Patch(fc="none", ec=ATK, lw=2.5, label="frota↑ e 0 alarmes  (FURTIVO + DANOSO)"),
                         Patch(fc="none", ec="#f59e0b", lw=1.5, ls="--", label="danoso (com algum alarme)")],
                loc="lower center", ncol=2, fontsize=9, frameon=False, bbox_to_anchor=(0.5, 0.005))
     fig.suptitle(f"Detecção do EDoS multi-endpoint (ISO2-B) — {nome_det}\n"
                  f"tráfego normal = mix {MENU_STR} · ataque só no endpoint WU={ATAQUE_WU:,} · "
-                 "baseline estável [60,300) · mediana de 3 reps · moldura = dano sustentado (Δinst ≥ 0,5)".replace(",", "."),
+                 "baseline estável [60,300) · mediana de 5 reps · moldura = dano sustentado (Δinst ≥ 0,5)".replace(",", "."),
                  fontsize=11)
     out = f"{OUT_DIR}/{arquivo}"
     fig.savefig(out, dpi=150)
@@ -310,7 +311,7 @@ def agrega(df):
     g = df.groupby(["rps", "pct"]).agg(
         comb=("comb", "median"), cusum=("cusum", "median"), z=("z", "median"), ent=("ent", "median"),
         n_jan=("n_jan", "median"), inst_atk=("inst_atk", "median"),
-        escalou_maioria=("escalou_atk", lambda s: int(s.sum()) >= 2),
+        escalou_maioria=("escalou_atk", lambda s: int(s.sum()) >= 3),
     ).reset_index()
     base_inst = g[g.pct == 0].set_index("rps").inst_atk
     g["base_inst"] = g.rps.map(base_inst)
@@ -319,15 +320,72 @@ def agrega(df):
     return g
 
 
+def curva_capacidade():
+    """Curva de capacidade do baseline da mistura: CPU média por instância e nº de
+    instâncias no pré-ataque [60,300) vs RPS agregado (média ± desvio das 5 reps).
+    É o que justifica a escolha do 240 (último RPS estável abaixo do penhasco de 60%)."""
+    linhas = []
+    for rps in RPS_BASELINE:
+        cpus, insts = [], []
+        for rep in REPS:
+            carga = carrega(suf_de(rps, 0, rep))
+            if carga is None:
+                continue
+            m, _ = carga
+            w = m[(m.elapsed_time_s >= BASE_INI) & (m.elapsed_time_s < BASE_FIM)]
+            if len(w):
+                cpus.append(w.average_cpu_percent.mean())
+                insts.append(w.num_instances.mean())
+        if cpus:
+            linhas.append(dict(rps=rps, cpu_med=np.mean(cpus), cpu_sd=np.std(cpus),
+                               inst_med=np.mean(insts), inst_sd=np.std(insts), n=len(cpus)))
+    d = pd.DataFrame(linhas)
+    d.to_csv(f"{OUT_DIR}/curva_capacidade_baseline.csv", index=False)
+
+    fig, ax = plt.subplots(figsize=(8.5, 5))
+    fig.subplots_adjust(left=0.1, right=0.88, top=0.88, bottom=0.13)
+    ax2 = ax.twinx()
+    ax.errorbar(d.rps, d.cpu_med, yerr=d.cpu_sd, color="#7a3fd6", lw=2, marker="o",
+                capsize=4, zorder=3, label="CPU média/instância")
+    ax2.errorbar(d.rps, d.inst_med, yerr=d.inst_sd, color=INST, lw=1.6, ls="--", marker="s",
+                 capsize=3, zorder=3, label="nº de instâncias")
+    ax.axhline(60, color=ATK, ls=":", lw=1.1)
+    ax.text(d.rps.min(), 61.5, "scale up (60%)", fontsize=8.5, color=ATK)
+    ax.axvline(240, color="#1baf7a", lw=1.2, ls="-", alpha=0.5)
+    ax.text(240, 5, " RPS escolhido (240)", fontsize=8.5, color="#0f766e")
+    ax.set_xlabel("RPS agregado do tráfego normal (mistura de endpoints)")
+    ax.set_ylabel("CPU média por instância (%)", color="#7a3fd6")
+    ax2.set_ylabel("Nº médio de instâncias", color=INST)
+    ax.tick_params(axis="y", colors="#7a3fd6")
+    ax2.tick_params(axis="y", colors=INST)
+    ax.set_ylim(0, max(80, d.cpu_med.max() + d.cpu_sd.max() + 8))
+    ax2.set_ylim(0.8, max(2.5, d.inst_med.max() + 0.5))
+    ax.set_xticks(RPS_BASELINE)
+    ax.grid(True, alpha=0.2)
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, l1 + l2, loc="upper left", fontsize=9, framealpha=0.9)
+    fig.suptitle(f"Curva de capacidade do baseline — mistura {MENU_STR}\n"
+                 "pré-ataque t∈[60,300) · média ± desvio de 5 reps", fontsize=11)
+    out = f"{OUT_DIR}/curva_capacidade_baseline.png"
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print("Salvo:", out)
+    return d
+
+
 if __name__ == "__main__":
     heatmap_only = "--heatmap-only" in sys.argv
     rows = []
-    for rps in RPS_LIST:
+    # Baselines em TODOS os RPS (p/ curva de capacidade); ataque só nos RPS do grid.
+    for rps in RPS_BASELINE:
         for rep in REPS:
             r0 = coleta(rps, 0, rep) if heatmap_only else painel(rps, 0, rep)
             if r0:
                 rows.append({k: r0[k] for k in ("rps", "pct", "rep", "escalou_atk",
                                                 "inst_atk", "n_jan", "cusum", "z", "ent", "comb")})
+    for rps in RPS_LIST:
+        for rep in REPS:
             for pct in INTENS:
                 rr = coleta(rps, pct, rep) if heatmap_only else painel(rps, pct, rep)
                 if rr:
@@ -341,3 +399,4 @@ if __name__ == "__main__":
     print(f"\nPainéis: {n_pain} | células agregadas: {len(g)} | reps por célula: {sorted(df.rep.unique())}")
     heatmap(g, "comb", "Combinado (média + Z/CUSUM)", "heatmap_multi_iso2_combinado.png")
     heatmap(g, "cusum", "CUSUM 1000σ com reset", "heatmap_multi_iso2_cusum.png")
+    curva_capacidade()
