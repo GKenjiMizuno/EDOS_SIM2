@@ -151,11 +151,21 @@ de +45% a +128% = sinal enorme e fácil, enquanto o RTT mal se move.
 --------------------------------------------------------------------------------
 5. PENDÊNCIAS (próximos passos)
 --------------------------------------------------------------------------------
-GRÁFICOS a fazer (a partir dos números do §4):
-  - Painel por run: CPU agregada da frota + faixa de normalidade (μ+3σ) + tiras de
-    veredito, estilo dos painéis EDoS (CPU+instâncias | RTT+detectores).
-  - Heatmap RPS×intensidade colorido pelos 4 quadrantes (normal / FP-RTT /
-    EDoS-clássico / W-EDoS-furtivo), mediana de 5 reps.
+GRÁFICOS:
+  [FEITO 2026-11-13] Painel por run (EDiSON infra + estatístico RTT + fusão 2×2),
+    estilo dos painéis EDoS. Script: plot_fusao_edison_stats.py. 120 painéis em
+    graficos_apresentacao/fusao_edison_estatistico/. Layout: (a) X_infra=nº inst×
+    CPU/inst + faixa μ+3σ + zona de anomalia + instâncias; (b) RTT médio/s log +
+    portão 1,8×; (c) tiras INFRA/CUSUM/Z/Entropia/Combinado-RTT/AND/FUSÃO.
+    Tira AND (EDiSON ∧ Combinado-RTT) incluída: fica SILENCIOSA no furtivo (agg320/
+    25% = 1/29) = prova visual de que o AND FALHA no furtivo. FUSÃO 2×2 é
+    DIAGNÓSTICO, não oráculo: quadrante roxo renomeado p/ "infra-só — AND falha
+    (furtivo OU carga legítima)" = ponto cego do AND, inespecífico → motiva ML.
+    Validado: baseline 0/48 FP (verde); agg320/25% = infra-só/AND-falha (infra 29/29,
+    Combinado-RTT 1/29, AND 1/29, roxo); agg160/20% = EDoS CLÁSSICO (ambos disparam,
+    AND dispara, vermelho — baseline baixa do agg160 faz o ataque cruzar o 1,8×).
+  A fazer ainda:
+  - Heatmap RPS×intensidade colorido pelos 4 quadrantes, mediana de 5 reps.
   - Tabela/figura de BASELINES que falham: infra-só, RTT-só, AND vs furtivo.
 
 CÓDIGO:
